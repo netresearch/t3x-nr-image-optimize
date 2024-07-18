@@ -11,8 +11,8 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize;
 
-use Intervention\Image\Drivers\Imagick\Driver;
 use GuzzleHttp\Psr7\Query;
+use Intervention\Image\Drivers\Imagick\Driver;
 use Intervention\Image\ImageManager;
 use Intervention\Image\Interfaces\ImageInterface;
 use TYPO3\CMS\Core\Utility\HttpUtility;
@@ -107,9 +107,9 @@ class Processor
     private function optimizeImage(): void
     {
         $command = match ($this->extension) {
-            'jpg' => sprintf(self::CMD_OPTIMIZE_JPG, $this->pathOriginal),
-            'png' => sprintf(self::CMD_OPTIMIZE_PNG, $this->pathOriginal),
-            'gif' => sprintf(self::CMD_OPTIMIZE_GIF, $this->pathOriginal),
+            'jpg'   => sprintf(self::CMD_OPTIMIZE_JPG, $this->pathOriginal),
+            'png'   => sprintf(self::CMD_OPTIMIZE_PNG, $this->pathOriginal),
+            'gif'   => sprintf(self::CMD_OPTIMIZE_GIF, $this->pathOriginal),
             default => null,
         };
 
