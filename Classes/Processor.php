@@ -11,73 +11,40 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize;
 
+use Intervention\Image\Drivers\Imagick\Driver;
 use GuzzleHttp\Psr7\Query;
-use Intervention\Image\Image;
 use Intervention\Image\ImageManager;
+use Intervention\Image\Interfaces\ImageInterface;
 use TYPO3\CMS\Core\Utility\HttpUtility;
 
 class Processor
 {
-    /**
-     * @var string Url of the requested variant
-     */
-    private $variantUrl;
+    private readonly string $variantUrl;
 
-    /**
-     * @var ImageManager
-     */
-    private $imageManager;
+    private readonly ImageManager $imageManager;
 
-    /**
-     * @var Image
-     */
-    private $image;
+    private ImageInterface $image;
 
-    /**
-     * @var ?integer
-     */
-    private $targetWidth;
+    private ?int $targetWidth = null;
 
-    /**
-     * @var ?integer
-     */
-    private $targetHeight;
+    private ?int $targetHeight = null;
 
-    /**
-     * @var int
-     */
-    private $targetQuality = 80;
+    private int $targetQuality = 80;
 
-    /**
-     * @var string
-     */
-    private $pathOriginal;
+    private string $pathOriginal;
 
-    /**
-     * @var string
-     */
-    private $pathVariant;
+    private string $pathVariant;
 
-    /**
-     * @var string
-     */
-    private $extension;
+    private string $extension;
 
-    /**
-     * @var string
-     */
-    private $query;
+    private string $query = '';
 
-    /**
-     * Constants for the shell command executed.
-     */
     private const CMD_OPTIMIZE_JPG = '/usr/bin/jpegoptim --strip-all %s';
+
     private const CMD_OPTIMIZE_PNG = '/usr/bin/optipng -o2 %s';
+
     private const CMD_OPTIMIZE_GIF = '/usr/bin/gifsicle --batch -O2 %s';
 
-    /**
-     * @param string $variantUrl
-     */
     public function __construct(string $variantUrl)
     {
         $parsed = parse_url($variantUrl);
@@ -86,15 +53,10 @@ class Processor
         $this->query      = $parsed['query'] ?? null;
 
         $this->imageManager = new ImageManager(
-            new \Intervention\Image\Drivers\Imagick\Driver()
+            new Driver()
         );
     }
 
-    /**
-     * Validates if the url is really a valid url.
-     *
-     * @return bool
-     */
     private function validateUrl(): bool
     {
         $protocol = ($_SERVER['HTTPS'] == 'on') ? 'https://' : 'http://';
@@ -103,11 +65,6 @@ class Processor
         return (bool) filter_var($protocol . $domain . $this->variantUrl, FILTER_VALIDATE_URL);
     }
 
-    /**
-     * Gather al information which depending on the variant url.
-     *
-     * @return void
-     */
     private function gatherInformationBasedOnUrl(): void
     {
         $information = [];
@@ -127,93 +84,60 @@ class Processor
         $this->targetQuality = $this->getValueFromMode('q', $information[2]) ?? 100;
     }
 
-    /**
-     * Parse the mode string and return the requested value.
-     *
-     * @param string $what Eg. w,h,q (width, height, quality)
-     * @param string $mode mode string e.g. 16h9w30q
-     *
-     * @return int|null
-     */
     private function getValueFromMode(string $what, string $mode): ?int
     {
-        if (empty($mode)) {
+        if ($mode === '') {
             return null;
         }
 
         $modeMatch = [];
 
-        if (preg_match_all('/([0-9]+)([hwq]{1})/', $mode, $modeMatch)) {
-            $key = array_search($what, $modeMatch[2]);
+        if (preg_match_all('/(\d+)([hwq]{1})/', $mode, $modeMatch)) {
+            $key = array_search($what, $modeMatch[2], true);
             if ($key === false) {
                 return null;
             }
 
-            return $modeMatch[1][$key];
+            return (int) $modeMatch[1][$key];
         }
 
         return null;
     }
 
-    /**
-     * Optimize the source image depending on its format.
-     *
-     * @return void
-     */
     private function optimizeImage(): void
     {
-        switch ($this->extension) {
-            case 'jpg':
-                $command = sprintf(self::CMD_OPTIMIZE_JPG, $this->pathOriginal);
-                break;
-            case 'png':
-                $command = sprintf(self::CMD_OPTIMIZE_PNG, $this->pathOriginal);
-                break;
-            case 'gif':
-                $command = sprintf(self::CMD_OPTIMIZE_GIF, $this->pathOriginal);
-                break;
-            default:
-                $command = null;
-        }
+        $command = match ($this->extension) {
+            'jpg' => sprintf(self::CMD_OPTIMIZE_JPG, $this->pathOriginal),
+            'png' => sprintf(self::CMD_OPTIMIZE_PNG, $this->pathOriginal),
+            'gif' => sprintf(self::CMD_OPTIMIZE_GIF, $this->pathOriginal),
+            default => null,
+        };
 
-        if (!$command) {
+        if ($command === null) {
             return;
         }
 
         shell_exec($command);
     }
 
-    /**
-     * Load the original image.
-     */
-    private function loadOriginal()
+    private function loadOriginal(): void
     {
         $this->image = $this->imageManager->read($this->pathOriginal);
     }
 
-    /**
-     * Calculates the missing dimension value for the target image.
-     *
-     * @return void
-     */
-    private function calculateTargetDimensions()
+    private function calculateTargetDimensions(): void
     {
         $aspectRatio = $this->image->width() / $this->image->height();
 
-        if (empty($this->targetHeight)) {
+        if ($this->targetHeight == null) {
             $this->targetHeight = $this->targetWidth / $aspectRatio;
         }
 
-        if (empty($this->targetWidth)) {
+        if ($this->targetWidth == null) {
             $this->targetWidth = $this->targetHeight * $aspectRatio;
         }
     }
 
-    /**
-     * Returns true if the source image is already a webp image.
-     *
-     * @return bool
-     */
     private function isWebpImage(): bool
     {
         return $this->extension === 'webp';
@@ -221,31 +145,21 @@ class Processor
 
     private function skipWebPCreation(): bool
     {
-        if ($this->query === null) {
+        if ($this->query === '') {
             return false;
         }
 
         $query = Query::parse($this->query);
 
-        return isset($query['skipWebP']) && (bool) $query['skipWebP'] === true;
+        return isset($query['skipWebP']) && (bool) $query['skipWebP'];
     }
 
-    /**
-     * Creates a webp variant of a image.
-     *
-     * @return void
-     */
     private function generateWebpVariant(): void
     {
         $this->image->toWebp($this->targetQuality);
         $this->image->save($this->pathVariant . '.webp');
     }
 
-    /**
-     * Streams the image to the browser.
-     *
-     * @return void
-     */
     private function output(): void
     {
         if ($this->skipWebPCreation()) {
@@ -260,11 +174,6 @@ class Processor
         echo $this->image->toWebp()->toString();
     }
 
-    /**
-     * Generate the variant and send it to the browser.
-     *
-     * @return void
-     */
     public function generateAndSend(): void
     {
         if ($this->validateUrl() === false) {
@@ -278,8 +187,8 @@ class Processor
         $this->calculateTargetDimensions();
 
         $this->image->coverDown(
-            round($this->targetWidth),
-            round($this->targetHeight)
+            (int) round($this->targetWidth, 0),
+            (int) round($this->targetHeight, 0)
         );
 
         $dir = dirname($this->pathVariant);
