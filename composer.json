@@ -1,5 +1,5 @@
 {
-    "name": "netresearch/image-optimize",
+    "name": "netresearch/nr-image-optimize",
     "description": "Add capability to optimize the delivered images to benefit from better compression and smaller image size. This extension also add the ability to process images only if it is really requested.",
     "type": "typo3-cms-extension",
     "license": [
