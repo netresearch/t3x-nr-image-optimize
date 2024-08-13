@@ -37,7 +37,7 @@
     },
     "extra": {
         "typo3/cms": {
-            "extension-key": "nr_imageoptimize",
+            "extension-key": "nr_image_optimize",
             "web-dir": ".build/public"
         }
     },
