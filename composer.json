@@ -22,17 +22,24 @@
         "intervention/image": "3.7.2"
     },
     "require-dev": {
+        "typo3/testing-framework": "^6.0 || ^7.0 || ^8.0",
         "friendsofphp/php-cs-fixer": "^3.1",
         "friendsoftypo3/phpstan-typo3": "^0.9",
         "overtrue/phplint": "^3.4 || ^9.0",
         "phpstan/phpstan": "^1.10",
+        "phpstan/phpstan-phpunit": "^1.3",
         "phpstan/phpstan-strict-rules": "^1.5",
         "phpstan/phpstan-deprecation-rules": "^1.1",
         "ssch/typo3-rector": "^2.0"
     },
     "autoload": {
         "psr-4": {
-            "Netresearch\\ImageOptimize\\": "Classes/"
+            "Netresearch\\NrImageOptimize\\": "Classes/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Netresearch\\NrImageOptimize\\Tests\\": "Tests/"
         }
     },
     "extra": {
@@ -42,8 +49,14 @@
         }
     },
     "scripts": {
+        "ci:test:php:cgl": [
+            "php-cs-fixer fix --config Build/.php-cs-fixer.dist.php --diff --verbose --cache-file .build/.php-cs-fixer.cache --dry-run"
+        ],
         "ci:test:php:lint": [
             "phplint --configuration Build/.phplint.yml"
+        ],
+        "ci:test:php:unit": [
+            "XDEBUG_MODE=coverage && phpunit -c Build/UnitTests.xml"
         ],
         "ci:test:php:phpstan": [
             "phpstan analyze --configuration Build/phpstan.neon"
@@ -55,12 +68,16 @@
             "rector process --config Build/rector.php --dry-run"
         ],
         "ci:test": [
+            "@ci:test:php:cgl",
             "@ci:test:php:lint",
             "@ci:test:php:phpstan",
             "@ci:test:php:rector"
         ],
         "ci:cgl": [
             "php-cs-fixer fix --config Build/.php-cs-fixer.dist.php --diff --verbose --cache-file .build/.php-cs-fixer.cache"
+        ],
+        "ci:php:rector": [
+            "rector process --config Build/rector.php"
         ]
     }
 }

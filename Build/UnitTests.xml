@@ -4,7 +4,6 @@
          bootstrap="../.build/vendor/typo3/testing-framework/Resources/Core/Build/UnitTestsBootstrap.php"
          cacheDirectory="../.build/.phpunit.cache"
          executionOrder="depends,defects"
-         requireCoverageMetadata="true"
          beStrictAboutCoverageMetadata="true"
          beStrictAboutOutputDuringTests="true"
          failOnRisky="true"
@@ -13,7 +12,7 @@
          colors="true"
 >
     <testsuites>
-        <testsuite name="nrc_flightplan">
+        <testsuite name="nr_image_optimi">
             <directory>../Tests/Unit</directory>
         </testsuite>
     </testsuites>
