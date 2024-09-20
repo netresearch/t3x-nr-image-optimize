@@ -46,6 +46,9 @@
         "typo3/cms": {
             "extension-key": "nr_image_optimize",
             "web-dir": ".build/public"
+        },
+        "branch-alias": {
+            "dev-main": "0.1.x-dev"
         }
     },
     "scripts": {
