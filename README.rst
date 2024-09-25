@@ -4,7 +4,7 @@
 NrImageOptimize Extension
 =========================
 
-The `NrImageOptimize` extension is a TYPO3 extension designed to optimize images and generate responsive image sets. 
+The `NrImageOptimize` extension is a TYPO3 extension designed to optimize images and generate responsive image sets.
 It provides various ViewHelpers to facilitate image optimization and responsive image handling.
 
 Features
@@ -50,6 +50,13 @@ Here is an example of how to use the `SourceSetViewHelper` in your Fluid templat
                    class="lazyload"
                    set"{480:{width: 160, height: 90}}
    />
+
+Render-modes
+-----------
+There are 2 render-modes available for the `SourceSetViewHelper` at the moment.
+
+- **default**: The default render-mode will resize the images so they cover the provided width and height fully.
+- **fit**: The fit render-mode will resize the images so they fit into the provided width and height.
 
 Testing
 =======
