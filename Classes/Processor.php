@@ -128,6 +128,9 @@ class Processor
 
     private function optimizeImage(): void
     {
+        // do not optimize images by the use of the binaries due to it consumes to much performance to do it on the fly
+        return;
+
         $command = match ($this->extension) {
             'jpg'   => sprintf(self::CMD_OPTIMIZE_JPG, $this->pathVariant),
             'png'   => sprintf(self::CMD_OPTIMIZE_PNG, $this->pathVariant),
@@ -269,7 +272,8 @@ class Processor
         }
 
         $this->image->save($this->pathVariant, $this->targetQuality);
-        $this->optimizeImage();
+        // Disable see method optimizeImage for the reason
+        //$this->optimizeImage();
 
         if ($this->isWebpImage() === false && $this->skipWebPCreation() === false) {
             $this->generateWebpVariant();
