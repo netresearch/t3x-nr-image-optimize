@@ -1,3 +1,15 @@
+# 0.1.1
+
+## MISC
+
+- 92acca4 OPSFX-259: Disable on the fly image optimization via optipng etc. due to massive performance issues.
+- d73b4a8 Update readme regaridng usage of the viewhelper
+- aadeb33 FX-864: Describe the render modes in readme.
+
+## Contributors
+
+- Axel Seemann
+
 # 0.1.0
 
 ## MISC
