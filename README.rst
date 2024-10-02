@@ -42,6 +42,7 @@ Example
 Here is an example of how to use the `SourceSetViewHelper` in your Fluid templates:
 
 .. code-block:: html
+
     <div data-namespace-typo3-fluid="true"
         xmlns:nrio="http://typo3.org/ns/Netresearch/NrImageOptimize/ViewHelpers" >
         <nrio:sourceSet path="{f:uri.image(image: image, width: '960', height: '690', cropVariant: 'imageRight')}"
