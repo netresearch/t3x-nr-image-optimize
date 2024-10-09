@@ -49,18 +49,52 @@ Here is an example of how to use the `SourceSetViewHelper` in your Fluid templat
                        width="960"
                        height="690"
                        alt="Image description"
-                       class="lazyload"
-                       set"{480:{width: 160, height: 90}}
+                       class="image"
+                       lazyload="1"
+                       set="{480:{width: 160, height: 90}}
         />
     </div>
 
 
+Source set configuration
+------------------------
+
+You can define differnt source sets for each media brakepoints by pass the information via the `set` attribute.
+
+.. code-block:: html
+
+    <div data-namespace-typo3-fluid="true"
+        xmlns:nrio="http://typo3.org/ns/Netresearch/NrImageOptimize/ViewHelpers" >
+        <nrio:sourceSet path="{f:uri.image(image: image, width: '960', height: '690', cropVariant: 'imageRight')}"
+                       <!-- other attributes -->
+                       set="{
+                            480:{width: 160, height: 90}
+                            800:{width: 400, height: 300}
+                       }
+        />
+    </div>
+
+The first number represents the maximum width of the view port in pixel, the hight and the width defining the target image size for the picture.
+
+
 Render-modes
------------
+------------
 There are 2 render-modes available for the `SourceSetViewHelper` at the moment.
 
-- **default**: The default render-mode will resize the images so they cover the provided width and height fully.
+- **cover**: The default render-mode will resize the images so they cover the provided width and height fully.
 - **fit**: The fit render-mode will resize the images so they fit into the provided width and height.
+
+.. code-block:: html
+
+    <div data-namespace-typo3-fluid="true"
+        xmlns:nrio="http://typo3.org/ns/Netresearch/NrImageOptimize/ViewHelpers" >
+        <nrio:sourceSet path="{f:uri.image(image: image, width: '960', height: '690', cropVariant: 'imageRight')}"
+                       width="960"
+                       height="690"
+                       <!-- other attributes -->
+                       mode="fit"
+        />
+    </div>
 
 Testing
 =======

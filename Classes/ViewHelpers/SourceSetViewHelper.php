@@ -27,12 +27,14 @@ class SourceSetViewHelper extends AbstractViewHelper
 
         $this->registerArgument('path', 'string', 'Path to the original image', true);
         $this->registerArgument('set', 'array', 'Array of image sizes', false, []);
-        $this->registerArgument('width', 'int', 'Width of the original image', false, 0);
-        $this->registerArgument('height', 'int', 'Height of the original image', false, 0);
+        $this->registerArgument('width', 'int|float', 'Width of the original image', false, 0);
+        $this->registerArgument('height', 'int|float', 'Height of the original image', false, 0);
         $this->registerArgument('alt', 'string', 'Alt text for the image', false, '');
         $this->registerArgument('class', 'string', 'Class for the image', false, '');
         $this->registerArgument('mode', 'string', 'Mode for the image', false, 'cover');
         $this->registerArgument('title', 'string', 'Title for the image', false, '');
+        $this->registerArgument('lazyload', 'bool', 'Use lazyload', false, false);
+        $this->registerArgument('attributes', 'array', 'Additional attributes', false, []);
     }
 
     public function render(): string
@@ -47,7 +49,7 @@ class SourceSetViewHelper extends AbstractViewHelper
         $srcPath = $this->getResourcePath($this->getArgPath(), $width, $height);
 
         $props = [
-            'src'         => $this->shouldUseLazyLoad() ? 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==' : $srcPath,
+            'src'         => $this->useJsLazyLoad() ? 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==' : $srcPath,
             'data-src'    => $srcPath,
             'data-srcset' => $srcSet,
             'srcset'      => $srcSet,
@@ -61,7 +63,7 @@ class SourceSetViewHelper extends AbstractViewHelper
         return $this->generateSrcSet() . $this->tag('img', array_filter($props));
     }
 
-    public function shouldUseLazyLoad(): bool
+    public function useJsLazyLoad(): bool
     {
         return str_contains($this->arguments['class'] ?? '', 'lazyload');
     }
@@ -148,6 +150,14 @@ class SourceSetViewHelper extends AbstractViewHelper
             $tagString .= ' ' . $key . '="' . $value . '"';
         }
 
+        foreach ($this->getAttributes() as $key => $value) {
+            $tagString .= ' ' . $key . '="' . $value . '"';
+        }
+
+        if ($this->useNativeLazyLoad()) {
+            $tagString .= ' loading="lazy"';
+        }
+
         $tagString .= ' />';
 
         return $tagString . PHP_EOL;
@@ -155,12 +165,12 @@ class SourceSetViewHelper extends AbstractViewHelper
 
     private function getArgWidth(): int
     {
-        return $this->arguments['width'] ?? 0;
+        return (int) floor($this->arguments['width'] ?? 0);
     }
 
     private function getArgHeight(): int
     {
-        return $this->arguments['height'] ?? 0;
+        return (int) floor($this->arguments['height'] ?? 0);
     }
 
     private function getArgPath(): string
@@ -182,5 +192,22 @@ class SourceSetViewHelper extends AbstractViewHelper
             'fit'   => 1,
             default => 0,
         };
+    }
+
+    /**
+     * @return array<string|int|float|bool>
+     */
+    private function getAttributes(): array
+    {
+        if (empty($this->arguments['attributes'])) {
+            return [];
+        }
+
+        return $this->arguments['attributes'];
+    }
+
+    private function useNativeLazyLoad(): bool
+    {
+        return (bool) $this->arguments['lazyload'];
     }
 }

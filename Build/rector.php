@@ -9,6 +9,7 @@
 
 declare(strict_types=1);
 
+use PHPStan\Rules\DisallowedConstructs\DisallowedEmptyRule;
 use Rector\CodingStyle\Rector\Catch_\CatchExceptionNameMatchingTypeRector;
 use Rector\Config\RectorConfig;
 use Rector\Php80\Rector\Class_\ClassPropertyAssignToConstructorPromotionRector;
@@ -16,6 +17,7 @@ use Rector\Php80\Rector\FunctionLike\MixedTypeRector;
 use Rector\Php81\Rector\FuncCall\NullToStrictStringFuncCallArgRector;
 use Rector\Set\ValueObject\LevelSetList;
 use Rector\Set\ValueObject\SetList;
+use Rector\Strict\Rector\Empty_\DisallowedEmptyRuleFixerRector;
 use Rector\TypeDeclaration\Rector\Property\TypedPropertyFromAssignsRector;
 use Rector\TypeDeclaration\Rector\Property\TypedPropertyFromStrictConstructorRector;
 use Ssch\TYPO3Rector\Set\Typo3LevelSetList;
@@ -58,5 +60,7 @@ return static function (RectorConfig $rectorConfig): void {
         NullToStrictStringFuncCallArgRector::class,
         TypedPropertyFromAssignsRector::class,
         TypedPropertyFromStrictConstructorRector::class,
+        DisallowedEmptyRule::class,
+        DisallowedEmptyRuleFixerRector::class,
     ]);
 };

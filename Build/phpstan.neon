@@ -17,3 +17,5 @@ parameters:
         - %currentWorkingDirectory%/.build/*
 
     treatPhpDocTypesAsCertain: false
+    ignoreErrors:
+        - '#Construct empty\(\) is not allowed\. Use more strict comparison\.#'

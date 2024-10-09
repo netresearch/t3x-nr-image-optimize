@@ -51,10 +51,10 @@ class SourceSetViewHelperTest extends TestCase
     public function testShouldUseLazyLoad(): void
     {
         $this->viewHelper->setArguments(['class' => 'lazyload']);
-        $this->assertTrue($this->viewHelper->shouldUseLazyLoad());
+        $this->assertTrue($this->viewHelper->useJsLazyLoad());
 
         $this->viewHelper->setArguments(['class' => '']);
-        $this->assertFalse($this->viewHelper->shouldUseLazyLoad());
+        $this->assertFalse($this->viewHelper->useJsLazyLoad());
     }
 
     public function testGetResourcePath(): void
