@@ -1,3 +1,14 @@
+# 0.1.2
+
+## MISC
+
+- dc20ea3 CHEM-288: Change lazyload behaviour. Iptimize readme. Add additional attribute attribute.
+- 9b61f07 Update README.rst. Fix Codeblock in example.
+
+## Contributors
+
+- Axel Seemann
+
 # 0.1.1
 
 ## MISC
