@@ -45,7 +45,7 @@ Here is an example of how to use the `SourceSetViewHelper` in your Fluid templat
 
     <div data-namespace-typo3-fluid="true"
         xmlns:nrio="http://typo3.org/ns/Netresearch/NrImageOptimize/ViewHelpers" >
-        <nrio:sourceSet path="{f:uri.image(image: image, width: '960', height: '690', cropVariant: 'imageRight')}"
+        <nrio:sourceSet path="{f:uri.image(image: image, width: '960', height: '690', cropVariant: 'default')}"
                        width="960"
                        height="690"
                        alt="Image description"
@@ -65,7 +65,7 @@ You can define differnt source sets for each media brakepoints by pass the infor
 
     <div data-namespace-typo3-fluid="true"
         xmlns:nrio="http://typo3.org/ns/Netresearch/NrImageOptimize/ViewHelpers" >
-        <nrio:sourceSet path="{f:uri.image(image: image, width: '960', height: '690', cropVariant: 'imageRight')}"
+        <nrio:sourceSet path="{f:uri.image(image: image, width: '960', height: '690', cropVariant: 'default')}"
                        <!-- other attributes -->
                        set="{
                             480:{width: 160, height: 90}
@@ -88,7 +88,7 @@ There are 2 render-modes available for the `SourceSetViewHelper` at the moment.
 
     <div data-namespace-typo3-fluid="true"
         xmlns:nrio="http://typo3.org/ns/Netresearch/NrImageOptimize/ViewHelpers" >
-        <nrio:sourceSet path="{f:uri.image(image: image, width: '960', height: '690', cropVariant: 'imageRight')}"
+        <nrio:sourceSet path="{f:uri.image(image: image, width: '960', height: '690', cropVariant: 'default')}"
                        width="960"
                        height="690"
                        <!-- other attributes -->
