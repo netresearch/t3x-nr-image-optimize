@@ -1,3 +1,15 @@
+# 0.1.3
+
+## MISC
+
+- a60b13b Add missing extension icon
+- 38723a4 CHEM-422: Correct examples for cropVariants in basic installations
+
+## Contributors
+
+- Rico Sonntag
+- Sebastian Koschel
+
 # 0.1.2
 
 ## MISC
