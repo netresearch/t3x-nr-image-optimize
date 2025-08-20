@@ -1,3 +1,18 @@
+# 0.1.4
+
+## MISC
+
+- ba1e265 Fix "Trying to access array offset on value of type bool"
+- ca6a25f chore(deps): update dependency ssch/typo3-rector to v3
+- 1373828 fix(deps): update dependency intervention/image to 3.7.2 || 3.11.1
+- a025c2d Add renovate.json
+
+## Contributors
+
+- Renovate Bot
+- Renovate Bot
+- Rico Sonntag
+
 # 0.1.3
 
 ## MISC
