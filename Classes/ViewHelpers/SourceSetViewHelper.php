@@ -14,6 +14,7 @@ namespace Netresearch\NrImageOptimize\ViewHelpers;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Utility\PathUtility;
 use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper;
+use function sprintf;
 
 class SourceSetViewHelper extends AbstractViewHelper
 {
@@ -71,9 +72,12 @@ class SourceSetViewHelper extends AbstractViewHelper
     public function getResourcePath(string $path, int $width = 0, int $height = 0, int $quality = 100, bool $skipAvif = false, bool $skipWebP = false): string
     {
         if ($width === 0 && $height === 0) {
-            $info   = getimagesize(Environment::getPublicPath() . $path);
-            $width  = $info[0];
-            $height = $info[1];
+            $info = getimagesize(Environment::getPublicPath() . $path);
+
+            if ($info !== false) {
+                $width  = $info[0];
+                $height = $info[1];
+            }
         }
 
         $args = [
@@ -85,7 +89,7 @@ class SourceSetViewHelper extends AbstractViewHelper
 
         $pathInfo = PathUtility::pathinfo($path);
 
-        if ($pathInfo['extension'] === 'svg') {
+        if (isset($pathInfo['extension']) && ($pathInfo['extension'] === 'svg')) {
             return $path;
         }
 
@@ -98,9 +102,9 @@ class SourceSetViewHelper extends AbstractViewHelper
         $url = sprintf(
             '/processed%s/%s.%s.%s',
             $pathInfo['dirname'],
-            $pathInfo['filename'],
+            $pathInfo['filename'] ?? '',
             $generatorConfig,
-            $pathInfo['extension']
+            $pathInfo['extension'] ?? ''
         );
 
         $queryArgs = [
