@@ -91,15 +91,15 @@ class Processor
         $basePath = Environment::getPublicPath();
 
         $this->pathVariant  = $basePath . $this->variantUrl;
-        $this->pathOriginal = $basePath . '/' . $information[2] . '.' . $information[4];
-        $this->extension    = strtolower($information[4]);
+        $this->pathOriginal = $basePath . '/' . ($information[2] ?? '') . '.' . ($information[4] ?? '');
+        $this->extension    = strtolower($information[4] ?? '');
 
         if ($this->extension === 'jpeg') {
             $this->extension = 'jpg';
         }
 
-        $this->targetWidth    = $this->getValueFromMode('w', $information[3]);
-        $this->targetHeight   = $this->getValueFromMode('h', $information[3]);
+        $this->targetWidth    = $this->getValueFromMode('w', $information[3] ?? null);
+        $this->targetHeight   = $this->getValueFromMode('h', $information[3] ?? null);
         $this->targetQuality  = $this->getValueFromMode('q', $information[3]) ?? 100;
         $this->processingMode = $this->getValueFromMode('m', $information[3]) ?? 0;
     }
