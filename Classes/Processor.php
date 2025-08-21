@@ -82,7 +82,11 @@ class Processor
     {
         $information = [];
 
-        preg_match('/^(\/processed\/)(.*)\.([0-9whqm]+)\.([a-zA-Z]{1,4})$/', $this->variantUrl, $information);
+        preg_match(
+            '/^(\/processed\/)(.*)\.([0-9whqm]+)\.([a-zA-Z0-9]{1,4})$/',
+            $this->variantUrl,
+            $information
+        );
 
         $basePath = Environment::getPublicPath();
 
