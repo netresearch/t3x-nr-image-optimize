@@ -1,3 +1,14 @@
+# 0.1.5
+
+## MISC
+
+- 6a2678e Fix "strtolower(): Argument #1 ($string) must be of type string, null given"
+- 41a6905 Allow possible file extensions include numbers
+
+## Contributors
+
+- Rico Sonntag
+
 # 0.1.4
 
 ## MISC
