@@ -122,7 +122,7 @@ class SourceSetViewHelper extends AbstractViewHelper
             'skipAvif' => $skipAvif,
         ];
 
-        $queryArgs = array_filter($queryArgs, static fn (mixed $value): bool => $value !== null && $value !== '');
+        $queryArgs = array_filter($queryArgs);
 
         if ($queryArgs === []) {
             return $url;
