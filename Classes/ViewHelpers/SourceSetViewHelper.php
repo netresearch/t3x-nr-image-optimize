@@ -71,7 +71,7 @@ class SourceSetViewHelper extends AbstractViewHelper
             'class'       => trim($this->arguments['class'] ?? ''),
         ];
 
-        return $this->generateSrcSet() . $this->tag('img', array_filter($props, static fn($value) => $value !== null && $value !== ""));
+        return $this->generateSrcSet() . $this->tag('img', array_filter($props, static fn ($value) => $value !== null && $value !== ''));
     }
 
     public function useJsLazyLoad(): bool
@@ -111,7 +111,7 @@ class SourceSetViewHelper extends AbstractViewHelper
 
         $url = sprintf(
             '/processed%s/%s.%s.%s',
-            ($pathInfo['dirname'] ?? ''),
+            $pathInfo['dirname'] ?? '',
             $pathInfo['filename'] ?? '',
             $generatorConfig,
             $pathInfo['extension'] ?? ''
@@ -122,7 +122,7 @@ class SourceSetViewHelper extends AbstractViewHelper
             'skipAvif' => $skipAvif,
         ];
 
-        $queryArgs = array_filter($queryArgs, static fn($value) => $value !== null && $value !== "");
+        $queryArgs = array_filter($queryArgs, static fn ($value) => $value !== null && $value !== '');
 
         if ($queryArgs === []) {
             return $url;
