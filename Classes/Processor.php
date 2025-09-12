@@ -48,9 +48,9 @@ class Processor
 
     private ImageInterface $image;
 
-    private ?int $targetWidth = null;
+    private int|null $targetWidth = null;
 
-    private ?int $targetHeight = null;
+    private int|null $targetHeight = null;
 
     private int $targetQuality = 80;
 
@@ -119,7 +119,7 @@ class Processor
         $this->processingMode = $this->getValueFromMode('m', $information[3]) ?? 0;
     }
 
-    private function getValueFromMode(string $what, string $mode): ?int
+    private function getValueFromMode(string $what, string $mode): int|null
     {
         if ($mode === '') {
             return null;
@@ -262,7 +262,7 @@ class Processor
         $dir = dirname($this->pathVariant);
 
         if (is_dir($dir) === false) {
-            mkdir($dir, 0775, true);
+            mkdir($dir, 0o775, true);
         }
 
         $this->image->save($this->pathVariant, $this->targetQuality);

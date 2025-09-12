@@ -16,6 +16,7 @@ use Rector\DeadCode\Rector\ClassMethod\RemoveUselessParamTagRector;
 use Rector\DeadCode\Rector\ClassMethod\RemoveUselessReturnTagRector;
 use Rector\DeadCode\Rector\Property\RemoveUselessVarTagRector;
 use Rector\Php80\Rector\Class_\ClassPropertyAssignToConstructorPromotionRector;
+use Rector\Php83\Rector\ClassMethod\AddOverrideAttributeToOverriddenMethodsRector;
 use Rector\Set\ValueObject\LevelSetList;
 use Rector\Set\ValueObject\SetList;
 use Ssch\TYPO3Rector\Set\Typo3LevelSetList;
@@ -38,8 +39,8 @@ return static function (RectorConfig $rectorConfig): void {
     $rectorConfig->removeUnusedImports();
     $rectorConfig->disableParallel();
 
-    // Set PHP version to target (PHP 8.1 minimum for compatibility)
-    $rectorConfig->phpVersion(80100);
+    // Set PHP version to target (PHP 8.2 minimum for TYPO3 13)
+    $rectorConfig->phpVersion(80200);
 
     // Define what rule sets will be applied
     $rectorConfig->sets([
@@ -52,10 +53,11 @@ return static function (RectorConfig $rectorConfig): void {
         SetList::STRICT_BOOLEANS,
         SetList::TYPE_DECLARATION,
 
-        // Only use PHP 8.1 features for maximum compatibility
-        LevelSetList::UP_TO_PHP_81,
+        // PHP 8.2 and 8.3 features
+        LevelSetList::UP_TO_PHP_83,
 
-        Typo3LevelSetList::UP_TO_TYPO3_12,
+        // TYPO3 13 support
+        Typo3LevelSetList::UP_TO_TYPO3_13,
     ]);
 
     // Skip some rules
@@ -67,4 +69,7 @@ return static function (RectorConfig $rectorConfig): void {
         RemoveUselessVarTagRector::class,
         RemoveUnusedPrivateMethodParameterRector::class,
     ]);
+
+    // Enable PHP 8.3+ features
+    $rectorConfig->rule(AddOverrideAttributeToOverriddenMethodsRector::class);
 };

@@ -9,17 +9,17 @@
 
 $EM_CONF[$_EXTKEY] = [
     'title'          => 'Netresearch Image Optimize',
-    'description'    => 'Advanced image optimization extension for TYPO3. Features include: Lazy image processing (on-demand generation), WebP and AVIF format support with automatic fallback, optimized compression for smaller file sizes, ViewHelper for responsive images with srcset support, middleware for efficient image delivery, and support for Intervention Image library. Perfect for improving Core Web Vitals and page loading performance.',
+    'description'    => 'Advanced image optimization extension for TYPO3 13. Features include: Lazy image processing (on-demand generation), WebP and AVIF format support with automatic fallback, optimized compression for smaller file sizes, ViewHelper for responsive images with srcset support, middleware for efficient image delivery, and support for Intervention Image library. Perfect for improving Core Web Vitals and page loading performance.',
     'category'       => 'fe',
     'author'         => 'Netresearch DTT GmbH',
     'author_email'   => 'info@netresearch.de',
     'author_company' => 'Netresearch DTT GmbH',
     'state'          => 'stable',
-    'version'        => '1.0.1',
+    'version'        => '2.0.0',
     'constraints'    => [
         'depends' => [
-            'typo3' => '11.5.0-12.4.99',
-            'php'   => '8.1.0-8.4.99',
+            'typo3' => '13.0.0-13.4.99',
+            'php'   => '8.2.0-8.4.99',
         ],
         'conflicts' => [],
         'suggests'  => [
@@ -31,4 +31,7 @@ $EM_CONF[$_EXTKEY] = [
             'Netresearch\\NrImageOptimize\\' => 'Classes/',
         ],
     ],
+    'clearCacheOnLoad' => true,
+    'uploadfolder'     => false,
+    'createDirs'       => 'fileadmin/processed',
 ];

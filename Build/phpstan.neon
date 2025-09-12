@@ -6,10 +6,10 @@ includes:
 
 parameters:
     # You can currently choose from 10 levels (0 is the loosest and 9 is the strictest).
-    level: 8
+    level: 9
 
-    # PHP Version to check against (PHP 8.1 as minimum target)
-    phpVersion: 80100
+    # PHP Version to check against (PHP 8.2 as minimum target)
+    phpVersion: 80200
 
     paths:
         - %currentWorkingDirectory%/Classes/
@@ -23,7 +23,10 @@ parameters:
     treatPhpDocTypesAsCertain: false
     reportMaybesInPropertyPhpDocTypes: false
     
-    # Standard checks that work with PHP 8.1+
+    # Strict checks for PHP 8.2+
     checkGenericClassInNonGenericObjectType: true
     checkMissingIterableValueType: true
     reportUnmatchedIgnoredErrors: true
+    checkUninitializedProperties: true
+    checkImplicitMixed: true
+    checkBenevolentUnionTypes: true

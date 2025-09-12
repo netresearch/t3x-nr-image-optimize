@@ -1,46 +1,116 @@
 parameters:
-    ignoreErrors:
-        -
-            message: "#^Parameter \\#2 \\$mode of method Netresearch\\\\NrImageOptimize\\\\Processor\\:\\:getValueFromMode\\(\\) expects string, string\\|null given\\.$#"
-            count: 2
-            path: ../Classes/Processor.php
+	ignoreErrors:
+		-
+			message: "#^Class Netresearch\\\\NrImageOptimize\\\\Processor has an uninitialized property \\$extension\\. Give it default value or assign it in the constructor\\.$#"
+			count: 1
+			path: ../Classes/Processor.php
 
-        -
-            message: "#^Offset 3 does not exist on array\\{0\\?\\: string, 1\\?\\: '/processed/', 2\\?\\: string, 3\\?\\: non\\-empty\\-string, 4\\?\\: non\\-empty\\-string\\}\\.$#"
-            count: 2
-            path: ../Classes/Processor.php
+		-
+			message: "#^Class Netresearch\\\\NrImageOptimize\\\\Processor has an uninitialized property \\$image\\. Give it default value or assign it in the constructor\\.$#"
+			count: 1
+			path: ../Classes/Processor.php
 
-        -
-            message: "#^Only booleans are allowed in an if condition, int\\<0, max\\>\\|false given\\.$#"
-            count: 1
-            path: ../Classes/Processor.php
+		-
+			message: "#^Class Netresearch\\\\NrImageOptimize\\\\Processor has an uninitialized property \\$pathOriginal\\. Give it default value or assign it in the constructor\\.$#"
+			count: 1
+			path: ../Classes/Processor.php
 
-        -
-            message: "#^Only numeric types are allowed in /, int\\|null given on the left side\\.$#"
-            count: 1
-            path: ../Classes/Processor.php
+		-
+			message: "#^Class Netresearch\\\\NrImageOptimize\\\\Processor has an uninitialized property \\$pathVariant\\. Give it default value or assign it in the constructor\\.$#"
+			count: 1
+			path: ../Classes/Processor.php
 
-        -
-            message: "#^Parameter \\#1 \\$width of method Intervention\\\\Image\\\\Interfaces\\\\ImageInterface\\:\\:cover\\(\\) expects int, int\\|null given\\.$#"
-            count: 1
-            path: ../Classes/Processor.php
+		-
+			message: "#^Class Netresearch\\\\NrImageOptimize\\\\Processor has an uninitialized property \\$processingMode\\. Give it default value or assign it in the constructor\\.$#"
+			count: 1
+			path: ../Classes/Processor.php
 
-        -
-            message: "#^Parameter \\#2 \\$height of method Intervention\\\\Image\\\\Interfaces\\\\ImageInterface\\:\\:cover\\(\\) expects int, int\\|null given\\.$#"
-            count: 1
-            path: ../Classes/Processor.php
+		-
+			message: "#^Class Netresearch\\\\NrImageOptimize\\\\Processor has an uninitialized property \\$request\\. Give it default value or assign it in the constructor\\.$#"
+			count: 1
+			path: ../Classes/Processor.php
 
-        -
-            message: "#^Parameter \\#2 \\$properties of method Netresearch\\\\NrImageOptimize\\\\ViewHelpers\\\\SourceSetViewHelper\\:\\:tag\\(\\) expects array\\<string\\>, array\\<string, int\\<min, \\-1\\>\\|int\\<1, max\\>\\|string\\> given\\.$#"
-            count: 1
-            path: ../Classes/ViewHelpers/SourceSetViewHelper.php
+		-
+			message: "#^Class Netresearch\\\\NrImageOptimize\\\\Processor has an uninitialized property \\$variantUrl\\. Give it default value or assign it in the constructor\\.$#"
+			count: 1
+			path: ../Classes/Processor.php
 
-        -
-            message: "#^Offset 'dirname' does not exist on array\\<string\\>\\|string\\.$#"
-            count: 1
-            path: ../Classes/ViewHelpers/SourceSetViewHelper.php
+		-
+			message: "#^Offset 3 does not exist on array\\{0\\?\\: string, 1\\?\\: '/processed/', 2\\?\\: string, 3\\?\\: non\\-empty\\-string, 4\\?\\: non\\-empty\\-string\\}\\.$#"
+			count: 2
+			path: ../Classes/Processor.php
 
-        -
-            message: "#^Construct empty\\(\\) is not allowed\\. Use more strict comparison\\.$#"
-            count: 1
-            path: ../Classes/ViewHelpers/SourceSetViewHelper.php
+		-
+			message: "#^Only booleans are allowed in an if condition, int\\<0, max\\>\\|false given\\.$#"
+			count: 1
+			path: ../Classes/Processor.php
+
+		-
+			message: "#^Only numeric types are allowed in /, int\\|null given on the left side\\.$#"
+			count: 1
+			path: ../Classes/Processor.php
+
+		-
+			message: "#^Parameter \\#1 \\$width of method Intervention\\\\Image\\\\Interfaces\\\\ImageInterface\\:\\:cover\\(\\) expects int, int\\|null given\\.$#"
+			count: 1
+			path: ../Classes/Processor.php
+
+		-
+			message: "#^Parameter \\#2 \\$height of method Intervention\\\\Image\\\\Interfaces\\\\ImageInterface\\:\\:cover\\(\\) expects int, int\\|null given\\.$#"
+			count: 1
+			path: ../Classes/Processor.php
+
+		-
+			message: "#^Parameter \\#2 \\$mode of method Netresearch\\\\NrImageOptimize\\\\Processor\\:\\:getValueFromMode\\(\\) expects string, string\\|null given\\.$#"
+			count: 2
+			path: ../Classes/Processor.php
+
+		-
+			message: "#^Construct empty\\(\\) is not allowed\\. Use more strict comparison\\.$#"
+			count: 1
+			path: ../Classes/ViewHelpers/SourceSetViewHelper.php
+
+		-
+			message: "#^Method Netresearch\\\\NrImageOptimize\\\\ViewHelpers\\\\SourceSetViewHelper\\:\\:getArgPath\\(\\) should return string but returns mixed\\.$#"
+			count: 1
+			path: ../Classes/ViewHelpers/SourceSetViewHelper.php
+
+		-
+			message: "#^Method Netresearch\\\\NrImageOptimize\\\\ViewHelpers\\\\SourceSetViewHelper\\:\\:getArgSet\\(\\) should return array\\<array\\<int\\>\\> but returns mixed\\.$#"
+			count: 1
+			path: ../Classes/ViewHelpers/SourceSetViewHelper.php
+
+		-
+			message: "#^Method Netresearch\\\\NrImageOptimize\\\\ViewHelpers\\\\SourceSetViewHelper\\:\\:getAttributes\\(\\) should return array\\<bool\\|float\\|int\\|string\\> but returns mixed\\.$#"
+			count: 1
+			path: ../Classes/ViewHelpers/SourceSetViewHelper.php
+
+		-
+			message: "#^Offset 'dirname' does not exist on array\\<string\\>\\|string\\.$#"
+			count: 1
+			path: ../Classes/ViewHelpers/SourceSetViewHelper.php
+
+		-
+			message: "#^Parameter \\#1 \\$haystack of function str_contains expects string, mixed given\\.$#"
+			count: 1
+			path: ../Classes/ViewHelpers/SourceSetViewHelper.php
+
+		-
+			message: "#^Parameter \\#1 \\$num of function floor expects float\\|int, mixed given\\.$#"
+			count: 2
+			path: ../Classes/ViewHelpers/SourceSetViewHelper.php
+
+		-
+			message: "#^Parameter \\#1 \\$string of function htmlentities expects string, mixed given\\.$#"
+			count: 2
+			path: ../Classes/ViewHelpers/SourceSetViewHelper.php
+
+		-
+			message: "#^Parameter \\#1 \\$string of function trim expects string, mixed given\\.$#"
+			count: 1
+			path: ../Classes/ViewHelpers/SourceSetViewHelper.php
+
+		-
+			message: "#^Parameter \\#2 \\$properties of method Netresearch\\\\NrImageOptimize\\\\ViewHelpers\\\\SourceSetViewHelper\\:\\:tag\\(\\) expects array\\<string\\>, array\\<string, int\\<min, \\-1\\>\\|int\\<1, max\\>\\|string\\> given\\.$#"
+			count: 1
+			path: ../Classes/ViewHelpers/SourceSetViewHelper.php
