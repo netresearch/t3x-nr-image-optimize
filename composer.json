@@ -63,10 +63,10 @@
             "XDEBUG_MODE=coverage && phpunit -c Build/UnitTests.xml"
         ],
         "ci:test:php:phpstan": [
-            "phpstan analyze --configuration Build/phpstan.neon"
+            ".build/vendor/phpstan/phpstan/phpstan.phar analyze --configuration Build/phpstan.neon"
         ],
         "ci:test:php:phpstan:baseline": [
-            "phpstan analyze --configuration Build/phpstan.neon --generate-baseline Build/phpstan-baseline.neon --allow-empty-baseline"
+            ".build/vendor/phpstan/phpstan/phpstan.phar analyze --configuration Build/phpstan.neon --generate-baseline Build/phpstan-baseline.neon --allow-empty-baseline"
         ],
         "ci:test:php:rector": [
             "rector process --config Build/rector.php --dry-run"
@@ -82,6 +82,13 @@
         ],
         "ci:php:rector": [
             "rector process --config Build/rector.php"
+        ],
+        "ci:test:php:phpstan:docker": "php -d memory_limit=512M .build/vendor/bin/.build/vendor/phpstan/phpstan/phpstan.phar analyze --configuration Build/phpstan-docker.neon --memory-limit=512M",
+        "ci:test:docker": [
+            "@ci:test:php:cgl",
+            "@ci:test:php:lint",
+            "@ci:test:php:phpstan:docker",
+            "@ci:test:php:rector"
         ]
     }
 }
