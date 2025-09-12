@@ -1,221 +1,109 @@
 parameters:
 	ignoreErrors:
 		-
-			message: "#^Call to method getUri\\(\\) on an unknown class Psr\\\\Http\\\\Message\\\\ServerRequestInterface\\.$#"
-			count: 1
-			path: ../Classes/Middleware/ProcessingMiddleware.php
-
-		-
-			message: "#^Call to method handle\\(\\) on an unknown class Psr\\\\Http\\\\Server\\\\RequestHandlerInterface\\.$#"
-			count: 1
-			path: ../Classes/Middleware/ProcessingMiddleware.php
-
-		-
-			message: "#^Method Netresearch\\\\NrImageOptimize\\\\Middleware\\\\ProcessingMiddleware\\:\\:process\\(\\) has invalid return type Psr\\\\Http\\\\Message\\\\ResponseInterface\\.$#"
-			count: 1
-			path: ../Classes/Middleware/ProcessingMiddleware.php
-
-		-
-			message: "#^Parameter \\#1 \\$request of method Netresearch\\\\NrImageOptimize\\\\Processor\\:\\:setRequest\\(\\) expects Psr\\\\Http\\\\Message\\\\RequestInterface, Psr\\\\Http\\\\Message\\\\ServerRequestInterface given\\.$#"
-			count: 1
-			path: ../Classes/Middleware/ProcessingMiddleware.php
-
-		-
-			message: "#^Parameter \\$handler of method Netresearch\\\\NrImageOptimize\\\\Middleware\\\\ProcessingMiddleware\\:\\:process\\(\\) has invalid type Psr\\\\Http\\\\Server\\\\RequestHandlerInterface\\.$#"
-			count: 1
-			path: ../Classes/Middleware/ProcessingMiddleware.php
-
-		-
-			message: "#^Parameter \\$request of method Netresearch\\\\NrImageOptimize\\\\Middleware\\\\ProcessingMiddleware\\:\\:process\\(\\) has invalid type Psr\\\\Http\\\\Message\\\\ServerRequestInterface\\.$#"
-			count: 1
-			path: ../Classes/Middleware/ProcessingMiddleware.php
-
-		-
-			message: "#^Access to constant HTTP_STATUS_404 on an unknown class TYPO3\\\\CMS\\\\Core\\\\Utility\\\\HttpUtility\\.$#"
-			count: 1
-			path: ../Classes/Processor.php
-
-		-
-			message: "#^Access to constant HTTP_STATUS_500 on an unknown class TYPO3\\\\CMS\\\\Core\\\\Utility\\\\HttpUtility\\.$#"
-			count: 3
-			path: ../Classes/Processor.php
-
-		-
-			message: "#^Access to constant HTTP_STATUS_503 on an unknown class TYPO3\\\\CMS\\\\Core\\\\Utility\\\\HttpUtility\\.$#"
+			message: '#^Loose comparison via "\=\=" is not allowed\.$#'
+			identifier: equal.notAllowed
 			count: 2
 			path: ../Classes/Processor.php
 
 		-
-			message: "#^Call to method acquire\\(\\) on an unknown class TYPO3\\\\CMS\\\\Core\\\\Locking\\\\LockingStrategyInterface\\.$#"
+			message: '#^Only booleans are allowed in an if condition, int\<0, max\>\|false given\.$#'
+			identifier: if.condNotBoolean
+			count: 1
+			path: ../Classes/Processor.php
+
+		-
+			message: '#^Only numeric types are allowed in /, int\|null given on the left side\.$#'
+			identifier: div.leftNonNumeric
+			count: 1
+			path: ../Classes/Processor.php
+
+		-
+			message: '#^Parameter \#1 \$width of method Intervention\\Image\\Interfaces\\ImageInterface\:\:cover\(\) expects int, int\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: ../Classes/Processor.php
+
+		-
+			message: '#^Parameter \#2 \$height of method Intervention\\Image\\Interfaces\\ImageInterface\:\:cover\(\) expects int, int\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: ../Classes/Processor.php
+
+		-
+			message: '#^Parameter \#2 \$mode of method Netresearch\\NrImageOptimize\\Processor\:\:getValueFromMode\(\) expects string, string\|null given\.$#'
+			identifier: argument.type
 			count: 2
 			path: ../Classes/Processor.php
 
 		-
-			message: "#^Call to method cover\\(\\) on an unknown class Intervention\\\\Image\\\\Interfaces\\\\ImageInterface\\.$#"
+			message: '#^Construct empty\(\) is not allowed\. Use more strict comparison\.$#'
+			identifier: empty.notAllowed
 			count: 1
-			path: ../Classes/Processor.php
+			path: ../Classes/ViewHelpers/SourceSetViewHelper.php
 
 		-
-			message: "#^Call to method encodeByExtension\\(\\) on an unknown class Intervention\\\\Image\\\\Interfaces\\\\ImageInterface\\.$#"
+			message: '#^Method Netresearch\\NrImageOptimize\\ViewHelpers\\SourceSetViewHelper\:\:getArgPath\(\) should return string but returns mixed\.$#'
+			identifier: return.type
 			count: 1
-			path: ../Classes/Processor.php
+			path: ../Classes/ViewHelpers/SourceSetViewHelper.php
 
 		-
-			message: "#^Call to method getUri\\(\\) on an unknown class Psr\\\\Http\\\\Message\\\\RequestInterface\\.$#"
+			message: '#^Method Netresearch\\NrImageOptimize\\ViewHelpers\\SourceSetViewHelper\:\:getArgSet\(\) should return array\<array\<int\>\> but returns mixed\.$#'
+			identifier: return.type
+			count: 1
+			path: ../Classes/ViewHelpers/SourceSetViewHelper.php
+
+		-
+			message: '#^Method Netresearch\\NrImageOptimize\\ViewHelpers\\SourceSetViewHelper\:\:getAttributes\(\) should return array\<bool\|float\|int\|string\> but returns mixed\.$#'
+			identifier: return.type
+			count: 1
+			path: ../Classes/ViewHelpers/SourceSetViewHelper.php
+
+		-
+			message: '#^Parameter \#1 \$haystack of function str_contains expects string, mixed given\.$#'
+			identifier: argument.type
+			count: 1
+			path: ../Classes/ViewHelpers/SourceSetViewHelper.php
+
+		-
+			message: '#^Parameter \#1 \$num of function floor expects float\|int, mixed given\.$#'
+			identifier: argument.type
 			count: 2
-			path: ../Classes/Processor.php
+			path: ../Classes/ViewHelpers/SourceSetViewHelper.php
 
 		-
-			message: "#^Call to method height\\(\\) on an unknown class Intervention\\\\Image\\\\Interfaces\\\\ImageInterface\\.$#"
-			count: 1
-			path: ../Classes/Processor.php
-
-		-
-			message: "#^Call to method origin\\(\\) on an unknown class Intervention\\\\Image\\\\Interfaces\\\\ImageInterface\\.$#"
-			count: 1
-			path: ../Classes/Processor.php
-
-		-
-			message: "#^Call to method read\\(\\) on an unknown class Intervention\\\\Image\\\\ImageManager\\.$#"
-			count: 1
-			path: ../Classes/Processor.php
-
-		-
-			message: "#^Call to method release\\(\\) on an unknown class TYPO3\\\\CMS\\\\Core\\\\Locking\\\\LockingStrategyInterface\\.$#"
+			message: '#^Parameter \#1 \$string of function htmlentities expects string, mixed given\.$#'
+			identifier: argument.type
 			count: 2
-			path: ../Classes/Processor.php
-
-		-
-			message: "#^Call to method save\\(\\) on an unknown class Intervention\\\\Image\\\\Interfaces\\\\ImageInterface\\.$#"
-			count: 3
-			path: ../Classes/Processor.php
-
-		-
-			message: "#^Call to method scale\\(\\) on an unknown class Intervention\\\\Image\\\\Interfaces\\\\ImageInterface\\.$#"
-			count: 1
-			path: ../Classes/Processor.php
-
-		-
-			message: "#^Call to method toAvif\\(\\) on an unknown class Intervention\\\\Image\\\\Interfaces\\\\ImageInterface\\.$#"
-			count: 1
-			path: ../Classes/Processor.php
-
-		-
-			message: "#^Call to method toWebp\\(\\) on an unknown class Intervention\\\\Image\\\\Interfaces\\\\ImageInterface\\.$#"
-			count: 1
-			path: ../Classes/Processor.php
-
-		-
-			message: "#^Call to method width\\(\\) on an unknown class Intervention\\\\Image\\\\Interfaces\\\\ImageInterface\\.$#"
-			count: 1
-			path: ../Classes/Processor.php
-
-		-
-			message: "#^Call to static method getPublicPath\\(\\) on an unknown class TYPO3\\\\CMS\\\\Core\\\\Core\\\\Environment\\.$#"
-			count: 1
-			path: ../Classes/Processor.php
-
-		-
-			message: "#^Call to static method makeInstance\\(\\) on an unknown class TYPO3\\\\CMS\\\\Core\\\\Utility\\\\GeneralUtility\\.$#"
-			count: 1
-			path: ../Classes/Processor.php
-
-		-
-			message: "#^Call to static method parse\\(\\) on an unknown class GuzzleHttp\\\\Psr7\\\\Query\\.$#"
-			count: 1
-			path: ../Classes/Processor.php
-
-		-
-			message: "#^Class TYPO3\\\\CMS\\\\Core\\\\Locking\\\\LockFactory not found\\.$#"
-			count: 1
-			path: ../Classes/Processor.php
-
-		-
-			message: "#^Instantiated class Intervention\\\\Image\\\\Drivers\\\\Imagick\\\\Driver not found\\.$#"
-			count: 1
-			path: ../Classes/Processor.php
-
-		-
-			message: "#^Instantiated class Intervention\\\\Image\\\\ImageManager not found\\.$#"
-			count: 1
-			path: ../Classes/Processor.php
-
-		-
-			message: "#^Method Netresearch\\\\NrImageOptimize\\\\Processor\\:\\:getLocker\\(\\) has invalid return type TYPO3\\\\CMS\\\\Core\\\\Locking\\\\LockingStrategyInterface\\.$#"
-			count: 2
-			path: ../Classes/Processor.php
-
-		-
-			message: "#^Offset 3 does not exist on array\\{0\\?\\: string, 1\\?\\: '/processed/', 2\\?\\: string, 3\\?\\: non\\-empty\\-string, 4\\?\\: non\\-empty\\-string\\}\\.$#"
-			count: 2
-			path: ../Classes/Processor.php
-
-		-
-			message: "#^PHPDoc tag @throws with type TYPO3\\\\CMS\\\\Core\\\\Locking\\\\Exception\\\\LockCreateException is not subtype of Throwable$#"
-			count: 1
-			path: ../Classes/Processor.php
-
-		-
-			message: "#^Parameter \\#2 \\$mode of method Netresearch\\\\NrImageOptimize\\\\Processor\\:\\:getValueFromMode\\(\\) expects string, string\\|null given\\.$#"
-			count: 2
-			path: ../Classes/Processor.php
-
-		-
-			message: "#^Parameter \\$request of method Netresearch\\\\NrImageOptimize\\\\Processor\\:\\:setRequest\\(\\) has invalid type Psr\\\\Http\\\\Message\\\\RequestInterface\\.$#"
-			count: 1
-			path: ../Classes/Processor.php
-
-		-
-			message: "#^Property Netresearch\\\\NrImageOptimize\\\\Processor\\:\\:\\$image has unknown class Intervention\\\\Image\\\\Interfaces\\\\ImageInterface as its type\\.$#"
-			count: 1
-			path: ../Classes/Processor.php
-
-		-
-			message: "#^Property Netresearch\\\\NrImageOptimize\\\\Processor\\:\\:\\$imageManager has unknown class Intervention\\\\Image\\\\ImageManager as its type\\.$#"
-			count: 1
-			path: ../Classes/Processor.php
-
-		-
-			message: "#^Property Netresearch\\\\NrImageOptimize\\\\Processor\\:\\:\\$request has unknown class Psr\\\\Http\\\\Message\\\\RequestInterface as its type\\.$#"
-			count: 1
-			path: ../Classes/Processor.php
-
-		-
-			message: "#^Access to an undefined property Netresearch\\\\NrImageOptimize\\\\ViewHelpers\\\\SourceSetViewHelper\\:\\:\\$arguments\\.$#"
-			count: 3
 			path: ../Classes/ViewHelpers/SourceSetViewHelper.php
 
 		-
-			message: "#^Call to an undefined method Netresearch\\\\NrImageOptimize\\\\ViewHelpers\\\\SourceSetViewHelper\\:\\:registerArgument\\(\\)\\.$#"
-			count: 10
-			path: ../Classes/ViewHelpers/SourceSetViewHelper.php
-
-		-
-			message: "#^Call to static method getPublicPath\\(\\) on an unknown class TYPO3\\\\CMS\\\\Core\\\\Core\\\\Environment\\.$#"
+			message: '#^Parameter \#1 \$string of function trim expects string, mixed given\.$#'
+			identifier: argument.type
 			count: 1
 			path: ../Classes/ViewHelpers/SourceSetViewHelper.php
 
 		-
-			message: "#^Call to static method pathinfo\\(\\) on an unknown class TYPO3\\\\CMS\\\\Core\\\\Utility\\\\PathUtility\\.$#"
+			message: '#^Parameter \#2 \$properties of method Netresearch\\NrImageOptimize\\ViewHelpers\\SourceSetViewHelper\:\:tag\(\) expects array\<string\>, array\<string, int\|string\> given\.$#'
+			identifier: argument.type
 			count: 1
 			path: ../Classes/ViewHelpers/SourceSetViewHelper.php
 
 		-
-			message: "#^Netresearch\\\\NrImageOptimize\\\\ViewHelpers\\\\SourceSetViewHelper\\:\\:initializeArguments\\(\\) calls parent\\:\\:initializeArguments\\(\\) but Netresearch\\\\NrImageOptimize\\\\ViewHelpers\\\\SourceSetViewHelper does not extend any class\\.$#"
+			message: '#^Strict comparison using \!\=\= between bool and '''' will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
 			count: 1
 			path: ../Classes/ViewHelpers/SourceSetViewHelper.php
 
 		-
-			message: "#^Parameter \\#2 \\$properties of method Netresearch\\\\NrImageOptimize\\\\ViewHelpers\\\\SourceSetViewHelper\\:\\:tag\\(\\) expects array\\<string\\>, array\\<string, int\\|string\\> given\\.$#"
+			message: '#^Strict comparison using \!\=\= between bool and null will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
 			count: 1
 			path: ../Classes/ViewHelpers/SourceSetViewHelper.php
 
 		-
-			message: "#^Property Netresearch\\\\NrImageOptimize\\\\ViewHelpers\\\\SourceSetViewHelper\\:\\:\\$escapeChildren has no type specified\\.$#"
-			count: 1
-			path: ../Classes/ViewHelpers/SourceSetViewHelper.php
-
-		-
-			message: "#^Property Netresearch\\\\NrImageOptimize\\\\ViewHelpers\\\\SourceSetViewHelper\\:\\:\\$escapeOutput has no type specified\\.$#"
+			message: '#^Strict comparison using \!\=\= between int\|string and null will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
 			count: 1
 			path: ../Classes/ViewHelpers/SourceSetViewHelper.php

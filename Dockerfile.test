@@ -1,0 +1,10 @@
+FROM registry.netresearch.de/support/typo3-13/build:latest
+
+# Set PHP memory limit
+RUN echo "memory_limit = 512M" > /usr/local/etc/php/conf.d/99-memory.ini
+
+# Set working directory
+WORKDIR /app
+
+# Default command
+CMD ["bash"]
