@@ -91,18 +91,6 @@ parameters:
 			path: ../Classes/ViewHelpers/SourceSetViewHelper.php
 
 		-
-			message: '#^Strict comparison using \!\=\= between bool and '''' will always evaluate to true\.$#'
-			identifier: notIdentical.alwaysTrue
-			count: 1
-			path: ../Classes/ViewHelpers/SourceSetViewHelper.php
-
-		-
-			message: '#^Strict comparison using \!\=\= between bool and null will always evaluate to true\.$#'
-			identifier: notIdentical.alwaysTrue
-			count: 1
-			path: ../Classes/ViewHelpers/SourceSetViewHelper.php
-
-		-
 			message: '#^Strict comparison using \!\=\= between int\|string and null will always evaluate to true\.$#'
 			identifier: notIdentical.alwaysTrue
 			count: 1

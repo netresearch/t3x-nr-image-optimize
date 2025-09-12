@@ -63,7 +63,7 @@
             "XDEBUG_MODE=coverage && phpunit -c Build/UnitTests.xml"
         ],
         "ci:test:php:phpstan": [
-            ".build/vendor/phpstan/phpstan/phpstan.phar analyze --configuration Build/phpstan.neon"
+            ".build/vendor/phpstan/phpstan/phpstan.phar analyze --configuration Build/phpstan.neon --memory-limit 512M"
         ],
         "ci:test:php:phpstan:baseline": [
             ".build/vendor/phpstan/phpstan/phpstan.phar analyze --configuration Build/phpstan.neon --generate-baseline Build/phpstan-baseline.neon --allow-empty-baseline"
