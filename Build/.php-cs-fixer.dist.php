@@ -1,20 +1,13 @@
 <?php
 
 /**
- * This file represents the configuration for Code Sniffing PSR-2-related
- * automatic checks of coding guidelines
- * Install @fabpot's great php-cs-fixer tool via
+ * This file is part of the package netresearch/nr-image-optimize.
  *
- *  $ composer global require friendsofphp/php-cs-fixer
- *
- * And then simply run
- *
- *  $ php-cs-fixer fix
- *
- * For more information read:
- *  http://www.php-fig.org/psr/psr-2/
- *  http://cs.sensiolabs.org
+ * For the full copyright and license information, please read the
+ * LICENSE file that was distributed with this source code.
  */
+
+declare(strict_types=1);
 
 if (PHP_SAPI !== 'cli') {
     die('This script supports command line usage only. Please check your command.');
@@ -35,9 +28,8 @@ return (new PhpCsFixer\Config())
         '@Symfony'                        => true,
         '@PHP80Migration'                 => true,
         '@PHP81Migration'                 => true,
-        // Don't use PHP 8.2+ migration rules for compatibility
-        // '@PHP82Migration'              => true,
-        // '@PHP83Migration'              => true,
+        '@PHP82Migration'                 => true,
+        '@PHP83Migration'                 => true,
 
         // Additional custom rules
         'declare_strict_types'            => true,
@@ -89,15 +81,18 @@ return (new PhpCsFixer\Config())
             'less_and_greater'     => false,
             'always_move_variable' => false,
         ],
-        // PHP compatibility rules
+        // PHP 8.2+ compatibility rules
         'native_function_invocation'      => [
             'include' => ['@all'],
             'scope'   => 'all',
             'strict'  => true,
         ],
         'modernize_strpos'                => true,
-        'get_class_to_class_keyword'      => false, // Keep compatibility with older PHP
-        'octal_notation'                  => false, // Don't force 0o notation (PHP 8.1+)
+        'get_class_to_class_keyword'      => true, // PHP 8.2+ feature
+        'octal_notation'                  => true,  // Use 0o notation
+        'modernize_types_casting'         => true,
+        'no_unneeded_final_method'        => true,
+        'nullable_type_declaration'       => ['syntax' => 'union'],
     ])
     ->setFinder(
         PhpCsFixer\Finder::create()
