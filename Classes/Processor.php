@@ -48,9 +48,9 @@ class Processor
 
     private ImageInterface $image;
 
-    private int|null $targetWidth = null;
+    private ?int $targetWidth = null;
 
-    private int|null $targetHeight = null;
+    private ?int $targetHeight = null;
 
     private int $targetQuality = 80;
 
@@ -119,7 +119,7 @@ class Processor
         $this->processingMode = $this->getValueFromMode('m', $information[3]) ?? 0;
     }
 
-    private function getValueFromMode(string $what, string $mode): int|null
+    private function getValueFromMode(string $what, string $mode): ?int
     {
         if ($mode === '') {
             return null;
