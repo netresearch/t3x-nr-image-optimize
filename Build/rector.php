@@ -1,7 +1,7 @@
 <?php
 
 /**
- * This file is part of the package netresearch/nr-image-optimize.
+ * This file is part of the package meine-krankenkasse/typo3-search-algolia.
  *
  * For the full copyright and license information, please read the
  * LICENSE file that was distributed with this source code.
@@ -9,17 +9,15 @@
 
 declare(strict_types=1);
 
-use PHPStan\Rules\DisallowedConstructs\DisallowedEmptyRule;
 use Rector\CodingStyle\Rector\Catch_\CatchExceptionNameMatchingTypeRector;
 use Rector\Config\RectorConfig;
+use Rector\DeadCode\Rector\ClassMethod\RemoveUnusedPrivateMethodParameterRector;
+use Rector\DeadCode\Rector\ClassMethod\RemoveUselessParamTagRector;
+use Rector\DeadCode\Rector\ClassMethod\RemoveUselessReturnTagRector;
+use Rector\DeadCode\Rector\Property\RemoveUselessVarTagRector;
 use Rector\Php80\Rector\Class_\ClassPropertyAssignToConstructorPromotionRector;
-use Rector\Php80\Rector\FunctionLike\MixedTypeRector;
-use Rector\Php81\Rector\FuncCall\NullToStrictStringFuncCallArgRector;
 use Rector\Set\ValueObject\LevelSetList;
 use Rector\Set\ValueObject\SetList;
-use Rector\Strict\Rector\Empty_\DisallowedEmptyRuleFixerRector;
-use Rector\TypeDeclaration\Rector\Property\TypedPropertyFromAssignsRector;
-use Rector\TypeDeclaration\Rector\Property\TypedPropertyFromStrictConstructorRector;
 use Ssch\TYPO3Rector\Set\Typo3LevelSetList;
 
 return static function (RectorConfig $rectorConfig): void {
@@ -27,12 +25,12 @@ return static function (RectorConfig $rectorConfig): void {
         __DIR__ . '/../Classes',
         __DIR__ . '/../Configuration',
         __DIR__ . '/../Resources',
-        '../ext_*',
+        __DIR__ . '/../ext_*.php',
     ]);
 
     $rectorConfig->skip([
-        '../ext_emconf.php',
-        '../ext_*.sql',
+        __DIR__ . '/../ext_emconf.php',
+        __DIR__ . '/../ext_*.sql',
     ]);
 
     $rectorConfig->phpstanConfig('Build/phpstan.neon');
@@ -42,13 +40,16 @@ return static function (RectorConfig $rectorConfig): void {
 
     // Define what rule sets will be applied
     $rectorConfig->sets([
-        SetList::EARLY_RETURN,
-        SetList::TYPE_DECLARATION,
-        SetList::CODING_STYLE,
         SetList::CODE_QUALITY,
-        // SetList::DEAD_CODE,
+        SetList::CODING_STYLE,
+        SetList::DEAD_CODE,
+        SetList::EARLY_RETURN,
+        SetList::INSTANCEOF,
+        SetList::PRIVATIZATION,
+        SetList::STRICT_BOOLEANS,
+        SetList::TYPE_DECLARATION,
 
-        LevelSetList::UP_TO_PHP_82,
+        LevelSetList::UP_TO_PHP_83,
         Typo3LevelSetList::UP_TO_TYPO3_12,
     ]);
 
@@ -56,11 +57,9 @@ return static function (RectorConfig $rectorConfig): void {
     $rectorConfig->skip([
         CatchExceptionNameMatchingTypeRector::class,
         ClassPropertyAssignToConstructorPromotionRector::class,
-        MixedTypeRector::class,
-        NullToStrictStringFuncCallArgRector::class,
-        TypedPropertyFromAssignsRector::class,
-        TypedPropertyFromStrictConstructorRector::class,
-        DisallowedEmptyRule::class,
-        DisallowedEmptyRuleFixerRector::class,
+        RemoveUselessParamTagRector::class,
+        RemoveUselessReturnTagRector::class,
+        RemoveUselessVarTagRector::class,
+        RemoveUnusedPrivateMethodParameterRector::class,
     ]);
 };

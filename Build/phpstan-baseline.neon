@@ -1,0 +1,14 @@
+parameters:
+	ignoreErrors:
+		-
+			message: "#^Parameter \\#2 \\$indexer of class MeineKrankenkasse\\\\Typo3SearchAlgolia\\\\Event\\\\AfterDocumentAssembledEvent constructor expects MeineKrankenkasse\\\\Typo3SearchAlgolia\\\\Service\\\\IndexerInterface, MeineKrankenkasse\\\\Typo3SearchAlgolia\\\\Service\\\\IndexerInterface\\|null given\\.$#"
+			count: 1
+			path: ../Classes/Builder/DocumentBuilder.php
+
+		-
+			message: """
+				#^Call to deprecated method setIgnoreEncryption\\(\\) of class Smalot\\\\PdfParser\\\\Config\\:
+				this is a temporary workaround, don't rely on it$#
+			"""
+			count: 1
+			path: ../Classes/EventListener/UpdateAssembledFileDocumentEventListener.php
