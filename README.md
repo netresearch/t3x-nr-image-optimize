@@ -77,12 +77,6 @@ composer ci:test:php:phpstan # Static analysis
 composer ci:test:php:rector  # Code quality
 ```
 
-### PHP Compatibility Check
-
-```bash
-./check-php-compatibility.sh
-```
-
 ## Architecture
 
 The extension uses a middleware approach for processing images:
