@@ -92,7 +92,7 @@ return (new PhpCsFixer\Config())
         'octal_notation'                  => true,  // Use 0o notation
         'modernize_types_casting'         => true,
         'no_unneeded_final_method'        => true,
-        'nullable_type_declaration'       => ['syntax' => 'union'],
+        'nullable_type_declaration'       => true,
     ])
     ->setFinder(
         PhpCsFixer\Finder::create()
