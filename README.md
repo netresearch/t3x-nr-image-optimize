@@ -103,13 +103,3 @@ For issues and feature requests, please use the [GitHub issue tracker](https://g
 ## Credits
 
 Developed by [Netresearch DTT GmbH](https://www.netresearch.de/)
-
-## Changelog
-
-### Version 1.0.0
-- Initial release
-- PHP 8.1-8.4 compatibility
-- TYPO3 11.5 and 12.x support
-- WebP and AVIF format support
-- Lazy image processing
-- Responsive image ViewHelper
