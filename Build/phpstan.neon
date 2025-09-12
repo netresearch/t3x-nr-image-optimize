@@ -21,12 +21,4 @@ parameters:
         - %currentWorkingDirectory%/ext_emconf.php
 
     treatPhpDocTypesAsCertain: false
-    reportMaybesInPropertyPhpDocTypes: false
-    
-    # Strict checks for PHP 8.2+
-    checkGenericClassInNonGenericObjectType: true
-    checkMissingIterableValueType: true
     reportUnmatchedIgnoredErrors: true
-    checkUninitializedProperties: true
-    checkImplicitMixed: true
-    checkBenevolentUnionTypes: true
