@@ -1,3 +1,13 @@
+# 1.0.1
+
+## TASK
+
+- 31872bd [TASK] Add ext_emconf file
+
+## Contributors
+
+- Gitsko
+
 # 1.0.0
 
 ## TASK
