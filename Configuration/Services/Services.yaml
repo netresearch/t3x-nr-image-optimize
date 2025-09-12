@@ -1,0 +1,24 @@
+services:
+  _defaults:
+    autowire: true
+    autoconfigure: true
+    public: false
+
+  Netresearch\NrImageOptimize\:
+    resource: '../../Classes/*'
+    exclude: '../../Classes/Domain/Model/*'
+
+  Netresearch\NrImageOptimize\Processor:
+    public: true
+    arguments:
+      $request: '@Psr\Http\Message\ServerRequestInterface'
+
+  Netresearch\NrImageOptimize\Middleware\ProcessingMiddleware:
+    public: true
+    arguments:
+      $processor: '@Netresearch\NrImageOptimize\Processor'
+
+  Netresearch\NrImageOptimize\ViewHelpers\SourceSetViewHelper:
+    public: true
+    tags:
+      - name: 'fluid.viewhelper'
