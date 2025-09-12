@@ -31,7 +31,4 @@ $EM_CONF[$_EXTKEY] = [
             'Netresearch\\NrImageOptimize\\' => 'Classes/',
         ],
     ],
-    'clearCacheOnLoad' => true,
-    'uploadfolder'     => false,
-    'createDirs'       => 'fileadmin/processed',
 ];
