@@ -40,7 +40,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php-version }}
-          extensions: mbstring, intl, json
+          extensions: mbstring, intl, json, dom, curl, xml, zip, opcache, gd
           tools: composer:v2
           coverage: none
 
@@ -88,7 +88,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
-          extensions: mbstring, intl, json
+          extensions: mbstring, intl, json, dom, curl, xml, zip, opcache, gd
           tools: composer:v2
           coverage: xdebug
 
@@ -99,25 +99,70 @@ jobs:
         run: composer ci:test
 
   compatibility-check:
-    name: PHP 8.4 Compatibility Check
+    name: PHP Compatibility Check
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php-version:
+          - '8.1'
+          - '8.2'
+          - '8.3'
+          - '8.4'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup PHP 8.4
+      - name: Setup PHP ${{ matrix.php-version }}
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.4'
+          php-version: ${{ matrix.php-version }}
           extensions: mbstring, intl, json
-          tools: composer:v2
+          tools: none
           coverage: none
 
-      - name: Install dependencies
-        run: composer install --prefer-dist --no-progress --ignore-platform-reqs
-
-      - name: Check PHP 8.4 compatibility
+      - name: Check PHP ${{ matrix.php-version }} syntax compatibility
         run: |
-          echo "Checking PHP 8.4 compatibility..."
-          php -l Classes/**/*.php
-          php -l Configuration/**/*.php
+          echo "Checking PHP ${{ matrix.php-version }} compatibility..."
+          errors=0
+          
+          # Check Classes directory
+          if [ -d "Classes" ]; then
+            echo "Checking Classes directory..."
+            while IFS= read -r file; do
+              if ! php -l "$file" > /dev/null 2>&1; then
+                echo "Syntax error in: $file"
+                php -l "$file"
+                errors=$((errors + 1))
+              fi
+            done < <(find Classes -name "*.php" -type f)
+          fi
+          
+          # Check Configuration directory
+          if [ -d "Configuration" ]; then
+            echo "Checking Configuration directory..."
+            while IFS= read -r file; do
+              if ! php -l "$file" > /dev/null 2>&1; then
+                echo "Syntax error in: $file"
+                php -l "$file"
+                errors=$((errors + 1))
+              fi
+            done < <(find Configuration -name "*.php" -type f)
+          fi
+          
+          # Check root PHP files if they exist
+          for file in *.php; do
+            if [ -f "$file" ]; then
+              if ! php -l "$file" > /dev/null 2>&1; then
+                echo "Syntax error in: $file"
+                php -l "$file"
+                errors=$((errors + 1))
+              fi
+            fi
+          done
+          
+          if [ $errors -eq 0 ]; then
+            echo "✅ All PHP files are compatible with PHP ${{ matrix.php-version }}"
+          else
+            echo "❌ Found $errors file(s) with syntax errors"
+            exit 1
+          fi
