@@ -21,7 +21,7 @@ if (PHP_SAPI !== 'cli') {
 }
 
 $header = <<<EOF
-This file is part of the package meine-krankenkasse/typo3-search-algolia.
+This file is part of the package netresearch/nr-image-optimize.
 
 For the full copyright and license information, please read the
 LICENSE file that was distributed with this source code.
@@ -33,6 +33,11 @@ return (new PhpCsFixer\Config())
         '@PSR12'                          => true,
         '@PER-CS2.0'                      => true,
         '@Symfony'                        => true,
+        '@PHP80Migration'                 => true,
+        '@PHP81Migration'                 => true,
+        // Don't use PHP 8.2+ migration rules for compatibility
+        // '@PHP82Migration'              => true,
+        // '@PHP83Migration'              => true,
 
         // Additional custom rules
         'declare_strict_types'            => true,
@@ -84,6 +89,15 @@ return (new PhpCsFixer\Config())
             'less_and_greater'     => false,
             'always_move_variable' => false,
         ],
+        // PHP compatibility rules
+        'native_function_invocation'      => [
+            'include' => ['@all'],
+            'scope'   => 'all',
+            'strict'  => true,
+        ],
+        'modernize_strpos'                => true,
+        'get_class_to_class_keyword'      => false, // Keep compatibility with older PHP
+        'octal_notation'                  => false, // Don't force 0o notation (PHP 8.1+)
     ])
     ->setFinder(
         PhpCsFixer\Finder::create()

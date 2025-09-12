@@ -2,6 +2,10 @@
 .idea
 .vscode
 
+# Netresearch environment
+.env
+.nrdev
+
 # OSX
 .DS_Store
 

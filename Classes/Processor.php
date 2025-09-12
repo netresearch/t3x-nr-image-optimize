@@ -23,6 +23,21 @@ use TYPO3\CMS\Core\Locking\LockingStrategyInterface;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\HttpUtility;
 
+use function array_search;
+use function dirname;
+use function file_exists;
+use function file_get_contents;
+use function header;
+use function is_dir;
+use function md5;
+use function mkdir;
+use function preg_match;
+use function preg_match_all;
+use function round;
+use function strtolower;
+use function urldecode;
+use function usleep;
+
 class Processor
 {
     private RequestInterface $request;

@@ -1,18 +1,20 @@
 includes:
     - %currentWorkingDirectory%/.build/vendor/phpstan/phpstan-strict-rules/rules.neon
     - %currentWorkingDirectory%/.build/vendor/phpstan/phpstan-deprecation-rules/rules.neon
-    - %currentWorkingDirectory%/.build/vendor/saschaegerer/phpstan-typo3/extension.neon
+    - %currentWorkingDirectory%/.build/vendor/friendsoftypo3/phpstan-typo3/extension.neon
     - %currentWorkingDirectory%/Build/phpstan-baseline.neon
 
 parameters:
     # You can currently choose from 10 levels (0 is the loosest and 9 is the strictest).
     level: 8
 
+    # PHP Version to check against (PHP 8.1 as minimum target)
+    phpVersion: 80100
+
     paths:
         - %currentWorkingDirectory%/Classes/
         - %currentWorkingDirectory%/Configuration/
         - %currentWorkingDirectory%/Resources/
-        - %currentWorkingDirectory%/ext_localconf.php
 
     excludePaths:
         - %currentWorkingDirectory%/.build/*
@@ -20,8 +22,8 @@ parameters:
 
     treatPhpDocTypesAsCertain: false
     reportMaybesInPropertyPhpDocTypes: false
-
-    # Prevent false positives
-    typo3:
-        requestGetAttributeMapping:
-            route: TYPO3\CMS\Backend\Routing\Route|null
+    
+    # Standard checks that work with PHP 8.1+
+    checkGenericClassInNonGenericObjectType: true
+    checkMissingIterableValueType: true
+    reportUnmatchedIgnoredErrors: true

@@ -14,7 +14,16 @@ namespace Netresearch\NrImageOptimize\ViewHelpers;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Utility\PathUtility;
 use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper;
+
+use function array_filter;
+use function floor;
+use function getimagesize;
+use function htmlentities;
+use function http_build_query;
+use function implode;
 use function sprintf;
+use function str_contains;
+use function trim;
 
 class SourceSetViewHelper extends AbstractViewHelper
 {
@@ -22,6 +31,7 @@ class SourceSetViewHelper extends AbstractViewHelper
 
     protected $escapeChildren = false;
 
+    // @Override - PHP 8.3+ attribute
     public function initializeArguments(): void
     {
         parent::initializeArguments();

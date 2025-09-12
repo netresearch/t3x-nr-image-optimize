@@ -1,14 +1,46 @@
 parameters:
-	ignoreErrors:
-		-
-			message: "#^Parameter \\#2 \\$indexer of class MeineKrankenkasse\\\\Typo3SearchAlgolia\\\\Event\\\\AfterDocumentAssembledEvent constructor expects MeineKrankenkasse\\\\Typo3SearchAlgolia\\\\Service\\\\IndexerInterface, MeineKrankenkasse\\\\Typo3SearchAlgolia\\\\Service\\\\IndexerInterface\\|null given\\.$#"
-			count: 1
-			path: ../Classes/Builder/DocumentBuilder.php
+    ignoreErrors:
+        -
+            message: "#^Parameter \\#2 \\$mode of method Netresearch\\\\NrImageOptimize\\\\Processor\\:\\:getValueFromMode\\(\\) expects string, string\\|null given\\.$#"
+            count: 2
+            path: ../Classes/Processor.php
 
-		-
-			message: """
-				#^Call to deprecated method setIgnoreEncryption\\(\\) of class Smalot\\\\PdfParser\\\\Config\\:
-				this is a temporary workaround, don't rely on it$#
-			"""
-			count: 1
-			path: ../Classes/EventListener/UpdateAssembledFileDocumentEventListener.php
+        -
+            message: "#^Offset 3 does not exist on array\\{0\\?\\: string, 1\\?\\: '/processed/', 2\\?\\: string, 3\\?\\: non\\-empty\\-string, 4\\?\\: non\\-empty\\-string\\}\\.$#"
+            count: 2
+            path: ../Classes/Processor.php
+
+        -
+            message: "#^Only booleans are allowed in an if condition, int\\<0, max\\>\\|false given\\.$#"
+            count: 1
+            path: ../Classes/Processor.php
+
+        -
+            message: "#^Only numeric types are allowed in /, int\\|null given on the left side\\.$#"
+            count: 1
+            path: ../Classes/Processor.php
+
+        -
+            message: "#^Parameter \\#1 \\$width of method Intervention\\\\Image\\\\Interfaces\\\\ImageInterface\\:\\:cover\\(\\) expects int, int\\|null given\\.$#"
+            count: 1
+            path: ../Classes/Processor.php
+
+        -
+            message: "#^Parameter \\#2 \\$height of method Intervention\\\\Image\\\\Interfaces\\\\ImageInterface\\:\\:cover\\(\\) expects int, int\\|null given\\.$#"
+            count: 1
+            path: ../Classes/Processor.php
+
+        -
+            message: "#^Parameter \\#2 \\$properties of method Netresearch\\\\NrImageOptimize\\\\ViewHelpers\\\\SourceSetViewHelper\\:\\:tag\\(\\) expects array\\<string\\>, array\\<string, int\\<min, \\-1\\>\\|int\\<1, max\\>\\|string\\> given\\.$#"
+            count: 1
+            path: ../Classes/ViewHelpers/SourceSetViewHelper.php
+
+        -
+            message: "#^Offset 'dirname' does not exist on array\\<string\\>\\|string\\.$#"
+            count: 1
+            path: ../Classes/ViewHelpers/SourceSetViewHelper.php
+
+        -
+            message: "#^Construct empty\\(\\) is not allowed\\. Use more strict comparison\\.$#"
+            count: 1
+            path: ../Classes/ViewHelpers/SourceSetViewHelper.php

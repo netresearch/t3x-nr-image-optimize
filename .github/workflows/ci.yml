@@ -1,80 +1,123 @@
-# Adapted from https://github.com/TYPO3GmbH/blog/blob/master/.github/workflows/ci.yml
 name: CI
 
 on:
-    push:
-    pull_request:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
 
 jobs:
-    build:
-        runs-on: ubuntu-latest
+  tests:
+    name: Tests (PHP ${{ matrix.php-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php-version:
+          - '8.1'
+          - '8.2'
+          - '8.3'
+          - '8.4'
+        include:
+          - php-version: '8.1'
+            typo3-version: '^11.5'
+          - php-version: '8.2'
+            typo3-version: '^12.0'
+          - php-version: '8.3'
+            typo3-version: '^12.0'
+          - php-version: '8.4'
+            typo3-version: '^12.0'
 
-        strategy:
-            fail-fast: false
-            matrix:
-                typo3: [ '^12' ]
-                php: [ '8.3', '8.4' ]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-        steps:
-            -   id: checkout
-                name: Checkout
-                uses: actions/checkout@v4
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+          extensions: mbstring, intl, json
+          tools: composer:v2
+          coverage: none
 
-            -   id: setup_php
-                name: Set up PHP version ${{ matrix.php }}
-                uses: shivammathur/setup-php@v2
-                with:
-                    php-version: ${{ matrix.php }}
-                    tools: composer:v2
+      - name: Validate composer.json
+        run: composer validate --strict
 
-            -   name: Validate composer.json and composer.lock
-                run: composer validate
+      - name: Get composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
 
-            -   id: composer-cache-vars
-                name: Composer Cache Vars
-                run: |
-                    echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
-                    echo "timestamp=$(date +"%s")" >> $GITHUB_OUTPUT
+      - name: Cache composer dependencies
+        uses: actions/cache@v3
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: composer-${{ runner.os }}-${{ matrix.php-version }}-${{ hashFiles('**/composer.json') }}
+          restore-keys: |
+            composer-${{ runner.os }}-${{ matrix.php-version }}-
+            composer-${{ runner.os }}-
 
-            -   id: composer-cache-dependencies
-                name: Cache Composer dependencies
-                uses: actions/cache@v4
-                with:
-                    path: ${{ steps.composer-cache-vars.outputs.dir }}
-                    key: ${{ runner.os }}-composer-${{ matrix.php }}-${{ matrix.typo3 }}-${{ steps.composer-cache-vars.outputs.timestamp }}
-                    restore-keys: |
-                        ${{ runner.os }}-composer-${{ matrix.php }}-${{ matrix.typo3 }}-
-                        ${{ runner.os }}-composer-${{ matrix.php }}-
-                        ${{ runner.os }}-composer-
+      - name: Install dependencies
+        run: |
+          composer require typo3/cms-core:${{ matrix.typo3-version }} --no-update
+          composer update --prefer-dist --no-progress
 
-            -   id: install
-                name: Install dependencies with typo3/cms-core:${{ matrix.typo3 }}
-                run: |
-                    composer require typo3/cms-core:${{ matrix.typo3 }} --no-progress --no-update
-                    composer require typo3/cms-backend:${{ matrix.typo3 }} --no-progress --no-update
-                    composer install
-                    git checkout composer.json
+      - name: Run PHP CS Fixer
+        run: composer ci:test:php:cgl
 
-            -   id: lint
-                name: Lint
-                if: ${{ always() && steps.install.conclusion == 'success' }}
-                run: |
-                    composer ci:test:php:lint
+      - name: Run PHPLint
+        run: composer ci:test:php:lint
 
-            -   id: cgl
-                name: CGL
-                if: ${{ always() && steps.install.conclusion == 'success' }}
-                run: |
-                    composer ci:cgl -- --dry-run --config Build/.php-cs-fixer.dist.php
+      - name: Run PHPStan
+        run: composer ci:test:php:phpstan
 
-            -   id: phpstan
-                name: PHPStan
-                if: ${{ always() && steps.install.conclusion == 'success' }}
-                run: |
-                    composer ci:test:php:phpstan -- --error-format=github
+      - name: Run Rector
+        run: composer ci:test:php:rector
 
-            -   id: rector
-                name: Rector
-                if: ${{ always() && steps.install.conclusion == 'success' }}
-                run: |
-                    composer ci:test:php:rector
+  code-quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, intl, json
+          tools: composer:v2
+          coverage: xdebug
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-progress
+
+      - name: Run all tests
+        run: composer ci:test
+
+  compatibility-check:
+    name: PHP 8.4 Compatibility Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP 8.4
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, intl, json
+          tools: composer:v2
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-progress --ignore-platform-reqs
+
+      - name: Check PHP 8.4 compatibility
+        run: |
+          echo "Checking PHP 8.4 compatibility..."
+          php -l Classes/**/*.php
+          php -l Configuration/**/*.php
