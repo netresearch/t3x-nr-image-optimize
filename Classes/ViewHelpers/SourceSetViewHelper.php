@@ -71,7 +71,7 @@ class SourceSetViewHelper extends AbstractViewHelper
             'class'       => trim($this->arguments['class'] ?? ''),
         ];
 
-        return $this->generateSrcSet() . $this->tag('img', array_filter($props, static fn (int|string $value): bool => $value !== null && $value !== ''));
+        return $this->generateSrcSet() . $this->tag('img', array_filter($props, static fn (mixed $value): bool => $value !== null && $value !== ''));
     }
 
     public function useJsLazyLoad(): bool
