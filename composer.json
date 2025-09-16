@@ -35,6 +35,9 @@
         "ssch/typo3-rector": "^3.0",
         "a9f/typo3-fractor": "^0.5"
     },
+    "suggest": {
+        "christophlehmann/imageoptimizer": "Optimize uploaded/processed images with binaries of your choice"
+    },
     "autoload": {
         "psr-4": {
             "Netresearch\\NrImageOptimize\\": "Classes/"
