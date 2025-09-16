@@ -19,6 +19,11 @@ use Psr\Http\Server\RequestHandlerInterface;
 
 use function str_starts_with;
 
+/**
+ * @author  Axel Seemann <axel.seemann@netresearch.de>
+ * @license Netresearch https://www.netresearch.de
+ * @link    https://www.netresearch.de
+ */
 class ProcessingMiddleware implements MiddlewareInterface
 {
     private readonly Processor $processor;
@@ -28,7 +33,6 @@ class ProcessingMiddleware implements MiddlewareInterface
         $this->processor = $processor;
     }
 
-    // @Override - PHP 8.3+ attribute
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
         if (str_starts_with($request->getUri()->getPath(), '/processed/')) {
