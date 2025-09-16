@@ -3,7 +3,7 @@
     "description": "Add capability to optimize the delivered images to benefit from better compression and smaller image size. This extension also add the ability to process images only if it is really requested.",
     "type": "typo3-cms-extension",
     "license": [
-        "GPL-2.0-or-later"
+        "GPL-3.0-or-later"
     ],
     "config": {
         "bin-dir": ".build/bin",

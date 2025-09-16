@@ -1,111 +1,164 @@
+.. |release| image:: https://img.shields.io/github/v/release/netresearch/t3x-nr-image-optimize?sort=semver
+   :target: https://github.com/netresearch/t3x-nr-image-optimize/releases/latest
+.. |license| image:: https://img.shields.io/github/license/netresearch/t3x-nr-image-optimize
+   :target: https://github.com/netresearch/t3x-nr-image-optimize/blob/main/LICENSE
+.. |ci| image:: https://github.com/netresearch/t3x-nr-image-optimize/actions/workflows/ci.yml/badge.svg
+.. |php| image:: https://img.shields.io/badge/PHP-8.2%20|%208.3%20|%208.4-blue.svg
+.. |typo3| image:: https://img.shields.io/badge/TYPO3-13.4-orange.svg
+
+|php| |typo3| |license| |ci| |release|
+
 .. _nr_image_optimize:
 
-=========================
-NrImageOptimize Extension
-=========================
+=====================================
+🚀 TYPO3 Extension: nr_image_optimize
+=====================================
 
-The `NrImageOptimize` extension is a TYPO3 extension designed to optimize images and generate responsive image sets.
-It provides various ViewHelpers to facilitate image optimization and responsive image handling.
+The ``nr_image_optimize`` extension is an advanced TYPO3 extension for image optimization. It provides lazy image processing, modern formats, responsive images, and performance optimizations.
 
-Features
-========
-
-- **Image Optimization**: Automatically optimizes images for better performance.
-- **Responsive Image Sets**: Generates responsive image sets using the `SourceSetViewHelper`.
-- **Lazy Loading**: Supports lazy loading of images to improve page load times.
-- **Customizable**: Allows customization of image processing parameters.
-
-Installation
+🎨 Features
 ============
 
-1. Add the extension to your TYPO3 installation using Composer:
+- 🚀 **Lazy Image Processing**: Images are processed only when requested.
+- 🎨 **Modern Format Support**: WebP and AVIF with automatic fallback.
+- 📱 **Responsive Images**: Built-in ViewHelper for srcset generation.
+- ⚡ **Performance Optimized**: Middleware-based processing for efficiency.
+- 🔧 **Intervention Image**: Powered by the Intervention Image library.
+- 📊 **Core Web Vitals**: Improves LCP and overall page performance.
 
-   .. code-block:: bash
+🛠️ Requirements
+================
 
-      composer require netresearch/nr_image_optimize
+- PHP 8.2, 8.3, or 8.4
+- TYPO3 13.4
+- Intervention Image library (installed via Composer automatically)
 
-2. Activate the extension in the TYPO3 Extension Manager.
+📌 Recommended Extensions
+========================
 
-Usage
-=====
+- `https://github.com/christophlehmann/imageoptimizer`
 
-ViewHelpers
------------
+💾 Installation
+================
 
-The extension provides several ViewHelpers to optimize and handle images:
-
-- **SourceSetViewHelper**: Generates responsive image sets.
-
-Example
--------
-
-Here is an example of how to use the `SourceSetViewHelper` in your Fluid templates:
-
-.. code-block:: html
-
-    <div data-namespace-typo3-fluid="true"
-        xmlns:nrio="http://typo3.org/ns/Netresearch/NrImageOptimize/ViewHelpers" >
-        <nrio:sourceSet path="{f:uri.image(image: image, width: '960', height: '690', cropVariant: 'default')}"
-                       width="960"
-                       height="690"
-                       alt="Image description"
-                       class="image"
-                       lazyload="1"
-                       set="{480:{width: 160, height: 90}}
-        />
-    </div>
-
-
-Source set configuration
+Via Composer (recommended)
 ------------------------
-
-You can define differnt source sets for each media brakepoints by pass the information via the `set` attribute.
-
-.. code-block:: html
-
-    <div data-namespace-typo3-fluid="true"
-        xmlns:nrio="http://typo3.org/ns/Netresearch/NrImageOptimize/ViewHelpers" >
-        <nrio:sourceSet path="{f:uri.image(image: image, width: '960', height: '690', cropVariant: 'default')}"
-                       <!-- other attributes -->
-                       set="{
-                            480:{width: 160, height: 90}
-                            800:{width: 400, height: 300}
-                       }
-        />
-    </div>
-
-The first number represents the maximum width of the view port in pixel, the hight and the width defining the target image size for the picture.
-
-
-Render-modes
-------------
-There are 2 render-modes available for the `SourceSetViewHelper` at the moment.
-
-- **cover**: The default render-mode will resize the images so they cover the provided width and height fully.
-- **fit**: The fit render-mode will resize the images so they fit into the provided width and height.
-
-.. code-block:: html
-
-    <div data-namespace-typo3-fluid="true"
-        xmlns:nrio="http://typo3.org/ns/Netresearch/NrImageOptimize/ViewHelpers" >
-        <nrio:sourceSet path="{f:uri.image(image: image, width: '960', height: '690', cropVariant: 'default')}"
-                       width="960"
-                       height="690"
-                       <!-- other attributes -->
-                       mode="fit"
-        />
-    </div>
-
-Testing
-=======
-
-Unit tests are provided to ensure the functionality and the codestyle of the extension. To run the tests, use the following command:
 
 .. code-block:: bash
 
-   composer ci:test
+    composer require netresearch/nr-image-optimize
 
-Contributing
-============
+Manual Installation
+------------------
 
-Contributions are welcome! Please submit your pull requests to the GitHub repository.
+1. Download the extension from the TYPO3 Extension Repository
+2. Upload to ``typo3conf/ext/``
+3. Activate the extension in the Extension Manager
+
+⚙️ Configuration
+================
+
+The extension works out of the box with sensible defaults. Images are automatically optimized when accessed via the ``/processed/`` path.
+
+ViewHelper Usage
+----------------
+
+.. code-block:: html
+
+    {namespace nr=Netresearch\NrImageOptimize\ViewHelpers}
+
+    <nr:sourceSet file="{image}"
+                  width="1200"
+                  height="800"
+                  quality="85"
+                  sizes="(max-width: 768px) 100vw, 50vw"
+    />
+
+Supported Parameters
+---------------------
+
+- ``file``: Image file resource
+- ``width``: Target width in pixels
+- ``height``: Target height in pixels
+- ``quality``: JPEG/WebP quality (1-100)
+- ``sizes``: Responsive sizes attribute
+- ``format``: Output format (auto, webp, avif, jpg, png)
+
+📐 Source Set Configuration
+---------------------------
+
+Different source sets can be defined for each media breakpoint via the ``set`` attribute:
+
+.. code-block:: html
+
+    <nr:sourceSet path="{f:uri.image(image: image, width: '960', height: '690', cropVariant: 'default')}"
+                  set="{
+                      480:{width: 160, height: 90},
+                      800:{width: 400, height: 300}
+                  }"
+    />
+
+🖼️ Render Modes
+----------------
+
+Two render modes are available for the ``SourceSetViewHelper``:
+
+- **cover**: Default mode, resizes images to fully cover the provided width and height.
+- **fit**: Resizes images so they fit within the provided width and height.
+
+.. code-block:: html
+
+    <nr:sourceSet path="{f:uri.image(image: image, width: '960', height: '690', cropVariant: 'default')}"
+                  width="960"
+                  height="690"
+                  mode="fit"
+    />
+
+🧪 Development & Testing
+========================
+
+Unit tests ensure functionality and code quality.
+
+.. code-block:: bash
+
+    # Run all tests
+    composer ci:test
+
+    # Run specific tests
+    composer ci:test:php:cgl     # Code style
+    composer ci:test:php:lint    # PHP syntax
+    composer ci:test:php:phpstan # Static analysis
+    composer ci:test:php:unit    # PHPUnit tests
+    composer ci:test:php:rector  # Code quality
+
+🏗️ Architecture
+================
+
+The extension uses a middleware approach for image processing:
+
+1. **ProcessingMiddleware**: Intercepts requests to ``/processed/`` paths
+2. **Processor**: Handles image optimization and format conversion
+3. **SourceSetViewHelper**: Generates responsive image markup
+
+⚡ Performance Considerations
+=============================
+
+- Images are processed only once and cached
+- Supports native browser lazy loading
+- Automatic format negotiation based on Accept headers
+- Optimized for CDN delivery
+
+📄 License
+===========
+
+GPL-3.0-or-later. See `LICENSE file <LICENSE>`_ for details.
+
+🆘 Support
+==========
+
+For issues and feature requests, please use the `GitHub issue tracker <https://github.com/netresearch/t3x-nr-image-optimize/issues>`_.
+
+🙏 Credits
+===========
+
+Developed by `Netresearch DTT GmbH <https://www.netresearch.de/>`_
