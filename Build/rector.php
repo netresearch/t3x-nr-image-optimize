@@ -16,7 +16,6 @@ use Rector\DeadCode\Rector\ClassMethod\RemoveUselessParamTagRector;
 use Rector\DeadCode\Rector\ClassMethod\RemoveUselessReturnTagRector;
 use Rector\DeadCode\Rector\Property\RemoveUselessVarTagRector;
 use Rector\Php80\Rector\Class_\ClassPropertyAssignToConstructorPromotionRector;
-use Rector\Php83\Rector\ClassMethod\AddOverrideAttributeToOverriddenMethodsRector;
 use Rector\Set\ValueObject\LevelSetList;
 use Rector\Set\ValueObject\SetList;
 use Ssch\TYPO3Rector\Set\Typo3LevelSetList;
@@ -26,20 +25,18 @@ return static function (RectorConfig $rectorConfig): void {
         __DIR__ . '/../Classes',
         __DIR__ . '/../Configuration',
         __DIR__ . '/../Resources',
-        __DIR__ . '/../ext_*.php',
+        '../ext_*',
     ]);
 
     $rectorConfig->skip([
-        __DIR__ . '/../ext_emconf.php',
-        __DIR__ . '/../ext_*.sql',
+        '../ext_emconf.php',
+        '../ext_*.sql',
     ]);
 
     $rectorConfig->phpstanConfig('Build/phpstan.neon');
     $rectorConfig->importNames();
     $rectorConfig->removeUnusedImports();
     $rectorConfig->disableParallel();
-
-    // Set PHP version to target (PHP 8.2 minimum for TYPO3 13)
     $rectorConfig->phpVersion(80200);
 
     // Define what rule sets will be applied
@@ -52,11 +49,7 @@ return static function (RectorConfig $rectorConfig): void {
         SetList::PRIVATIZATION,
         SetList::STRICT_BOOLEANS,
         SetList::TYPE_DECLARATION,
-
-        // PHP 8.2 and 8.3 features
-        LevelSetList::UP_TO_PHP_83,
-
-        // TYPO3 13 support
+        LevelSetList::UP_TO_PHP_82,
         Typo3LevelSetList::UP_TO_TYPO3_13,
     ]);
 
@@ -69,7 +62,4 @@ return static function (RectorConfig $rectorConfig): void {
         RemoveUselessVarTagRector::class,
         RemoveUnusedPrivateMethodParameterRector::class,
     ]);
-
-    // Enable PHP 8.3+ features
-    $rectorConfig->rule(AddOverrideAttributeToOverriddenMethodsRector::class);
 };
