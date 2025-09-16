@@ -55,6 +55,12 @@
         }
     },
     "scripts": {
+        "post-install-cmd": [
+            "@check-binaries"
+        ],
+        "check-binaries": [
+            "php check-binaries.php"
+        ],
         "ci:cgl": [
             "php-cs-fixer fix --config Build/.php-cs-fixer.dist.php --diff --verbose --cache-file .build/.php-cs-fixer.cache"
         ],
