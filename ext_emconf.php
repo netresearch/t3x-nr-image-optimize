@@ -23,8 +23,6 @@ $EM_CONF['nr_image_optimize'] = [
             'typo3' => '13.0.0-13.4.99',
         ],
         'conflicts' => [],
-        'suggests'  => [
-            'webp' => 'WebP support for better image compression',
-        ],
+        'suggests'  => [],
     ],
 ];

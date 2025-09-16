@@ -119,14 +119,13 @@ class Processor
     private string $extension;
 
     /**
-     * Initialize the image processor and verify required binaries are available.
+     * Initialize the image processor.
      *
      * The constructor checks for external optimization tools and creates the
      * Intervention Image manager using the Imagick driver.
      */
     public function __construct()
     {
-        $this->checkRequirements();
         $this->imageManager = new ImageManager(
             new Driver()
         );
@@ -140,29 +139,6 @@ class Processor
     public function setRequest(RequestInterface $request): void
     {
         $this->request = $request;
-    }
-
-    /**
-     * Ensure required optimization binaries are available on the system.
-     *
-     * Sends a 500 response and terminates if a required binary is missing.
-     */
-    private function checkRequirements(): void
-    {
-        if (!file_exists('/usr/bin/jpegoptim')) {
-            header(HttpUtility::HTTP_STATUS_500);
-            exit('jpegoptim is not installed');
-        }
-
-        if (!file_exists('/usr/bin/optipng')) {
-            header(HttpUtility::HTTP_STATUS_500);
-            exit('optipng is not installed');
-        }
-
-        if (!file_exists('/usr/bin/gifsicle')) {
-            header(HttpUtility::HTTP_STATUS_500);
-            exit('gifsicle is not installed');
-        }
     }
 
     /**

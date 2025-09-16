@@ -31,14 +31,14 @@ use function str_starts_with;
  * @license Netresearch https://www.netresearch.de
  * @link    https://www.netresearch.de
  */
-class ProcessingMiddleware implements MiddlewareInterface
+readonly class ProcessingMiddleware implements MiddlewareInterface
 {
     /**
      * Image processor service used to generate and send variants.
      *
      * @var Processor
      */
-    private readonly Processor $processor;
+    private Processor $processor;
 
     /**
      * Constructor.
