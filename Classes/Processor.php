@@ -41,6 +41,15 @@ use function urldecode;
 use function usleep;
 
 /**
+ * Handles on-the-fly image processing for generated variants served from the
+ * "/processed" path. Parses the requested variant from the URL, loads the
+ * original image, applies resizing/cropping according to the mode, and writes
+ * optimized variants (original format, and optionally AVIF/WebP) to disk while
+ * streaming the result to the client.
+ *
+ * Concurrency safety is ensured via TYPO3's locking API to avoid duplicate work
+ * when multiple requests for the same image arrive simultaneously.
+ *
  * @author  Axel Seemann <axel.seemann@netresearch.de>
  * @author  Rico Sonntag <rico.sonntag@netresearch.de>
  * @license Netresearch https://www.netresearch.de
@@ -48,28 +57,73 @@ use function usleep;
  */
 class Processor
 {
+    /**
+     * The incoming PSR-7 request used to determine variant path and query flags.
+     *
+     * @var RequestInterface
+     */
     private RequestInterface $request;
 
+    /**
+     * URL path of the requested processed variant (decoded).
+     */
     private string $variantUrl;
 
+    /**
+     * Intervention Image manager used to read/encode images.
+     *
+     * @var ImageManager
+     */
     private readonly ImageManager $imageManager;
 
+    /**
+     * The currently loaded original image.
+     *
+     * @var ImageInterface
+     */
     private ImageInterface $image;
 
+    /**
+     * Target width in pixels (null when not specified).
+     */
     private ?int $targetWidth = null;
 
+    /**
+     * Target height in pixels (null when not specified).
+     */
     private ?int $targetHeight = null;
 
+    /**
+     * Output quality (1-100) for encoding.
+     */
     private int $targetQuality = 80;
 
+    /**
+     * Processing mode: 0 = cover (crop), 1 = fit (scale to contain).
+     */
     private int $processingMode;
 
+    /**
+     * Absolute filesystem path to the original image file.
+     */
     private string $pathOriginal;
 
+    /**
+     * Absolute filesystem path (without extension) for the processed variant.
+     */
     private string $pathVariant;
 
+    /**
+     * Lowercased extension of the requested variant (e.g., jpg, webp, avif).
+     */
     private string $extension;
 
+    /**
+     * Initialize the image processor and verify required binaries are available.
+     *
+     * The constructor checks for external optimization tools and creates the
+     * Intervention Image manager using the Imagick driver.
+     */
     public function __construct()
     {
         $this->checkRequirements();
@@ -78,11 +132,21 @@ class Processor
         );
     }
 
+    /**
+     * Set the current PSR-7 request to be used for processing.
+     *
+     * @param RequestInterface $request Incoming request containing the processed URL and query params
+     */
     public function setRequest(RequestInterface $request): void
     {
         $this->request = $request;
     }
 
+    /**
+     * Ensure required optimization binaries are available on the system.
+     *
+     * Sends a 500 response and terminates if a required binary is missing.
+     */
     private function checkRequirements(): void
     {
         if (!file_exists('/usr/bin/jpegoptim')) {
@@ -101,6 +165,12 @@ class Processor
         }
     }
 
+    /**
+     * Parse the requested variant URL and derive processing parameters.
+     *
+     * Computes original/variant file paths, normalizes the extension, and
+     * extracts width/height/quality/mode values from the encoded mode string.
+     */
     private function gatherInformationBasedOnUrl(): void
     {
         $information = [];
@@ -127,6 +197,14 @@ class Processor
         $this->processingMode = $this->getValueFromMode('m', $information[3] ?? '') ?? 0;
     }
 
+    /**
+     * Extract a numeric value from the compact mode string (e.g., h400w600q80m1).
+     *
+     * @param string $what Identifier to look for: 'h', 'w', 'q', or 'm'
+     * @param string $mode The encoded mode string
+     *
+     * @return int|null The integer value if present, otherwise null
+     */
     private function getValueFromMode(string $what, string $mode): ?int
     {
         if ($mode === '') {
@@ -148,6 +226,11 @@ class Processor
         return null;
     }
 
+    /**
+     * Load the original image from the disk under a read lock to avoid conflicts.
+     *
+     * Sends a 503 response if the lock cannot be acquired after several tries.
+     */
     private function loadOriginal(): void
     {
         $locker = $this->getLocker($this->pathOriginal . '-read');
@@ -168,6 +251,11 @@ class Processor
         $locker->release();
     }
 
+    /**
+     * Derive the missing target dimension while preserving the original aspect ratio.
+     *
+     * If only width or height is provided, the other is computed from the image's ratio.
+     */
     private function calculateTargetDimensions(): void
     {
         $aspectRatio = $this->image->width() / $this->image->height();
@@ -185,16 +273,29 @@ class Processor
         }
     }
 
+    /**
+     * Whether the requested variant's extension is WebP.
+     */
     private function isWebpImage(): bool
     {
         return $this->extension === 'webp';
     }
 
+    /**
+     * Whether the requested variant's extension is AVIF.
+     */
     private function isAvifImage(): bool
     {
         return $this->extension === 'avif';
     }
 
+    /**
+     * Fetch a query parameter value from the incoming request URI.
+     *
+     * @param string $key Parameter name
+     *
+     * @return mixed The raw query value or null if not present
+     */
     private function getQueryValue(string $key): mixed
     {
         $query = Query::parse($this->request->getUri()->getQuery());
@@ -202,28 +303,46 @@ class Processor
         return $query[$key] ?? null;
     }
 
+    /**
+     * Check whether WebP generation should be skipped for this request.
+     */
     private function skipWebPCreation(): bool
     {
         return (bool) $this->getQueryValue('skipWebP');
     }
 
+    /**
+     * Check whether AVIF generation should be skipped for this request.
+     */
     private function skipAvifCreation(): bool
     {
         return (bool) $this->getQueryValue('skipAvif');
     }
 
+    /**
+     * Encode and persist the WebP variant of the current image.
+     */
     private function generateWebpVariant(): void
     {
         $this->image->toWebp($this->targetQuality);
         $this->image->save($this->pathVariant . '.webp');
     }
 
+    /**
+     * Encode and persist the AVIF variant of the current image.
+     */
     private function generateAvifVariant(): void
     {
         $this->image->toAvif($this->targetQuality);
         $this->image->save($this->pathVariant . '.avif');
     }
 
+    /**
+     * Stream the best available image representation to the client.
+     *
+     * Prefers AVIF, then WebP, falling back to the processed original format.
+     * Sets an appropriate Content-Type header and echoes the binary content.
+     */
     private function output(): void
     {
         if ($this->hasVariantFor('avif')) {
@@ -244,6 +363,17 @@ class Processor
         echo $this->image->encodeByExtension($this->extension, $this->targetQuality)->toString();
     }
 
+    /**
+     * Entry point invoked by the middleware to handle a processed image request.
+     *
+     * Parses the requested variant from the URI, acquires a processing lock to
+     * avoid duplicate work, loads and resizes/crops the original image, writes
+     * the processed files (including optional WebP/AVIF variants), and streams
+     * the best available representation back to the client.
+     *
+     * Sends 404 if the original image is missing and 503 if a lock cannot be
+     * acquired in time. This method echoes the response body and sets headers.
+     */
     public function generateAndSend(): void
     {
         $this->variantUrl = urldecode($this->request->getUri()->getPath());
@@ -303,6 +433,12 @@ class Processor
         $locker->release();
     }
 
+    /**
+     * Apply the requested resize/crop operation to the image.
+     *
+     * Mode 0 = cover (crop to fill), Mode 1 = scale to fit inside.
+     * If either dimension is missing, no processing is performed.
+     */
     private function processImage(): void
     {
         if (($this->targetWidth === null)
@@ -317,22 +453,30 @@ class Processor
         };
     }
 
+    /**
+     * Check whether a processed variant file exists for the given extension.
+     *
+     * @param string $variant File extension without dot (e.g., 'webp', 'avif')
+     *
+     * @return bool True if the variant file exists
+     */
     private function hasVariantFor(string $variant): bool
     {
         return file_exists($this->pathVariant . '.' . $variant);
     }
 
     /**
-     * @param string $key
+     * Create a TYPO3 lock for the given key to coordinate concurrent image processing.
      *
-     * @return LockingStrategyInterface
+     * @param string $key Arbitrary identifier (will be hashed into the final lock name)
      *
-     * @throws LockCreateException
+     * @return LockingStrategyInterface A lock instance that must be acquired/released by the caller
+     *
+     * @throws LockCreateException If the lock cannot be created by the configured strategy
      */
     public function getLocker(string $key): LockingStrategyInterface
     {
-        $lockFactory = GeneralUtility::makeInstance(LockFactory::class);
-
-        return $lockFactory->createLocker('nr_image_optimize-' . md5($key));
+        return GeneralUtility::makeInstance(LockFactory::class)
+            ->createLocker('nr_image_optimize-' . md5($key));
     }
 }

@@ -27,6 +27,14 @@ use function str_contains;
 use function trim;
 
 /**
+ * Fluid ViewHelper that renders a responsive <picture> source set and <img> tag
+ * for images processed by the on-the-fly processor. It generates URLs pointing
+ * to the "/processed" endpoint, including width/height/mode/quality parameters
+ * and optional flags to skip AVIF or WebP creation.
+ *
+ * Supports both native lazy loading and JS-based lazyload libraries by emitting
+ * appropriate attributes (loading, data-src, data-srcset).
+ *
  * @author  Axel Seemann <axel.seemann@netresearch.de>
  * @author  Rico Sonntag <rico.sonntag@netresearch.de>
  * @license Netresearch https://www.netresearch.de
@@ -34,26 +42,44 @@ use function trim;
  */
 class SourceSetViewHelper extends AbstractViewHelper
 {
+    /**
+     * Fluid internal: disable automatic output escaping as we output HTML tags.
+     *
+     * @var bool
+     */
     protected $escapeOutput = false;
 
+    /**
+     * Fluid internal: do not escape child content since we assemble HTML ourselves.
+     *
+     * @var bool
+     */
     protected $escapeChildren = false;
 
+    /**
+     * Register and describe supported ViewHelper arguments.
+     */
     public function initializeArguments(): void
     {
         parent::initializeArguments();
 
-        $this->registerArgument('path', 'string', 'Path to the original image', true);
-        $this->registerArgument('set', 'array', 'Array of image sizes', false, []);
-        $this->registerArgument('width', 'int|float', 'Width of the original image', false, 0);
-        $this->registerArgument('height', 'int|float', 'Height of the original image', false, 0);
-        $this->registerArgument('alt', 'string', 'Alt text for the image', false, '');
-        $this->registerArgument('class', 'string', 'Class for the image', false, '');
-        $this->registerArgument('mode', 'string', 'Mode for the image', false, 'cover');
-        $this->registerArgument('title', 'string', 'Title for the image', false, '');
-        $this->registerArgument('lazyload', 'bool', 'Use lazyload', false, false);
-        $this->registerArgument('attributes', 'array', 'Additional attributes', false, []);
+        $this->registerArgument('path', 'string', 'Public path to the source image (e.g. /fileadmin/foo.jpg).', true);
+        $this->registerArgument('set', 'array', 'Responsive set: [maxWidth => [width=>int, height=>int]] to build <source> tags.', false, []);
+        $this->registerArgument('width', 'int|float', 'Base width in px for the <img> (0 = auto from file).', false, 0);
+        $this->registerArgument('height', 'int|float', 'Base height in px for the <img> (0 = auto, keeps ratio).', false, 0);
+        $this->registerArgument('alt', 'string', 'Alternative text (accessibility). HTML-escaped.', false, '');
+        $this->registerArgument('class', 'string', 'CSS classes for <img>; include "lazyload" to use JS lazy load.', false, '');
+        $this->registerArgument('mode', 'string', "Resize mode: 'cover' (crop/fill) or 'fit' (scale inside).", false, 'cover');
+        $this->registerArgument('title', 'string', 'Title attribute for the image. HTML-escaped.', false, '');
+        $this->registerArgument('lazyload', 'bool', 'Add loading="lazy" (native lazy loading).', false, false);
+        $this->registerArgument('attributes', 'array', 'Extra HTML attributes merged into the rendered tag.', false, []);
     }
 
+    /**
+     * Render the responsive picture sources and the image tag.
+     *
+     * @return string HTML markup containing <source> elements and the <img>
+     */
     public function render(): string
     {
         $this->escapeOutput   = false;
@@ -62,6 +88,7 @@ class SourceSetViewHelper extends AbstractViewHelper
         $width  = $this->getArgWidth();
         $height = $this->getArgHeight();
 
+        // Provide a higher pixel-density (DPR 2) candidate via srcset "x2"
         $srcSet  = $this->getResourcePath($this->getArgPath(), $width * 2, $height * 2) . ' x2';
         $srcPath = $this->getResourcePath($this->getArgPath(), $width, $height);
 
@@ -87,11 +114,26 @@ class SourceSetViewHelper extends AbstractViewHelper
             );
     }
 
+    /**
+     * Determine whether JS-based lazy loading is requested via class name.
+     */
     public function useJsLazyLoad(): bool
     {
         return str_contains($this->arguments['class'] ?? '', 'lazyload');
     }
 
+    /**
+     * Build a processed image URL for the given path and parameters.
+     *
+     * @param string $path     Public path to the original image (e.g., /fileadmin/..)
+     * @param int    $width    Target width (0 keeps original)
+     * @param int    $height   Target height (0 keeps original)
+     * @param int    $quality  Target quality (1-100)
+     * @param bool   $skipAvif Whether to suppress AVIF generation for this URL
+     * @param bool   $skipWebP Whether to suppress WebP generation for this URL
+     *
+     * @return string URL under /processed/... including variant configuration and optional query string
+     */
     public function getResourcePath(
         string $path,
         int $width = 0,
@@ -146,6 +188,11 @@ class SourceSetViewHelper extends AbstractViewHelper
         return $url . '?' . http_build_query($queryArgs);
     }
 
+    /**
+     * Generate <source> elements for a responsive <picture> based on the provided set argument.
+     *
+     * @return string HTML markup containing one <source> per breakpoint with normal and x2 candidates
+     */
     public function generateSrcSet(): string
     {
         $return = '';
@@ -155,7 +202,7 @@ class SourceSetViewHelper extends AbstractViewHelper
             $srcSet         = sprintf(
                 '%s, %s x2',
                 $this->getResourcePath($this->getArgPath(), $dimensions['width'], $dimensions['height'] ?? 0),
-                $this->getResourcePath($this->getArgPath(), $dimensions['width'] * 2, $dimensions['height'] ?? 0 * 2)
+                $this->getResourcePath($this->getArgPath(), $dimensions['width'] * 2, ($dimensions['height'] ?? 0) * 2)
             );
             $props['srcset']      = $srcSet;
             $props['data-srcset'] = $srcSet;
@@ -167,10 +214,12 @@ class SourceSetViewHelper extends AbstractViewHelper
     }
 
     /**
-     * @param string                    $tag
-     * @param array<string, int|string> $properties
+     * Render a self-closing HTML tag with given attributes and global attributes/lazyload applied.
      *
-     * @return string
+     * @param string                               $tag        Tag name (e.g., 'img' or 'source')
+     * @param array<string, int|string|float|bool> $properties Attribute map to render into the tag
+     *
+     * @return string The HTML string ending with a newline
      */
     private function tag(string $tag, array $properties): string
     {
@@ -192,29 +241,52 @@ class SourceSetViewHelper extends AbstractViewHelper
         return $tagString . PHP_EOL;
     }
 
+    /**
+     * Resolve width argument as integer pixels.
+     *
+     * @return int
+     */
     private function getArgWidth(): int
     {
         return (int) floor($this->arguments['width'] ?? 0);
     }
 
+    /**
+     * Resolve height argument as integer pixels.
+     *
+     * @return int
+     */
     private function getArgHeight(): int
     {
         return (int) floor($this->arguments['height'] ?? 0);
     }
 
+    /**
+     * Get the original image path argument.
+     *
+     * @return string
+     */
     private function getArgPath(): string
     {
         return $this->arguments['path'];
     }
 
     /**
-     * @return array<array<int>>
+     * Return the responsive set definition used to build <source> elements.
+     *
+     * @return array<array-key, array<string, int>> Map of max-width => ['width'=>int, 'height'=>int]
      */
     private function getArgSet(): array
     {
         return $this->arguments['set'] ?? [];
     }
 
+    /**
+     * Map the semantic mode argument to a numeric processing mode used by Processor.
+     * 0 = cover (default), 1 = fit (scale).
+     *
+     * @return int
+     */
     private function getArgMode(): int
     {
         $mode = $this->arguments['mode'] ?? 'cover';
@@ -226,7 +298,9 @@ class SourceSetViewHelper extends AbstractViewHelper
     }
 
     /**
-     * @return array<string|int|float|bool>
+     * Additional attributes to append to the rendered tag(s).
+     *
+     * @return array<string|int|float|bool> Key/value pairs merged into the HTML element
      */
     private function getAttributes(): array
     {
@@ -239,6 +313,11 @@ class SourceSetViewHelper extends AbstractViewHelper
         return $this->arguments['attributes'];
     }
 
+    /**
+     * Whether to add the native loading="lazy" attribute to the rendered tag.
+     *
+     * @return bool
+     */
     private function useNativeLazyLoad(): bool
     {
         return (bool) ($this->arguments['lazyload'] ?? false);
