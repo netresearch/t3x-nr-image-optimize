@@ -1,166 +1,86 @@
+# Adapted from https://github.com/TYPO3GmbH/blog/blob/master/.github/workflows/ci.yml
 name: CI
 
 on:
-  push:
-    branches:
-      - main
-      - develop
-      - TYPO3-13
-  pull_request:
-    branches:
-      - main
-      - develop
-      - TYPO3-13
+    push:
+    pull_request:
 
 jobs:
-  tests:
-    name: Tests (PHP ${{ matrix.php-version }})
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        php-version:
-          - '8.2'
-          - '8.3'
-          - '8.4'
-        include:
-          - php-version: '8.2'
-            typo3-version: '^13.0'
-          - php-version: '8.3'
-            typo3-version: '^13.0'
-          - php-version: '8.4'
-            typo3-version: '^13.0'
+    build:
+        runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
+        strategy:
+            fail-fast: false
+            matrix:
+                typo3: [ '^13' ]
+                php: [ '8.2', '8.3', '8.4' ]
 
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: ${{ matrix.php-version }}
-          extensions: mbstring, intl, json, dom, curl, xml, zip, opcache, gd
-          tools: composer:v2
-          coverage: none
+        steps:
+            -   id: checkout
+                name: Checkout
+                uses: actions/checkout@v4
 
-      - name: Validate composer.json
-        run: composer validate --strict
+            -   id: setup_php
+                name: Set up PHP version ${{ matrix.php }}
+                uses: shivammathur/setup-php@v2
+                with:
+                    php-version: ${{ matrix.php }}
+                    tools: composer:v2
 
-      - name: Get composer cache directory
-        id: composer-cache
-        run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+            -   name: Validate composer.json and composer.lock
+                run: composer validate
 
-      - name: Cache composer dependencies
-        uses: actions/cache@v4
-        with:
-          path: ${{ steps.composer-cache.outputs.dir }}
-          key: composer-${{ runner.os }}-${{ matrix.php-version }}-${{ hashFiles('**/composer.json') }}
-          restore-keys: |
-            composer-${{ runner.os }}-${{ matrix.php-version }}-
-            composer-${{ runner.os }}-
+            -   id: composer-cache-vars
+                name: Composer Cache Vars
+                run: |
+                    echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+                    echo "timestamp=$(date +"%s")" >> $GITHUB_OUTPUT
 
-      - name: Install dependencies
-        run: |
-          composer require typo3/cms-core:${{ matrix.typo3-version }} --no-update
-          composer update --prefer-dist --no-progress
+            -   id: composer-cache-dependencies
+                name: Cache Composer dependencies
+                uses: actions/cache@v4
+                with:
+                    path: ${{ steps.composer-cache-vars.outputs.dir }}
+                    key: ${{ runner.os }}-composer-${{ matrix.php }}-${{ matrix.typo3 }}-${{ steps.composer-cache-vars.outputs.timestamp }}
+                    restore-keys: |
+                        ${{ runner.os }}-composer-${{ matrix.php }}-${{ matrix.typo3 }}-
+                        ${{ runner.os }}-composer-${{ matrix.php }}-
+                        ${{ runner.os }}-composer-
 
-      - name: Run PHP CS Fixer
-        run: composer ci:test:php:cgl
+            -   id: install
+                name: Install dependencies with typo3/cms-core:${{ matrix.typo3 }}
+                run: |
+                    composer require typo3/cms-core:${{ matrix.typo3 }} --no-progress --no-update
+                    composer require typo3/cms-backend:${{ matrix.typo3 }} --no-progress --no-update
+                    composer install
+                    git checkout composer.json
 
-      - name: Run PHPLint
-        run: composer ci:test:php:lint
+            -   id: lint
+                name: Lint
+                if: ${{ always() && steps.install.conclusion == 'success' }}
+                run: |
+                    composer ci:test:php:lint
 
-      - name: Run PHPStan
-        run: composer ci:test:php:phpstan
+            -   id: cgl
+                name: CGL
+                if: ${{ always() && steps.install.conclusion == 'success' }}
+                run: |
+                    composer ci:cgl -- --dry-run --config Build/.php-cs-fixer.dist.php
 
-      - name: Run Rector
-        run: composer ci:test:php:rector
+            -   id: phpstan
+                name: PHPStan
+                if: ${{ always() && steps.install.conclusion == 'success' }}
+                run: |
+                    composer ci:test:php:phpstan -- --error-format=github
 
-  code-quality:
-    name: Code Quality
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
+            -   id: phpunit
+                name: PHPUnit
+                if: ${{ always() && steps.install.conclusion == 'success' }}
+                run: |
+                    composer ci:test:php:unit
 
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.3'
-          extensions: mbstring, intl, json, dom, curl, xml, zip, opcache, gd
-          tools: composer:v2
-          coverage: xdebug
-
-      - name: Install dependencies
-        run: composer install --prefer-dist --no-progress
-
-      - name: Run all tests
-        run: composer ci:test
-
-  compatibility-check:
-    name: PHP Compatibility Check
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        php-version:
-          - '8.2'
-          - '8.3'
-          - '8.4'
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Setup PHP ${{ matrix.php-version }}
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: ${{ matrix.php-version }}
-          extensions: mbstring, intl, json
-          tools: none
-          coverage: none
-
-      - name: Check PHP ${{ matrix.php-version }} syntax compatibility
-        run: |
-          echo "Checking PHP ${{ matrix.php-version }} compatibility for TYPO3 13..."
-          errors=0
-          
-          # Check Classes directory
-          if [ -d "Classes" ]; then
-            echo "Checking Classes directory..."
-            while IFS= read -r file; do
-              if ! php -l "$file" > /dev/null 2>&1; then
-                echo "Syntax error in: $file"
-                php -l "$file"
-                errors=$((errors + 1))
-              fi
-            done < <(find Classes -name "*.php" -type f)
-          fi
-          
-          # Check Configuration directory
-          if [ -d "Configuration" ]; then
-            echo "Checking Configuration directory..."
-            while IFS= read -r file; do
-              if ! php -l "$file" > /dev/null 2>&1; then
-                echo "Syntax error in: $file"
-                php -l "$file"
-                errors=$((errors + 1))
-              fi
-            done < <(find Configuration -name "*.php" -type f)
-          fi
-          
-          # Check root PHP files if they exist
-          for file in *.php; do
-            if [ -f "$file" ]; then
-              if ! php -l "$file" > /dev/null 2>&1; then
-                echo "Syntax error in: $file"
-                php -l "$file"
-                errors=$((errors + 1))
-              fi
-            fi
-          done
-          
-          if [ $errors -eq 0 ]; then
-            echo "✅ All PHP files are compatible with PHP ${{ matrix.php-version }} and TYPO3 13"
-          else
-            echo "❌ Found $errors file(s) with syntax errors"
-            exit 1
-          fi
+            -   id: rector
+                name: Rector
+                if: ${{ always() && steps.install.conclusion == 'success' }}
+                run: |
+                    composer ci:test:php:rector
