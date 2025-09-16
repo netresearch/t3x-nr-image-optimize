@@ -18,7 +18,7 @@ jobs:
         steps:
             -   id: checkout
                 name: Checkout
-                uses: actions/checkout@v4
+                uses: actions/checkout@v5
 
             -   id: setup_php
                 name: Set up PHP version ${{ matrix.php }}
@@ -28,7 +28,7 @@ jobs:
                     tools: composer:v2
 
             -   name: Validate composer.json and composer.lock
-                run: composer validate
+                run: composer validate --strict
 
             -   id: composer-cache-vars
                 name: Composer Cache Vars
@@ -51,9 +51,7 @@ jobs:
                 name: Install dependencies with typo3/cms-core:${{ matrix.typo3 }}
                 run: |
                     composer require typo3/cms-core:${{ matrix.typo3 }} --no-progress --no-update
-                    composer require typo3/cms-backend:${{ matrix.typo3 }} --no-progress --no-update
                     composer install
-                    git checkout composer.json
 
             -   id: lint
                 name: Lint
