@@ -16,6 +16,7 @@ use Intervention\Image\Drivers\Imagick\Driver;
 use Intervention\Image\ImageManager;
 use Intervention\Image\Interfaces\ImageInterface;
 use Psr\Http\Message\RequestInterface;
+use RuntimeException;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Locking\Exception\LockCreateException;
 use TYPO3\CMS\Core\Locking\LockFactory;
@@ -34,10 +35,17 @@ use function mkdir;
 use function preg_match;
 use function preg_match_all;
 use function round;
+use function sprintf;
 use function strtolower;
 use function urldecode;
 use function usleep;
 
+/**
+ * @author  Axel Seemann <axel.seemann@netresearch.de>
+ * @author  Rico Sonntag <rico.sonntag@netresearch.de>
+ * @license Netresearch https://www.netresearch.de
+ * @link    https://www.netresearch.de
+ */
 class Processor
 {
     private RequestInterface $request;
@@ -113,10 +121,10 @@ class Processor
             $this->extension = 'jpg';
         }
 
-        $this->targetWidth    = $this->getValueFromMode('w', $information[3] ?? null);
-        $this->targetHeight   = $this->getValueFromMode('h', $information[3] ?? null);
-        $this->targetQuality  = $this->getValueFromMode('q', $information[3]) ?? 100;
-        $this->processingMode = $this->getValueFromMode('m', $information[3]) ?? 0;
+        $this->targetWidth    = $this->getValueFromMode('w', $information[3] ?? '');
+        $this->targetHeight   = $this->getValueFromMode('h', $information[3] ?? '');
+        $this->targetQuality  = $this->getValueFromMode('q', $information[3] ?? '') ?? 100;
+        $this->processingMode = $this->getValueFromMode('m', $information[3] ?? '') ?? 0;
     }
 
     private function getValueFromMode(string $what, string $mode): ?int
@@ -127,8 +135,9 @@ class Processor
 
         $modeMatch = [];
 
-        if (preg_match_all('/([hwqm]{1})(\d+)/', $mode, $modeMatch)) {
+        if ((bool) preg_match_all('/([hwqm]{1})(\d+)/', $mode, $modeMatch)) {
             $key = array_search($what, $modeMatch[1], true);
+
             if ($key === false) {
                 return null;
             }
@@ -163,12 +172,16 @@ class Processor
     {
         $aspectRatio = $this->image->width() / $this->image->height();
 
-        if ($this->targetHeight == null) {
-            $this->targetHeight = (int) round($this->targetWidth / $aspectRatio, 0);
+        if (($this->targetHeight === null)
+            && ($this->targetWidth !== null)
+        ) {
+            $this->targetHeight = (int) round($this->targetWidth / $aspectRatio);
         }
 
-        if ($this->targetWidth == null) {
-            $this->targetWidth = (int) round($this->targetHeight * $aspectRatio, 0);
+        if (($this->targetWidth === null)
+            && ($this->targetHeight !== null)
+        ) {
+            $this->targetWidth = (int) round($this->targetHeight * $aspectRatio);
         }
     }
 
@@ -235,12 +248,14 @@ class Processor
     {
         $this->variantUrl = urldecode($this->request->getUri()->getPath());
 
-        $locker = $this->getLocker($this->variantUrl . '-process');
-
+        $locker    = $this->getLocker($this->variantUrl . '-process');
         $lockCount = 0;
+
         while ($locker->acquire() === false) {
             usleep(100000);
+
             ++$lockCount;
+
             if ($lockCount === 10) {
                 header(HttpUtility::HTTP_STATUS_503);
                 echo 'Image is currently being processed';
@@ -261,8 +276,16 @@ class Processor
 
         $dir = dirname($this->pathVariant);
 
-        if (is_dir($dir) === false) {
-            mkdir($dir, 0o775, true);
+        if (!is_dir($dir)
+            && !mkdir($dir, 0775, true)
+            && !is_dir($dir)
+        ) {
+            throw new RuntimeException(
+                sprintf(
+                    'Directory "%s" was not created',
+                    $dir
+                )
+            );
         }
 
         $this->image->save($this->pathVariant, $this->targetQuality);
@@ -282,15 +305,15 @@ class Processor
 
     private function processImage(): void
     {
+        if (($this->targetWidth === null)
+            || ($this->targetHeight === null)
+        ) {
+            return;
+        }
+
         match ($this->processingMode) {
-            1 => $this->image->scale(
-                $this->targetWidth,
-                $this->targetHeight
-            ),
-            default => $this->image->cover(
-                $this->targetWidth,
-                $this->targetHeight
-            ),
+            1       => $this->image->scale($this->targetWidth, $this->targetHeight),
+            default => $this->image->cover($this->targetWidth, $this->targetHeight),
         };
     }
 

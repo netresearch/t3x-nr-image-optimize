@@ -21,17 +21,23 @@ use function getimagesize;
 use function htmlentities;
 use function http_build_query;
 use function implode;
+use function is_array;
 use function sprintf;
 use function str_contains;
 use function trim;
 
+/**
+ * @author  Axel Seemann <axel.seemann@netresearch.de>
+ * @author  Rico Sonntag <rico.sonntag@netresearch.de>
+ * @license Netresearch https://www.netresearch.de
+ * @link    https://www.netresearch.de
+ */
 class SourceSetViewHelper extends AbstractViewHelper
 {
     protected $escapeOutput = false;
 
     protected $escapeChildren = false;
 
-    // @Override - PHP 8.3+ attribute
     public function initializeArguments(): void
     {
         parent::initializeArguments();
@@ -71,7 +77,14 @@ class SourceSetViewHelper extends AbstractViewHelper
             'class'       => trim($this->arguments['class'] ?? ''),
         ];
 
-        return $this->generateSrcSet() . $this->tag('img', array_filter($props, static fn (mixed $value): bool => $value !== null && $value !== ''));
+        return $this->generateSrcSet()
+            . $this->tag(
+                'img',
+                array_filter(
+                    $props,
+                    static fn (int|string|null $value): bool => ($value !== null) && ($value !== '')
+                )
+            );
     }
 
     public function useJsLazyLoad(): bool
@@ -79,8 +92,14 @@ class SourceSetViewHelper extends AbstractViewHelper
         return str_contains($this->arguments['class'] ?? '', 'lazyload');
     }
 
-    public function getResourcePath(string $path, int $width = 0, int $height = 0, int $quality = 100, bool $skipAvif = false, bool $skipWebP = false): string
-    {
+    public function getResourcePath(
+        string $path,
+        int $width = 0,
+        int $height = 0,
+        int $quality = 100,
+        bool $skipAvif = false,
+        bool $skipWebP = false,
+    ): string {
         if ($width === 0 && $height === 0) {
             $info = getimagesize(Environment::getPublicPath() . $path);
 
@@ -104,10 +123,6 @@ class SourceSetViewHelper extends AbstractViewHelper
         }
 
         $generatorConfig = implode('', $args);
-
-        if ($generatorConfig === '') {
-            return $path;
-        }
 
         $url = sprintf(
             '/processed%s/%s.%s.%s',
@@ -152,8 +167,8 @@ class SourceSetViewHelper extends AbstractViewHelper
     }
 
     /**
-     * @param string        $tag
-     * @param array<string> $properties
+     * @param string                    $tag
+     * @param array<string, int|string> $properties
      *
      * @return string
      */
@@ -202,7 +217,9 @@ class SourceSetViewHelper extends AbstractViewHelper
 
     private function getArgMode(): int
     {
-        return match ($this->arguments['mode']) {
+        $mode = $this->arguments['mode'] ?? 'cover';
+
+        return match ($mode) {
             'fit'   => 1,
             default => 0,
         };
@@ -213,7 +230,9 @@ class SourceSetViewHelper extends AbstractViewHelper
      */
     private function getAttributes(): array
     {
-        if (empty($this->arguments['attributes'])) {
+        if (!isset($this->arguments['attributes'])
+            || !is_array($this->arguments['attributes'])
+        ) {
             return [];
         }
 
@@ -222,6 +241,6 @@ class SourceSetViewHelper extends AbstractViewHelper
 
     private function useNativeLazyLoad(): bool
     {
-        return (bool) $this->arguments['lazyload'];
+        return (bool) ($this->arguments['lazyload'] ?? false);
     }
 }
