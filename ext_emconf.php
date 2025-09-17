@@ -7,6 +7,7 @@
  * LICENSE file that was distributed with this source code.
  */
 
+declare(strict_types=1);
 $EM_CONF['nr_image_optimize'] = [
     'title'          => 'Netresearch Image Optimize',
     'description'    => 'Advanced image optimization extension for TYPO3 13. Features include: Lazy image processing (on-demand generation), WebP and AVIF format support with automatic fallback, optimized compression for smaller file sizes, ViewHelper for responsive images with srcset support, middleware for efficient image delivery, and support for Intervention Image library. Perfect for improving Core Web Vitals and page loading performance.',

@@ -195,6 +195,8 @@ class SourceSetViewHelper extends AbstractViewHelper
     
     /**
      * Get width variants as an array of integers, validated and sorted
+     *
+     * @return array<int>
      */
     private function getWidthVariants(): array
     {
@@ -215,6 +217,9 @@ class SourceSetViewHelper extends AbstractViewHelper
 
     /**
      * Validate width variants and remove invalid values
+     *
+     * @param array<int> $widths
+     * @return array<int>
      */
     private function validateWidthVariants(array $widths): array
     {

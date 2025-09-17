@@ -63,10 +63,10 @@ class SourceSetViewHelperTest extends TestCase
     {
         $this->viewHelper->setArguments([
             'path'             => '/path/to/image.jpg',
-            'width'           => 1250,
-            'height'          => 1250,
-            'alt'             => 'Test Image',
-            'class'           => 'test-class',
+            'width'            => 1250,
+            'height'           => 1250,
+            'alt'              => 'Test Image',
+            'class'            => 'test-class',
             'responsiveSrcset' => true,
         ]);
 
@@ -93,8 +93,8 @@ class SourceSetViewHelperTest extends TestCase
     {
         $this->viewHelper->setArguments([
             'path'             => '/path/to/image.jpg',
-            'width'           => 1250,
-            'height'          => 1250,
+            'width'            => 1250,
+            'height'           => 1250,
             'responsiveSrcset' => true,
             'widthVariants'    => '320,640,1024,2048',
         ]);
@@ -117,17 +117,17 @@ class SourceSetViewHelperTest extends TestCase
     {
         $this->viewHelper->setArguments([
             'path'             => '/path/to/image.jpg',
-            'width'           => 1250,
-            'height'          => 1250,
+            'width'            => 1250,
+            'height'           => 1250,
             'responsiveSrcset' => true,
-            'sizes'           => '(max-width: 640px) 100vw, (max-width: 1024px) 75vw, 50vw',
+            'sizes'            => '(max-width: 640px) 100vw, (max-width: 1024px) 75vw, 50vw',
         ]);
 
         $result = $this->viewHelper->render();
 
         // Test custom sizes attribute
         self::assertStringContainsString('sizes="(max-width: 640px) 100vw, (max-width: 1024px) 75vw, 50vw"', $result);
-        
+
         // Also test data-sizes for lazy loading
         self::assertStringContainsString('data-sizes="(max-width: 640px) 100vw, (max-width: 1024px) 75vw, 50vw"', $result);
     }
@@ -137,11 +137,11 @@ class SourceSetViewHelperTest extends TestCase
     {
         $this->viewHelper->setArguments([
             'path'             => '/path/to/image.jpg',
-            'width'           => 1250,
-            'height'          => 1250,
+            'width'            => 1250,
+            'height'           => 1250,
             'responsiveSrcset' => true,
-            'class'           => 'lazyload',
-            'lazyload'        => true,
+            'class'            => 'lazyload',
+            'lazyload'         => true,
         ]);
 
         $result = $this->viewHelper->render();
@@ -161,8 +161,8 @@ class SourceSetViewHelperTest extends TestCase
     {
         $this->viewHelper->setArguments([
             'path'             => '/path/to/image.jpg',
-            'width'           => 1000,
-            'height'          => 500, // 2:1 aspect ratio
+            'width'            => 1000,
+            'height'           => 500, // 2:1 aspect ratio
             'responsiveSrcset' => true,
         ]);
 
