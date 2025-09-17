@@ -1,3 +1,13 @@
+# 2.0.1
+
+## BUGFIX
+
+- 8ba0230 [BUGFIX] Remove declare statement to publish via github action in TER
+
+## Contributors
+
+- Gitsko
+
 # 2.0.0
 
 ## FEATURE
