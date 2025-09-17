@@ -30,7 +30,7 @@ class SourceSetViewHelperTest extends TestCase
     }
 
     #[Test]
-    public function render(): void
+    public function renderLegacyBehavior(): void
     {
         $this->viewHelper->setArguments([
             'path'   => '/path/to/image.jpg',
@@ -47,86 +47,130 @@ class SourceSetViewHelperTest extends TestCase
 
         $result = $this->viewHelper->render();
 
-        self::assertStringContainsString(
-            'src="/processed/path/to/image.w100h100m0q100.jpg"',
-            $result
-        );
-        self::assertStringContainsString(
-            'data-src="/processed/path/to/image.w100h100m0q100.jpg"',
-            $result
-        );
-        self::assertStringContainsString(
-            'data-srcset="/processed/path/to/image.w200h200m0q100.jpg x2"',
-            $result
-        );
-        self::assertStringContainsString(
-            'srcset="/processed/path/to/image.w200h200m0q100.jpg x2"',
-            $result
-        );
-        self::assertStringContainsString(
-            'alt="Test Image"',
-            $result
-        );
-        self::assertStringContainsString(
-            'class="test-class"',
-            $result
-        );
+        // Test legacy 2x density output
+        self::assertStringContainsString('srcset="/processed/path/to/image.w200h200m0q100.jpg x2"', $result);
+        self::assertStringContainsString('width="100"', $result);
+        self::assertStringContainsString('height="100"', $result);
+        self::assertStringContainsString('alt="Test Image"', $result);
+        self::assertStringContainsString('class="test-class"', $result);
+
+        // Ensure no sizes attribute in legacy mode
+        self::assertStringNotContainsString('sizes=', $result);
     }
 
     #[Test]
-    public function shouldUseLazyLoad(): void
+    public function renderResponsiveSrcset(): void
     {
         $this->viewHelper->setArguments([
-            'class' => 'lazyload',
+            'path'             => '/path/to/image.jpg',
+            'width'           => 1250,
+            'height'          => 1250,
+            'alt'             => 'Test Image',
+            'class'           => 'test-class',
+            'responsiveSrcset' => true,
         ]);
-        self::assertTrue($this->viewHelper->useJsLazyLoad());
 
-        $this->viewHelper->setArguments([
-            'class' => '',
-        ]);
-        self::assertFalse($this->viewHelper->useJsLazyLoad());
+        $result = $this->viewHelper->render();
+
+        // Test width-based srcset output
+        self::assertStringContainsString('500w', $result);
+        self::assertStringContainsString('1000w', $result);
+        self::assertStringContainsString('1500w', $result);
+        self::assertStringContainsString('2500w', $result);
+
+        // Test sizes attribute with default breakpoints
+        self::assertStringContainsString('sizes="(max-width: 576px) 100vw, (max-width: 768px) 50vw', $result);
+
+        // Test base attributes
+        self::assertStringContainsString('width="1250"', $result);
+        self::assertStringContainsString('height="1250"', $result);
+        self::assertStringContainsString('alt="Test Image"', $result);
+        self::assertStringContainsString('class="test-class"', $result);
     }
 
     #[Test]
-    public function getResourcePath(): void
+    public function renderCustomWidthVariants(): void
     {
-        $path   = '/path/to/image.jpg';
-        $width  = 100;
-        $height = 100;
+        $this->viewHelper->setArguments([
+            'path'             => '/path/to/image.jpg',
+            'width'           => 1250,
+            'height'          => 1250,
+            'responsiveSrcset' => true,
+            'widthVariants'    => '320,640,1024,2048',
+        ]);
 
-        $result = $this->viewHelper->getResourcePath(
-            $path,
-            $width,
-            $height
-        );
+        $result = $this->viewHelper->render();
 
-        self::assertEquals(
-            '/processed/path/to/image.w100h100m0q100.jpg',
-            $result
-        );
+        // Test custom width variants
+        self::assertStringContainsString('320w', $result);
+        self::assertStringContainsString('640w', $result);
+        self::assertStringContainsString('1024w', $result);
+        self::assertStringContainsString('2048w', $result);
+
+        // Ensure old width variants are not present
+        self::assertStringNotContainsString('500w', $result);
+        self::assertStringNotContainsString('2500w', $result);
     }
 
     #[Test]
-    public function generateSrcSet(): void
+    public function renderCustomSizes(): void
     {
         $this->viewHelper->setArguments([
-            'path' => '/path/to/image.jpg',
-            'set'  => [
-                767 => [
-                    'width' => 360,
-                ],
-            ],
+            'path'             => '/path/to/image.jpg',
+            'width'           => 1250,
+            'height'          => 1250,
+            'responsiveSrcset' => true,
+            'sizes'           => '(max-width: 640px) 100vw, (max-width: 1024px) 75vw, 50vw',
         ]);
 
-        $result = $this->viewHelper->generateSrcSet();
+        $result = $this->viewHelper->render();
 
-        self::assertStringContainsString(
-            'media="(max-width: 767px)"',
-            $result
-        );
-        self::assertStringContainsString(
-            'srcset="/processed/path/to/image.w360h0m0q100.jpg, /processed/path/to/image.w720h0m0q100.jpg x2"',
-            $result
-        );
+        // Test custom sizes attribute
+        self::assertStringContainsString('sizes="(max-width: 640px) 100vw, (max-width: 1024px) 75vw, 50vw"', $result);
+        
+        // Also test data-sizes for lazy loading
+        self::assertStringContainsString('data-sizes="(max-width: 640px) 100vw, (max-width: 1024px) 75vw, 50vw"', $result);
+    }
+
+    #[Test]
+    public function renderLazyLoading(): void
+    {
+        $this->viewHelper->setArguments([
+            'path'             => '/path/to/image.jpg',
+            'width'           => 1250,
+            'height'          => 1250,
+            'responsiveSrcset' => true,
+            'class'           => 'lazyload',
+            'lazyload'        => true,
+        ]);
+
+        $result = $this->viewHelper->render();
+
+        // Test native lazy loading
+        self::assertStringContainsString('loading="lazy"', $result);
+
+        // Test JS lazy loading attributes
+        self::assertStringContainsString('data-src=', $result);
+        self::assertStringContainsString('data-srcset=', $result);
+        self::assertStringContainsString('data-sizes=', $result);
+        self::assertStringContainsString('class="lazyload"', $result);
+    }
+
+    #[Test]
+    public function aspectRatioIsPreserved(): void
+    {
+        $this->viewHelper->setArguments([
+            'path'             => '/path/to/image.jpg',
+            'width'           => 1000,
+            'height'          => 500, // 2:1 aspect ratio
+            'responsiveSrcset' => true,
+        ]);
+
+        $result = $this->viewHelper->render();
+
+        // Test if aspect ratio is preserved in variants
+        self::assertStringContainsString('w500h250', $result); // 500x250 maintains 2:1
+        self::assertStringContainsString('w1000h500', $result); // 1000x500 maintains 2:1
+        self::assertStringContainsString('w1500h750', $result); // 1500x750 maintains 2:1
     }
 }
