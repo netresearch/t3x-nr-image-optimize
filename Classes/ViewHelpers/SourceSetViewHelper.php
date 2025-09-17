@@ -25,6 +25,9 @@ use function is_array;
 use function sprintf;
 use function str_contains;
 use function trim;
+use function explode;
+use function array_unique;
+use function sort;
 
 /**
  * Fluid ViewHelper that renders a responsive <picture> source set and <img> tag
@@ -73,6 +76,11 @@ class SourceSetViewHelper extends AbstractViewHelper
         $this->registerArgument('title', 'string', 'Title attribute for the image. HTML-escaped.', false, '');
         $this->registerArgument('lazyload', 'bool', 'Add loading="lazy" (native lazy loading).', false, false);
         $this->registerArgument('attributes', 'array', 'Extra HTML attributes merged into the rendered tag.', false, []);
+        
+        // New arguments for responsive srcset
+        $this->registerArgument('responsiveSrcset', 'bool', 'Enable width-based responsive srcset (default: false for backward compatibility).', false, false);
+        $this->registerArgument('widthVariants', 'string|array', 'Width variants for responsive srcset (comma-separated string or array).', false, '500,1000,1500,2500');
+        $this->registerArgument('sizes', 'string', 'Sizes attribute for responsive images.', false, '(max-width: 576px) 100vw, (max-width: 768px) 50vw, (max-width: 992px) 33vw, (max-width: 1200px) 25vw, 1250px');
     }
 
     /**
@@ -88,6 +96,68 @@ class SourceSetViewHelper extends AbstractViewHelper
         $width  = $this->getArgWidth();
         $height = $this->getArgHeight();
 
+        // Check if responsive srcset is enabled
+        if ($this->arguments['responsiveSrcset'] === true) {
+            return $this->renderResponsiveSrcset($width, $height);
+        }
+        
+        // Legacy behavior: 2x density variant
+        return $this->renderLegacyDensitySrcset($width, $height);
+    }
+    
+    /**
+     * Render the new responsive width-based srcset with sizes attribute
+     */
+    private function renderResponsiveSrcset(int $width, int $height): string
+    {
+        // Get width variants
+        $widthVariants = $this->getWidthVariants();
+        
+        // Calculate aspect ratio if height is provided
+        $aspectRatio = ($width > 0 && $height > 0) ? $height / $width : 0;
+        
+        // Generate srcset entries
+        $srcsetEntries = [];
+        foreach ($widthVariants as $variantWidth) {
+            $variantHeight = $aspectRatio > 0 ? (int) round($variantWidth * $aspectRatio) : 0;
+            $url = $this->getResourcePath($this->getArgPath(), $variantWidth, $variantHeight);
+            $srcsetEntries[] = $url . ' ' . $variantWidth . 'w';
+        }
+        
+        $srcSet = implode(', ', $srcsetEntries);
+        
+        // Use the original requested width for the src attribute
+        $srcPath = $this->getResourcePath($this->getArgPath(), $width, $height);
+        
+        $props = [
+            'src'         => $this->useJsLazyLoad() ? 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==' : $srcPath,
+            'data-src'    => $srcPath,
+            'data-srcset' => $srcSet,
+            'srcset'      => $srcSet,
+            'sizes'       => $this->arguments['sizes'],
+            'data-sizes'  => $this->arguments['sizes'], // Also add data-sizes for JS lazy loaders
+            'width'       => $width,
+            'height'      => $height,
+            'alt'         => trim(htmlentities($this->arguments['alt'] ?? '')),
+            'title'       => trim(htmlentities($this->arguments['title'] ?? '')),
+            'class'       => trim($this->arguments['class'] ?? ''),
+        ];
+
+        return $this->generateSrcSet()
+            . $this->tag(
+                'img',
+                array_filter(
+                    $props,
+                    static fn (int|string|null $value): bool => ($value !== null) && ($value !== '')
+                )
+            );
+    }
+    
+    /**
+     * Render the legacy density-based srcset (2x variant)
+     */
+    private function renderLegacyDensitySrcset(int $width, int $height): string
+    {
         // Provide a higher pixel-density (DPR 2) candidate via srcset "x2"
         $srcSet  = $this->getResourcePath($this->getArgPath(), $width * 2, $height * 2) . ' x2';
         $srcPath = $this->getResourcePath($this->getArgPath(), $width, $height);
@@ -112,6 +182,26 @@ class SourceSetViewHelper extends AbstractViewHelper
                     static fn (int|string|null $value): bool => ($value !== null) && ($value !== '')
                 )
             );
+    }
+    
+    /**
+     * Get width variants as an array of integers
+     */
+    private function getWidthVariants(): array
+    {
+        $variants = $this->arguments['widthVariants'] ?? '500,1000,1500,2500';
+        
+        if (is_array($variants)) {
+            $widths = array_map('intval', $variants);
+        } else {
+            $widths = array_map('intval', array_map('trim', explode(',', $variants)));
+        }
+        
+        // Remove duplicates and sort
+        $widths = array_unique($widths);
+        sort($widths);
+        
+        return $widths;
     }
 
     /**
