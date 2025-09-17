@@ -29,6 +29,7 @@ use function explode;
 use function array_unique;
 use function sort;
 use function round;
+use function count;
 
 /**
  * Fluid ViewHelper that renders a responsive <picture> source set and <img> tag
@@ -46,6 +47,12 @@ use function round;
  */
 class SourceSetViewHelper extends AbstractViewHelper
 {
+    /**
+     * Default width variants if none are provided or all are invalid
+     * @var array<int>
+     */
+    private const DEFAULT_WIDTH_VARIANTS = [500, 1000, 1500, 2500];
+
     /**
      * Fluid internal: disable automatic output escaping as we output HTML tags.
      *
@@ -224,14 +231,10 @@ class SourceSetViewHelper extends AbstractViewHelper
     private function validateWidthVariants(array $widths): array
     {
         // Remove duplicates and invalid widths
-        $widths = array_unique(array_filter($widths, fn(int $width) => $width > 0));
+        $validWidths = array_unique(array_filter($widths, fn(int $width) => $width > 0));
 
-        // If no valid widths remain, return default widths
-        if (empty($widths)) {
-            return [500, 1000, 1500, 2500];
-        }
-
-        return $widths;
+        // Return default widths if no valid widths are provided
+        return count($validWidths) === 0 ? self::DEFAULT_WIDTH_VARIANTS : $validWidths;
     }
 
     /**
