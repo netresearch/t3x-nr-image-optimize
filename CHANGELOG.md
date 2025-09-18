@@ -1,3 +1,28 @@
+# 2.1.0
+
+## MISC
+
+- d48674d NEXT-93: Optimize default sizes attribute
+- 4756ea1 Update README.rst
+- d80031c Update README.rst
+- c82e876 NEXT-93: Fix conding style
+- c1ff9ef NEXT-93: Fix conding style
+- 790b084 NEXT-93: Update readme
+- fb9fa29 Update Classes/ViewHelpers/SourceSetViewHelper.php
+- 0a384f8 NEXT-93: Correct image variants
+- 230746c NEXT-93: Set nerw breakpoints
+- 6ebc1ff NEXT-93: Optimize code
+- 9a87ac3 NEXT-93: Fix tests
+- 4059be7 NEXT-93 Replace empty() with count() comparison
+- 783391b NEXT-93 Fix PHPStan errors in SourceSetViewHelper
+- 1522eb7 NEXT-93 Optimize ViewHelper code and add test coverage
+- 81099fb NEXT-93 Add responsive width-based srcset with sizes attribute
+
+## Contributors
+
+- Gitsko
+- Sebastian Koschel
+
 # 2.0.1
 
 ## BUGFIX
