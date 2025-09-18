@@ -181,7 +181,7 @@ New Parameters
 
 ``widthVariants``
   - Type: ``string|array``
-  - Default: ``'500,1000,1500,2500'``
+  - Default: ``'480, 576, 640, 768, 992, 1200, 1800'``
   - Description: Width variants for responsive ``srcset`` (comma-separated string or array).
 
 ``sizes``
@@ -260,17 +260,15 @@ Responsive mode (``responsiveSrcset=true``):
 .. code-block:: html
 
    <img src="/processed/fileadmin/image.w1250h1250m1q100.png"
-        srcset="/processed/fileadmin/image.w500h500m1q100.png 500w,
-                /processed/fileadmin/image.w1000h1000m1q100.png 1000w,
-                /processed/fileadmin/image.w1500h1500m1q100.png 1500w,
-                /processed/fileadmin/image.w2500h2500m1q100.png 2500w"
-        sizes="(max-width: 576px) 100vw,
-               (max-width: 768px) 50vw,
-               (max-width: 992px) 33vw,
-               (max-width: 1200px) 25vw,
-               1250px"
-        width="1250"
-        height="1250"
+        srcset="/processed/fileadmin/image.w480h480m1q100.png 480w,
+                /processed/fileadmin/image.w576h576m1q100.png 576w,
+                /processed/fileadmin/image.w640h1640m1q100.png 640w,
+                /processed/fileadmin/image.w768h768m1q100.png 768w,
+                /processed/fileadmin/image.w992h992m1q100.png 992w,
+                /processed/fileadmin/image.w1200h1200m1q100.png 1200w"
+                /processed/fileadmin/image.w1800h1800m1q100.png 1800w"
+        sizes="(max-width: 991px) 100vw, 991px"
+        width="991"
         loading="lazy"
         alt="Image">
 
