@@ -16,19 +16,19 @@ use TYPO3\CMS\Core\Utility\PathUtility;
 use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper;
 
 use function array_filter;
+use function array_unique;
+use function explode;
 use function floor;
 use function getimagesize;
 use function htmlentities;
 use function http_build_query;
 use function implode;
 use function is_array;
+use function round;
+use function sort;
 use function sprintf;
 use function str_contains;
 use function trim;
-use function explode;
-use function array_unique;
-use function sort;
-use function round;
 
 /**
  * Fluid ViewHelper that renders a responsive <picture> source set and <img> tag
@@ -47,7 +47,8 @@ use function round;
 class SourceSetViewHelper extends AbstractViewHelper
 {
     /**
-     * Default width variants if none are provided or all are invalid
+     * Default width variants if none are provided or all are invalid.
+     *
      * @var array<int>
      */
     private const DEFAULT_WIDTH_VARIANTS = [500, 1000, 1500, 2500];
@@ -83,11 +84,11 @@ class SourceSetViewHelper extends AbstractViewHelper
         $this->registerArgument('title', 'string', 'Title attribute for the image. HTML-escaped.', false, '');
         $this->registerArgument('lazyload', 'bool', 'Add loading="lazy" (native lazy loading).', false, false);
         $this->registerArgument('attributes', 'array', 'Extra HTML attributes merged into the rendered tag.', false, []);
-        
+
         // New arguments for responsive srcset
         $this->registerArgument('responsiveSrcset', 'bool', 'Enable width-based responsive srcset (default: false for backward compatibility).', false, false);
-        $this->registerArgument('widthVariants', 'string|array', 'Width variants for responsive srcset (comma-separated string or array).', false, '500,1000,1500,2500');
-        $this->registerArgument('sizes', 'string', 'Sizes attribute for responsive images.', false, '(max-width: 576px) 100vw, (max-width: 768px) 50vw, (max-width: 992px) 33vw, (max-width: 1200px) 25vw, 100vw');
+        $this->registerArgument('widthVariants', 'string|array', 'Width variants for responsive srcset (comma-separated string or array).', false, null);
+        $this->registerArgument('sizes', 'string', 'Sizes attribute for responsive images.', false, '(max-width: 576px) 100vw, (max-width: 768px) 50vw, 33vw');
         $this->registerArgument('fetchpriority', 'string', "Resource fetch priority for the image: 'high', 'low', or 'auto'.", false, '');
     }
 
@@ -108,44 +109,43 @@ class SourceSetViewHelper extends AbstractViewHelper
         if (($this->arguments['responsiveSrcset'] ?? false) === true) {
             return $this->renderResponsiveSrcset($width, $height);
         }
-        
+
         // Legacy behavior: 2x density variant
         return $this->renderLegacyDensitySrcset($width, $height);
     }
-    
+
     /**
-     * Render the new responsive width-based srcset with sizes attribute
+     * Render the new responsive width-based srcset with sizes attribute.
      */
     private function renderResponsiveSrcset(int $width, int $height): string
     {
         // Get width variants
         $widthVariants = $this->getWidthVariants();
-        
+
         // Calculate aspect ratio if height is provided
         $aspectRatio = ($width > 0 && $height > 0) ? $height / $width : 0;
-        
+
         // Generate srcset entries
         $srcsetEntries = [];
         foreach ($widthVariants as $variantWidth) {
-            $variantHeight = $this->calculateVariantHeight($variantWidth, $aspectRatio);
-            $url = $this->getResourcePath($this->getArgPath(), $variantWidth, $variantHeight);
+            $variantHeight   = $this->calculateVariantHeight($variantWidth, $aspectRatio);
+            $url             = $this->getResourcePath($this->getArgPath(), $variantWidth, $variantHeight);
             $srcsetEntries[] = $url . ' ' . $variantWidth . 'w';
         }
-        
+
         $srcSet = implode(', ', $srcsetEntries);
-        
+
         // Use the original requested width for the src attribute
         $srcPath = $this->getResourcePath($this->getArgPath(), $width, $height);
-        
+
         // Resolve sizes with safe default if not provided via setArguments()
-        $defaultSizes = '(max-width: 576px) 100vw, (max-width: 768px) 50vw, (max-width: 992px) 33vw, (max-width: 1200px) 25vw, 100vw';
-        $sizesValue = $this->arguments['sizes'] ?? $defaultSizes;
-        
+        $defaultSizes = '(max-width: 576px) 100vw, (max-width: 768px) 50vw, 33vw';
+        $sizesValue   = $this->arguments['sizes'] ?? $defaultSizes;
+
         $props = [
             'src'           => $this->useJsLazyLoad() ? 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==' : $srcPath,
             'srcset'        => $srcSet,
             'sizes'         => $sizesValue,
-            'data-sizes'    => $sizesValue,
             'width'         => $width,
             'height'        => $height,
             'alt'           => trim(htmlentities($this->arguments['alt'] ?? '')),
@@ -155,7 +155,7 @@ class SourceSetViewHelper extends AbstractViewHelper
         ];
 
         if ($this->useJsLazyLoad()) {
-            $props['data-src'] = $srcPath;
+            $props['data-src']    = $srcPath;
             $props['data-srcset'] = $srcSet;
         }
 
@@ -168,9 +168,9 @@ class SourceSetViewHelper extends AbstractViewHelper
                 )
             );
     }
-    
+
     /**
-     * Render the legacy density-based srcset (2x variant)
+     * Render the legacy density-based srcset (2x variant).
      */
     private function renderLegacyDensitySrcset(int $width, int $height): string
     {
@@ -200,47 +200,48 @@ class SourceSetViewHelper extends AbstractViewHelper
                 )
             );
     }
-    
+
     /**
-     * Calculate the height for a variant width while maintaining aspect ratio
+     * Calculate the height for a variant width while maintaining aspect ratio.
      */
     private function calculateVariantHeight(int $variantWidth, float $aspectRatio): int
     {
         return $aspectRatio > 0 ? (int) round($variantWidth * $aspectRatio) : 0;
     }
-    
+
     /**
-     * Get width variants as an array of integers, validated and sorted
+     * Get width variants as an array of integers, validated and sorted.
      *
      * @return array<int>
      */
     private function getWidthVariants(): array
     {
-        $variants = $this->arguments['widthVariants'] ?? '500,1000,1500,2500';
-        
+        $variants = $this->arguments['widthVariants'] ?? self::DEFAULT_WIDTH_VARIANTS;
+
         if (is_array($variants)) {
             $widths = array_map('intval', $variants);
         } else {
             $widths = array_map('intval', array_map('trim', explode(',', (string) $variants)));
         }
-        
+
         // Remove duplicates, invalid widths, and sort
         $widths = $this->validateWidthVariants($widths);
         sort($widths);
-        
+
         return $widths;
     }
 
     /**
-     * Validate width variants and remove invalid values
+     * Validate width variants and remove invalid values.
      *
      * @param array<int> $widths
+     *
      * @return array<int>
      */
     private function validateWidthVariants(array $widths): array
     {
         // Remove duplicates and invalid widths
-        $validWidths = array_unique(array_filter($widths, fn(int $width): bool => $width > 0));
+        $validWidths = array_unique(array_filter($widths, fn (int $width): bool => $width > 0));
 
         // Return default widths if no valid widths are provided
         return $validWidths === [] ? self::DEFAULT_WIDTH_VARIANTS : $validWidths;
@@ -465,7 +466,9 @@ class SourceSetViewHelper extends AbstractViewHelper
         if ($value === '') {
             return '';
         }
+
         $value = strtolower($value);
+
         return match ($value) {
             'high', 'low', 'auto' => $value,
             default => '',

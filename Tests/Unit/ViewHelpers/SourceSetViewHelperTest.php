@@ -128,8 +128,8 @@ class SourceSetViewHelperTest extends TestCase
         // Test custom sizes attribute
         self::assertStringContainsString('sizes="(max-width: 640px) 100vw, (max-width: 1024px) 75vw, 50vw"', $result);
 
-        // Also test data-sizes for lazy loading
-        self::assertStringContainsString('data-sizes="(max-width: 640px) 100vw, (max-width: 1024px) 75vw, 50vw"', $result);
+        // Ensure data-sizes is no longer emitted
+        self::assertStringNotContainsString('data-sizes=', $result);
     }
 
     #[Test]
@@ -152,7 +152,7 @@ class SourceSetViewHelperTest extends TestCase
         // Test JS lazy loading attributes
         self::assertStringContainsString('data-src=', $result);
         self::assertStringContainsString('data-srcset=', $result);
-        self::assertStringContainsString('data-sizes=', $result);
+        self::assertStringNotContainsString('data-sizes=', $result);
         self::assertStringContainsString('class="lazyload"', $result);
     }
 

@@ -285,4 +285,4 @@ Lazy Loading
 ------------
 
 - Both modes support lazy loading with native ``loading="lazy"`` attribute.
-- When using JS-based lazy loading (``class="lazyload"``), both ``data-srcset`` and ``data-sizes`` attributes are added automatically.
+- When using JS-based lazy loading (``class="lazyload"``), the ``data-srcset`` attribute is added automatically.
