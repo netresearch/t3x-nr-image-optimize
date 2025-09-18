@@ -83,7 +83,7 @@ class SourceSetViewHelperTest extends TestCase
         self::assertStringNotContainsString('500w', $result);
 
         // Test sizes attribute default
-        self::assertStringContainsString('sizes="(min-width: 991px) 991px, 100vw"', $result);
+        self::assertStringContainsString('sizes="auto, (min-width: 992px) 991px, 100vw"', $result);
 
         // Test base attributes
         self::assertStringContainsString('width="1250"', $result);

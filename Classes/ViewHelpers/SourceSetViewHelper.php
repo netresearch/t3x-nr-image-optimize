@@ -88,7 +88,7 @@ class SourceSetViewHelper extends AbstractViewHelper
         // New arguments for responsive srcset
         $this->registerArgument('responsiveSrcset', 'bool', 'Enable width-based responsive srcset (default: false for backward compatibility).', false, false);
         $this->registerArgument('widthVariants', 'string|array', 'Width variants for responsive srcset (comma-separated string or array).', false, null);
-        $this->registerArgument('sizes', 'string', 'Sizes attribute for responsive images.', false, '(min-width: 991px) 991px, 100vw');
+        $this->registerArgument('sizes', 'string', 'Sizes attribute for responsive images.', false, 'auto, (min-width: 992px) 991px, 100vw');
         $this->registerArgument('fetchpriority', 'string', "Resource fetch priority for the image: 'high', 'low', or 'auto'.", false, '');
     }
 
@@ -139,7 +139,7 @@ class SourceSetViewHelper extends AbstractViewHelper
         $srcPath = $this->getResourcePath($this->getArgPath(), $width, $height);
 
         // Resolve sizes with safe default if not provided via setArguments()
-        $defaultSizes = '(min-width: 991px) 991px, 100vw';
+        $defaultSizes = 'auto, (min-width: 992px) 991px, 100vw';
         $sizesValue   = $this->arguments['sizes'] ?? $defaultSizes;
 
         $props = [
@@ -219,9 +219,9 @@ class SourceSetViewHelper extends AbstractViewHelper
         $variants = $this->arguments['widthVariants'] ?? self::DEFAULT_WIDTH_VARIANTS;
 
         if (is_array($variants)) {
-            $widths = array_map(fn ($v): int => (int) $v, $variants);
+            $widths = array_map('intval', $variants);
         } else {
-            $widths = array_map(fn ($v): int => (int) $v, array_map('trim', explode(',', (string) $variants)));
+            $widths = array_map('intval', array_map('trim', explode(',', (string) $variants)));
         }
 
         // Remove duplicates, invalid widths, and sort
