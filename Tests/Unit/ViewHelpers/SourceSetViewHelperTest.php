@@ -72,14 +72,18 @@ class SourceSetViewHelperTest extends TestCase
 
         $result = $this->viewHelper->render();
 
-        // Test width-based srcset output
-        self::assertStringContainsString('500w', $result);
-        self::assertStringContainsString('1000w', $result);
-        self::assertStringContainsString('1500w', $result);
-        self::assertStringContainsString('2500w', $result);
+        // Test width-based srcset output (default variants)
+        self::assertStringContainsString('480w', $result);
+        self::assertStringContainsString('576w', $result);
+        self::assertStringContainsString('640w', $result);
+        self::assertStringContainsString('768w', $result);
+        self::assertStringContainsString('992w', $result);
+        self::assertStringContainsString('1200w', $result);
+        self::assertStringContainsString('1800w', $result);
+        self::assertStringNotContainsString('500w', $result);
 
-        // Test sizes attribute with default breakpoints
-        self::assertStringContainsString('sizes="(max-width: 576px) 100vw, (max-width: 768px) 50vw', $result);
+        // Test sizes attribute default
+        self::assertStringContainsString('sizes="(min-width: 991px) 991px, 100vw"', $result);
 
         // Test base attributes
         self::assertStringContainsString('width="1250"', $result);
@@ -168,9 +172,9 @@ class SourceSetViewHelperTest extends TestCase
 
         $result = $this->viewHelper->render();
 
-        // Test if aspect ratio is preserved in variants
-        self::assertStringContainsString('w500h250', $result); // 500x250 maintains 2:1
-        self::assertStringContainsString('w1000h500', $result); // 1000x500 maintains 2:1
-        self::assertStringContainsString('w1500h750', $result); // 1500x750 maintains 2:1
+        // Test if aspect ratio is preserved in variants (for default widths)
+        self::assertStringContainsString('w480h240', $result); // 480x240 maintains 2:1
+        self::assertStringContainsString('w992h496', $result); // 992x496 maintains 2:1
+        self::assertStringContainsString('w1800h900', $result); // 1800x900 maintains 2:1
     }
 }

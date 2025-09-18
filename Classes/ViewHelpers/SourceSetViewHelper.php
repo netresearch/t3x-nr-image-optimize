@@ -51,7 +51,7 @@ class SourceSetViewHelper extends AbstractViewHelper
      *
      * @var array<int>
      */
-    private const DEFAULT_WIDTH_VARIANTS = [500, 1000, 1500, 2500];
+    private const DEFAULT_WIDTH_VARIANTS = [480, 576, 640, 768, 992, 1200, 1800];
 
     /**
      * Fluid internal: disable automatic output escaping as we output HTML tags.
@@ -88,7 +88,7 @@ class SourceSetViewHelper extends AbstractViewHelper
         // New arguments for responsive srcset
         $this->registerArgument('responsiveSrcset', 'bool', 'Enable width-based responsive srcset (default: false for backward compatibility).', false, false);
         $this->registerArgument('widthVariants', 'string|array', 'Width variants for responsive srcset (comma-separated string or array).', false, null);
-        $this->registerArgument('sizes', 'string', 'Sizes attribute for responsive images.', false, '(max-width: 576px) 100vw, (max-width: 768px) 50vw, 33vw');
+        $this->registerArgument('sizes', 'string', 'Sizes attribute for responsive images.', false, '(min-width: 991px) 991px, 100vw');
         $this->registerArgument('fetchpriority', 'string', "Resource fetch priority for the image: 'high', 'low', or 'auto'.", false, '');
     }
 
@@ -139,7 +139,7 @@ class SourceSetViewHelper extends AbstractViewHelper
         $srcPath = $this->getResourcePath($this->getArgPath(), $width, $height);
 
         // Resolve sizes with safe default if not provided via setArguments()
-        $defaultSizes = '(max-width: 576px) 100vw, (max-width: 768px) 50vw, 33vw';
+        $defaultSizes = '(min-width: 991px) 991px, 100vw';
         $sizesValue   = $this->arguments['sizes'] ?? $defaultSizes;
 
         $props = [
