@@ -68,7 +68,7 @@
             "fractor process --config Build/fractor.php"
         ],
         "ci:test:php:cgl": [
-            "@ci:cgl --dry-run"
+            "@ci:cgl --dry-run --config Build/.php-cs-fixer.dist.php"
         ],
         "ci:test:php:lint": [
             "phplint --configuration Build/.phplint.yml"
