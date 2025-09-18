@@ -268,7 +268,7 @@ Responsive mode (``responsiveSrcset=true``):
                 /processed/fileadmin/image.w1200h1200m1q100.png 1200w"
                 /processed/fileadmin/image.w1800h1800m1q100.png 1800w"
         sizes="(max-width: 991px) 100vw, 991px"
-        width="991"
+        width="1250"
         loading="lazy"
         alt="Image">
 
