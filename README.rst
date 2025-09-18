@@ -262,7 +262,7 @@ Responsive mode (``responsiveSrcset=true``):
    <img src="/processed/fileadmin/image.w1250h1250m1q100.png"
         srcset="/processed/fileadmin/image.w480h480m1q100.png 480w,
                 /processed/fileadmin/image.w576h576m1q100.png 576w,
-                /processed/fileadmin/image.w640h1640m1q100.png 640w,
+                /processed/fileadmin/image.w640h640m1q100.png 640w,
                 /processed/fileadmin/image.w768h768m1q100.png 768w,
                 /processed/fileadmin/image.w992h992m1q100.png 992w,
                 /processed/fileadmin/image.w1200h1200m1q100.png 1200w"
