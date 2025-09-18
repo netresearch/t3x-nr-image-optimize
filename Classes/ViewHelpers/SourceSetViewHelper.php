@@ -219,9 +219,9 @@ class SourceSetViewHelper extends AbstractViewHelper
         $variants = $this->arguments['widthVariants'] ?? self::DEFAULT_WIDTH_VARIANTS;
 
         if (is_array($variants)) {
-            $widths = array_map('intval', $variants);
+            $widths = array_map(fn($v) => (int)$v, $variants);
         } else {
-            $widths = array_map('intval', array_map('trim', explode(',', (string) $variants)));
+            $widths = array_map(fn($v) => (int)$v, array_map('trim', explode(',', (string) $variants)));
         }
 
         // Remove duplicates, invalid widths, and sort
