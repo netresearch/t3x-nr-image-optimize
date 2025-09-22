@@ -1,4 +1,6 @@
 name: Publish new extension version to TER
+permissions:
+  contents: read
 
 on:
   release:
