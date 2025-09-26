@@ -23,9 +23,9 @@ use function base64_decode;
 use function file_put_contents;
 use function is_dir;
 use function mkdir;
-use function uniqid;
 use function pathinfo;
 use function rmdir;
+use function uniqid;
 use function unlink;
 
 #[CoversClass(SourceSetViewHelper::class)]
@@ -270,8 +270,8 @@ class SourceSetViewHelperTest extends TestCase
     #[Test]
     public function getResourcePathUsesFileDimensionsWhenWidthAndHeightMissing(): void
     {
-        $publicPath = Environment::getPublicPath();
-        $directory  = $publicPath . '/fileadmin/_nr_image_optimize_tests';
+        $publicPath   = Environment::getPublicPath();
+        $directory    = $publicPath . '/fileadmin/_nr_image_optimize_tests';
         $relativePath = '/fileadmin/_nr_image_optimize_tests/' . uniqid('sample_', true) . '.png';
         $absolutePath = $publicPath . $relativePath;
 
@@ -359,7 +359,7 @@ class SourceSetViewHelperTest extends TestCase
     {
         $this->viewHelper->setArguments([
             'attributes' => [
-                'data-track' => 'hero',
+                'data-track'  => 'hero',
                 'aria-hidden' => 'true',
             ],
             'lazyload' => true,
@@ -412,7 +412,7 @@ class SourceSetViewHelperTest extends TestCase
     {
         $this->viewHelper->setArguments([
             'attributes' => [
-                'data-role' => 'hero-image',
+                'data-role'   => 'hero-image',
                 'aria-hidden' => 'false',
             ],
             'lazyload' => true,
@@ -462,5 +462,89 @@ class SourceSetViewHelperTest extends TestCase
         ]);
 
         self::assertSame([], $this->callMethod('getAttributes'));
+    }
+
+    #[Test]
+    public function getArgWidthCastsAndFloorsValues(): void
+    {
+        $this->viewHelper->setArguments([
+            'path'  => '/path/to/image.jpg',
+            'width' => 320.8,
+        ]);
+
+        self::assertSame(320, $this->callMethod('getArgWidth'));
+
+        $this->viewHelper->setArguments([
+            'path' => '/path/to/image.jpg',
+        ]);
+
+        self::assertSame(0, $this->callMethod('getArgWidth'));
+    }
+
+    #[Test]
+    public function getArgHeightCastsAndFloorsValues(): void
+    {
+        $this->viewHelper->setArguments([
+            'path'   => '/path/to/image.jpg',
+            'height' => 199.9,
+        ]);
+
+        self::assertSame(199, $this->callMethod('getArgHeight'));
+
+        $this->viewHelper->setArguments([
+            'path' => '/path/to/image.jpg',
+        ]);
+
+        self::assertSame(0, $this->callMethod('getArgHeight'));
+    }
+
+    #[Test]
+    public function getArgSetReturnsConfiguredBreakpoints(): void
+    {
+        $set = [
+            640 => ['width' => 320, 'height' => 200],
+        ];
+
+        $this->viewHelper->setArguments([
+            'path' => '/images/demo.jpg',
+            'set'  => $set,
+        ]);
+
+        self::assertSame($set, $this->callMethod('getArgSet'));
+    }
+
+    #[Test]
+    public function useNativeLazyLoadReflectsArgument(): void
+    {
+        $this->viewHelper->setArguments([
+            'path'     => '/images/demo.jpg',
+            'lazyload' => true,
+        ]);
+
+        self::assertTrue($this->callMethod('useNativeLazyLoad'));
+
+        $this->viewHelper->setArguments([
+            'path' => '/images/demo.jpg',
+        ]);
+
+        self::assertFalse($this->callMethod('useNativeLazyLoad'));
+    }
+
+    #[Test]
+    public function getArgFetchpriorityNormalizesAllowedValues(): void
+    {
+        $this->viewHelper->setArguments([
+            'path'          => '/path/to/image.jpg',
+            'fetchpriority' => 'LOW',
+        ]);
+
+        self::assertSame('low', $this->callMethod('getArgFetchpriority'));
+
+        $this->viewHelper->setArguments([
+            'path'          => '/path/to/image.jpg',
+            'fetchpriority' => 'unsupported',
+        ]);
+
+        self::assertSame('', $this->callMethod('getArgFetchpriority'));
     }
 }
