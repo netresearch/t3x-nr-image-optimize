@@ -257,6 +257,39 @@ class ProcessorTest extends TestCase
     }
 
     #[Test]
+    public function getQueryValueReturnsRequestedParameter(): void
+    {
+        $processor = $this->createProcessor();
+
+        $uri = $this->createMock(UriInterface::class);
+        $uri->method('getQuery')->willReturn('foo=bar&skipWebP=1');
+
+        $request = $this->createMock(RequestInterface::class);
+        $request->method('getUri')->willReturn($uri);
+
+        $this->setProperty($processor, 'request', $request);
+
+        self::assertSame('bar', $this->callMethod($processor, 'getQueryValue', 'foo'));
+        self::assertSame('1', $this->callMethod($processor, 'getQueryValue', 'skipWebP'));
+    }
+
+    #[Test]
+    public function getQueryValueReturnsNullForMissingParameter(): void
+    {
+        $processor = $this->createProcessor();
+
+        $uri = $this->createMock(UriInterface::class);
+        $uri->method('getQuery')->willReturn('foo=bar');
+
+        $request = $this->createMock(RequestInterface::class);
+        $request->method('getUri')->willReturn($uri);
+
+        $this->setProperty($processor, 'request', $request);
+
+        self::assertNull($this->callMethod($processor, 'getQueryValue', 'baz'));
+    }
+
+    #[Test]
     public function calculateTargetDimensionsDerivesMissingHeight(): void
     {
         $processor = $this->createProcessor();
