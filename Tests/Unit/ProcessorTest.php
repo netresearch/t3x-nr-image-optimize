@@ -115,6 +115,32 @@ class ProcessorTest extends TestCase
     }
 
     #[Test]
+    public function gatherInformationBasedOnUrlAppliesDefaultsWhenModeDetailsMissing(): void
+    {
+        $processor = $this->createProcessor();
+
+        $this->setProperty($processor, 'variantUrl', '/processed/path/to/image.w800.jpg');
+
+        $this->callMethod($processor, 'gatherInformationBasedOnUrl');
+
+        $basePath = Environment::getPublicPath();
+
+        self::assertSame(
+            $basePath . '/processed/path/to/image.w800.jpg',
+            $this->getProperty($processor, 'pathVariant')
+        );
+        self::assertSame(
+            $basePath . '/path/to/image.jpg',
+            $this->getProperty($processor, 'pathOriginal')
+        );
+        self::assertSame(800, $this->getProperty($processor, 'targetWidth'));
+        self::assertNull($this->getProperty($processor, 'targetHeight'));
+        self::assertSame(100, $this->getProperty($processor, 'targetQuality'));
+        self::assertSame(0, $this->getProperty($processor, 'processingMode'));
+        self::assertSame('jpg', $this->getProperty($processor, 'extension'));
+    }
+
+    #[Test]
     public function getValueFromModeParsesNumericFragments(): void
     {
         $processor = $this->createProcessor();
