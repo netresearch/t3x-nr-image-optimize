@@ -35,6 +35,7 @@ Welcome! This repository contains the TYPO3 extension **`nr_image_optimize`**, w
 - `ext_emconf.php` & `composer.json`: Extension metadata. Update versions consistently when releasing.
 
 ## Contribution Tips
+- Always run `composer ci:test` before committing.
 - Explain how new features affect image processing (e.g., new query flags, formats, or ViewHelper attributes).
 - Keep documentation (`README.rst`, changelog) in sync with code changes.
 - For new services/middleware, wire them up via `Configuration/Services.yaml` or `Configuration/RequestMiddlewares.php`.
