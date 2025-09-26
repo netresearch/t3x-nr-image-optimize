@@ -15,6 +15,7 @@ use Intervention\Image\Interfaces\EncodedImageInterface;
 use Intervention\Image\Interfaces\ImageInterface;
 use Netresearch\NrImageOptimize\Processor;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -161,99 +162,33 @@ class ProcessorTest extends TestCase
     }
 
     #[Test]
-    public function skipWebPCreationReadsQueryParameter(): void
+    #[DataProvider('skipVariantQueryProvider')]
+    public function skipVariantCreationEvaluatesQueryFlag(string $method, string $query, bool $expected): void
     {
         $processor = $this->createProcessor();
 
         $uri = $this->createMock(UriInterface::class);
-        $uri->method('getQuery')->willReturn('skipWebP=1');
+        $uri->method('getQuery')->willReturn($query);
 
         $request = $this->createMock(RequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
         $this->setProperty($processor, 'request', $request);
 
-        self::assertTrue($this->callMethod($processor, 'skipWebPCreation'));
+        self::assertSame($expected, $this->callMethod($processor, $method));
     }
 
-    #[Test]
-    public function skipWebPCreationDefaultsToFalseWhenFlagMissing(): void
+    /**
+     * @return iterable<string, array{0: string, 1: string, 2: bool}>
+     */
+    public static function skipVariantQueryProvider(): iterable
     {
-        $processor = $this->createProcessor();
-
-        $uri = $this->createMock(UriInterface::class);
-        $uri->method('getQuery')->willReturn('');
-
-        $request = $this->createMock(RequestInterface::class);
-        $request->method('getUri')->willReturn($uri);
-
-        $this->setProperty($processor, 'request', $request);
-
-        self::assertFalse($this->callMethod($processor, 'skipWebPCreation'));
-    }
-
-    #[Test]
-    public function skipWebPCreationTreatsZeroFlagAsFalse(): void
-    {
-        $processor = $this->createProcessor();
-
-        $uri = $this->createMock(UriInterface::class);
-        $uri->method('getQuery')->willReturn('skipWebP=0');
-
-        $request = $this->createMock(RequestInterface::class);
-        $request->method('getUri')->willReturn($uri);
-
-        $this->setProperty($processor, 'request', $request);
-
-        self::assertFalse($this->callMethod($processor, 'skipWebPCreation'));
-    }
-
-    #[Test]
-    public function skipAvifCreationReadsQueryParameter(): void
-    {
-        $processor = $this->createProcessor();
-
-        $uri = $this->createMock(UriInterface::class);
-        $uri->method('getQuery')->willReturn('skipAvif=1');
-
-        $request = $this->createMock(RequestInterface::class);
-        $request->method('getUri')->willReturn($uri);
-
-        $this->setProperty($processor, 'request', $request);
-
-        self::assertTrue($this->callMethod($processor, 'skipAvifCreation'));
-    }
-
-    #[Test]
-    public function skipAvifCreationDefaultsToFalseWhenFlagMissing(): void
-    {
-        $processor = $this->createProcessor();
-
-        $uri = $this->createMock(UriInterface::class);
-        $uri->method('getQuery')->willReturn('');
-
-        $request = $this->createMock(RequestInterface::class);
-        $request->method('getUri')->willReturn($uri);
-
-        $this->setProperty($processor, 'request', $request);
-
-        self::assertFalse($this->callMethod($processor, 'skipAvifCreation'));
-    }
-
-    #[Test]
-    public function skipAvifCreationTreatsZeroFlagAsFalse(): void
-    {
-        $processor = $this->createProcessor();
-
-        $uri = $this->createMock(UriInterface::class);
-        $uri->method('getQuery')->willReturn('skipAvif=0');
-
-        $request = $this->createMock(RequestInterface::class);
-        $request->method('getUri')->willReturn($uri);
-
-        $this->setProperty($processor, 'request', $request);
-
-        self::assertFalse($this->callMethod($processor, 'skipAvifCreation'));
+        yield 'webp flag enabled' => ['skipWebPCreation', 'skipWebP=1', true];
+        yield 'webp flag disabled via zero' => ['skipWebPCreation', 'skipWebP=0', false];
+        yield 'webp flag missing' => ['skipWebPCreation', '', false];
+        yield 'avif flag enabled' => ['skipAvifCreation', 'skipAvif=1', true];
+        yield 'avif flag disabled via zero' => ['skipAvifCreation', 'skipAvif=0', false];
+        yield 'avif flag missing' => ['skipAvifCreation', '', false];
     }
 
     #[Test]

@@ -216,6 +216,7 @@ class SourceSetViewHelperTest extends TestCase
 
         self::assertStringNotContainsString('data-src=', $result);
         self::assertStringNotContainsString('data-srcset=', $result);
+        self::assertStringNotContainsString('loading="', $result);
     }
 
     #[Test]
@@ -339,22 +340,6 @@ class SourceSetViewHelperTest extends TestCase
     }
 
     #[Test]
-    public function useJsLazyLoadDetectsLazyloadClass(): void
-    {
-        $this->viewHelper->setArguments([
-            'class' => 'img-responsive lazyload',
-        ]);
-
-        self::assertTrue($this->viewHelper->useJsLazyLoad());
-
-        $this->viewHelper->setArguments([
-            'class' => 'img-responsive',
-        ]);
-
-        self::assertFalse($this->viewHelper->useJsLazyLoad());
-    }
-
-    #[Test]
     public function tagMergesAdditionalAttributesAndHonorsNativeLazyLoading(): void
     {
         $this->viewHelper->setArguments([
@@ -400,36 +385,21 @@ class SourceSetViewHelperTest extends TestCase
             'path'          => '/path/to/image.jpg',
             'width'         => 400,
             'height'        => 300,
+            'fetchpriority' => 'LOW',
+        ]);
+
+        $resultLow = $this->viewHelper->render();
+        self::assertStringContainsString('fetchpriority="low"', $resultLow);
+
+        $this->viewHelper->setArguments([
+            'path'          => '/path/to/image.jpg',
+            'width'         => 400,
+            'height'        => 300,
             'fetchpriority' => 'invalid',
         ]);
 
         $resultInvalid = $this->viewHelper->render();
         self::assertStringNotContainsString('fetchpriority="', $resultInvalid);
-    }
-
-    #[Test]
-    public function tagMergesAdditionalAttributesAndNativeLazyload(): void
-    {
-        $this->viewHelper->setArguments([
-            'attributes' => [
-                'data-role'   => 'hero-image',
-                'aria-hidden' => 'false',
-            ],
-            'lazyload' => true,
-        ]);
-
-        $result = $this->callMethod('tag', 'img', [
-            'src' => '/processed/path/image.jpg',
-            'alt' => 'Example',
-        ]);
-
-        self::assertStringStartsWith('<img ', $result);
-        self::assertStringContainsString('src="/processed/path/image.jpg"', $result);
-        self::assertStringContainsString('alt="Example"', $result);
-        self::assertStringContainsString('data-role="hero-image"', $result);
-        self::assertStringContainsString('aria-hidden="false"', $result);
-        self::assertStringContainsString('loading="lazy"', $result);
-        self::assertStringEndsWith(PHP_EOL, $result);
     }
 
     #[Test]
@@ -511,40 +481,5 @@ class SourceSetViewHelperTest extends TestCase
         ]);
 
         self::assertSame($set, $this->callMethod('getArgSet'));
-    }
-
-    #[Test]
-    public function useNativeLazyLoadReflectsArgument(): void
-    {
-        $this->viewHelper->setArguments([
-            'path'     => '/images/demo.jpg',
-            'lazyload' => true,
-        ]);
-
-        self::assertTrue($this->callMethod('useNativeLazyLoad'));
-
-        $this->viewHelper->setArguments([
-            'path' => '/images/demo.jpg',
-        ]);
-
-        self::assertFalse($this->callMethod('useNativeLazyLoad'));
-    }
-
-    #[Test]
-    public function getArgFetchpriorityNormalizesAllowedValues(): void
-    {
-        $this->viewHelper->setArguments([
-            'path'          => '/path/to/image.jpg',
-            'fetchpriority' => 'LOW',
-        ]);
-
-        self::assertSame('low', $this->callMethod('getArgFetchpriority'));
-
-        $this->viewHelper->setArguments([
-            'path'          => '/path/to/image.jpg',
-            'fetchpriority' => 'unsupported',
-        ]);
-
-        self::assertSame('', $this->callMethod('getArgFetchpriority'));
     }
 }
