@@ -24,6 +24,9 @@ use ReflectionClass;
 use ReflectionMethod;
 use ReflectionProperty;
 use TYPO3\CMS\Core\Core\Environment;
+use TYPO3\CMS\Core\Locking\LockFactory;
+use TYPO3\CMS\Core\Locking\LockingStrategyInterface;
+use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 #[CoversClass(Processor::class)]
 class ProcessorTest extends TestCase
@@ -412,5 +415,27 @@ class ProcessorTest extends TestCase
         $this->setProperty($processor, 'extension', 'jpg');
         self::assertFalse($this->callMethod($processor, 'isWebpImage'));
         self::assertFalse($this->callMethod($processor, 'isAvifImage'));
+    }
+
+    #[Test]
+    public function getLockerCreatesPrefixedLockName(): void
+    {
+        $processor = $this->createProcessor();
+
+        $locker = $this->createMock(LockingStrategyInterface::class);
+
+        $factory = $this->createMock(LockFactory::class);
+        $factory->expects(self::once())
+            ->method('createLocker')
+            ->with('nr_image_optimize-' . md5('test-key'))
+            ->willReturn($locker);
+
+        GeneralUtility::setSingletonInstance(LockFactory::class, $factory);
+
+        try {
+            self::assertSame($locker, $processor->getLocker('test-key'));
+        } finally {
+            GeneralUtility::purgeInstances();
+        }
     }
 }
