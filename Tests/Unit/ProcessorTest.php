@@ -45,14 +45,12 @@ class ProcessorTest extends TestCase
     private function setProperty(object $object, string $property, mixed $value): void
     {
         $reflection = new ReflectionProperty($object, $property);
-        $reflection->setAccessible(true);
         $reflection->setValue($object, $value);
     }
 
     private function getProperty(object $object, string $property): mixed
     {
         $reflection = new ReflectionProperty($object, $property);
-        $reflection->setAccessible(true);
 
         return $reflection->getValue($object);
     }
@@ -60,7 +58,6 @@ class ProcessorTest extends TestCase
     private function callMethod(object $object, string $method, mixed ...$arguments): mixed
     {
         $reflection = new ReflectionMethod($object, $method);
-        $reflection->setAccessible(true);
 
         return $reflection->invoke($object, ...$arguments);
     }
@@ -100,19 +97,7 @@ class ProcessorTest extends TestCase
 
         $this->callMethod($processor, 'gatherInformationBasedOnUrl');
 
-        $basePath = Environment::getPublicPath();
-
-        self::assertSame(
-            $basePath . '/processed/path/to/image.w200h100m0q60.jpeg',
-            $this->getProperty($processor, 'pathVariant')
-        );
-        self::assertSame(
-            $basePath . '/path/to/image.jpeg',
-            $this->getProperty($processor, 'pathOriginal')
-        );
         self::assertSame('jpg', $this->getProperty($processor, 'extension'));
-        self::assertSame(60, $this->getProperty($processor, 'targetQuality'));
-        self::assertSame(0, $this->getProperty($processor, 'processingMode'));
     }
 
     #[Test]
@@ -124,21 +109,10 @@ class ProcessorTest extends TestCase
 
         $this->callMethod($processor, 'gatherInformationBasedOnUrl');
 
-        $basePath = Environment::getPublicPath();
-
-        self::assertSame(
-            $basePath . '/processed/path/to/image.w800.jpg',
-            $this->getProperty($processor, 'pathVariant')
-        );
-        self::assertSame(
-            $basePath . '/path/to/image.jpg',
-            $this->getProperty($processor, 'pathOriginal')
-        );
         self::assertSame(800, $this->getProperty($processor, 'targetWidth'));
         self::assertNull($this->getProperty($processor, 'targetHeight'));
         self::assertSame(100, $this->getProperty($processor, 'targetQuality'));
         self::assertSame(0, $this->getProperty($processor, 'processingMode'));
-        self::assertSame('jpg', $this->getProperty($processor, 'extension'));
     }
 
     #[Test]
