@@ -177,4 +177,104 @@ class SourceSetViewHelperTest extends TestCase
         self::assertStringContainsString('w992h496', $result); // 992x496 maintains 2:1
         self::assertStringContainsString('w1800h900', $result); // 1800x900 maintains 2:1
     }
+
+    #[Test]
+    public function getResourcePathBuildsProcessedUrl(): void
+    {
+        $this->viewHelper->setArguments([
+            'mode' => 'cover',
+        ]);
+
+        $result = $this->viewHelper->getResourcePath('/path/to/image.jpg', 320, 200, 75);
+
+        self::assertSame('/processed/path/to/image.w320h200m0q75.jpg', $result);
+    }
+
+    #[Test]
+    public function getResourcePathHonorsModeAndQueryFlags(): void
+    {
+        $this->viewHelper->setArguments([
+            'mode' => 'fit',
+        ]);
+
+        $result = $this->viewHelper->getResourcePath('/path/to/image.jpg', 640, 480, 85, true, true);
+
+        self::assertSame('/processed/path/to/image.w640h480m1q85.jpg?skipWebP=1&skipAvif=1', $result);
+    }
+
+    #[Test]
+    public function getResourcePathReturnsSvgPathUnchanged(): void
+    {
+        $this->viewHelper->setArguments([
+            'mode' => 'cover',
+        ]);
+
+        $result = $this->viewHelper->getResourcePath('/icons/logo.svg', 320, 200, 75);
+
+        self::assertSame('/icons/logo.svg', $result);
+    }
+
+    #[Test]
+    public function generateSrcSetCreatesSourceElementsForBreakpoints(): void
+    {
+        $this->viewHelper->setArguments([
+            'path' => '/images/picture.jpg',
+            'set'  => [
+                480 => [
+                    'width'  => 200,
+                    'height' => 120,
+                ],
+            ],
+        ]);
+
+        $result = $this->viewHelper->generateSrcSet();
+
+        $expected = '<source media="(max-width: 480px)" '
+            . 'srcset="/processed/images/picture.w200h120m0q100.jpg, '
+            . '/processed/images/picture.w400h240m0q100.jpg x2" '
+            . 'data-srcset="/processed/images/picture.w200h120m0q100.jpg, '
+            . '/processed/images/picture.w400h240m0q100.jpg x2" />' . PHP_EOL;
+
+        self::assertSame($expected, $result);
+    }
+
+    #[Test]
+    public function useJsLazyLoadDetectsLazyloadClass(): void
+    {
+        $this->viewHelper->setArguments([
+            'class' => 'img-responsive lazyload',
+        ]);
+
+        self::assertTrue($this->viewHelper->useJsLazyLoad());
+
+        $this->viewHelper->setArguments([
+            'class' => 'img-responsive',
+        ]);
+
+        self::assertFalse($this->viewHelper->useJsLazyLoad());
+    }
+
+    #[Test]
+    public function renderValidatesFetchpriorityArgument(): void
+    {
+        $this->viewHelper->setArguments([
+            'path'          => '/path/to/image.jpg',
+            'width'         => 400,
+            'height'        => 300,
+            'fetchpriority' => 'HIGH',
+        ]);
+
+        $resultHigh = $this->viewHelper->render();
+        self::assertStringContainsString('fetchpriority="high"', $resultHigh);
+
+        $this->viewHelper->setArguments([
+            'path'          => '/path/to/image.jpg',
+            'width'         => 400,
+            'height'        => 300,
+            'fetchpriority' => 'invalid',
+        ]);
+
+        $resultInvalid = $this->viewHelper->render();
+        self::assertStringNotContainsString('fetchpriority="', $resultInvalid);
+    }
 }
