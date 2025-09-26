@@ -68,13 +68,16 @@
             "fractor process --config Build/fractor.php"
         ],
         "ci:test:php:cgl": [
-            "@ci:cgl --dry-run --config Build/.php-cs-fixer.dist.php"
+            "@ci:cgl --dry-run"
         ],
         "ci:test:php:lint": [
             "phplint --configuration Build/.phplint.yml"
         ],
         "ci:test:php:unit": [
-            "XDEBUG_MODE=coverage && phpunit -c Build/UnitTests.xml"
+            "phpunit --configuration Build/UnitTests.xml"
+        ],
+        "ci:test:php:unit:coverage": [
+            "XDEBUG_MODE=coverage && phpunit --configuration Build/UnitTests.xml --coverage-html .build/coverage/"
         ],
         "ci:test:php:phpstan": [
             "phpstan analyze --configuration Build/phpstan.neon --memory-limit=-1"

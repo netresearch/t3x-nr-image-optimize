@@ -23,12 +23,6 @@
     <logging>
         <junit outputFile="../.build/phpunit-report.xml"/>
     </logging>
-    <coverage ignoreDeprecatedCodeUnits="true"
-              disableCodeCoverageIgnore="true">
-        <report>
-            <html outputDirectory="../.build/coverage/"/>
-        </report>
-    </coverage>
     <source restrictNotices="true"
             restrictWarnings="true"
             ignoreIndirectDeprecations="true">
