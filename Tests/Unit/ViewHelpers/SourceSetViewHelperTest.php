@@ -17,6 +17,16 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use ReflectionMethod;
+use TYPO3\CMS\Core\Core\Environment;
+
+use function base64_decode;
+use function file_put_contents;
+use function is_dir;
+use function mkdir;
+use function uniqid;
+use function pathinfo;
+use function rmdir;
+use function unlink;
 
 #[CoversClass(SourceSetViewHelper::class)]
 class SourceSetViewHelperTest extends TestCase
@@ -192,6 +202,23 @@ class SourceSetViewHelperTest extends TestCase
     }
 
     #[Test]
+    public function renderResponsiveSrcsetWithoutLazyloadClassDoesNotEmitDataAttributes(): void
+    {
+        $this->viewHelper->setArguments([
+            'path'             => '/path/to/image.jpg',
+            'width'            => 900,
+            'height'           => 600,
+            'responsiveSrcset' => true,
+            'class'            => 'image-fluid',
+        ]);
+
+        $result = $this->viewHelper->render();
+
+        self::assertStringNotContainsString('data-src=', $result);
+        self::assertStringNotContainsString('data-srcset=', $result);
+    }
+
+    #[Test]
     public function aspectRatioIsPreserved(): void
     {
         $this->viewHelper->setArguments([
@@ -238,6 +265,41 @@ class SourceSetViewHelperTest extends TestCase
         $result = $this->viewHelper->getResourcePath('/path/to/image.jpg', 640, 480, 85, true, true);
 
         self::assertSame('/processed/path/to/image.w640h480m1q85.jpg?skipWebP=1&skipAvif=1', $result);
+    }
+
+    #[Test]
+    public function getResourcePathUsesFileDimensionsWhenWidthAndHeightMissing(): void
+    {
+        $publicPath = Environment::getPublicPath();
+        $directory  = $publicPath . '/fileadmin/_nr_image_optimize_tests';
+        $relativePath = '/fileadmin/_nr_image_optimize_tests/' . uniqid('sample_', true) . '.png';
+        $absolutePath = $publicPath . $relativePath;
+
+        if (!is_dir($directory)) {
+            mkdir($directory, 0777, true);
+        }
+
+        $imageBinary = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/woAAgMBgBZ20G8AAAAASUVORK5CYII=');
+        file_put_contents($absolutePath, $imageBinary);
+
+        $this->viewHelper->setArguments([
+            'mode' => 'cover',
+        ]);
+
+        $result = $this->viewHelper->getResourcePath($relativePath, 0, 0, 92);
+
+        $pathInfo = pathinfo($relativePath);
+        $expected = sprintf(
+            '/processed%s/%s.w1h1m0q92.%s',
+            $pathInfo['dirname'],
+            $pathInfo['filename'],
+            $pathInfo['extension']
+        );
+
+        self::assertSame($expected, $result);
+
+        unlink($absolutePath);
+        @rmdir($directory);
     }
 
     #[Test]
@@ -290,6 +352,35 @@ class SourceSetViewHelperTest extends TestCase
         ]);
 
         self::assertFalse($this->viewHelper->useJsLazyLoad());
+    }
+
+    #[Test]
+    public function tagMergesAdditionalAttributesAndHonorsNativeLazyLoading(): void
+    {
+        $this->viewHelper->setArguments([
+            'attributes' => [
+                'data-track' => 'hero',
+                'aria-hidden' => 'true',
+            ],
+            'lazyload' => true,
+        ]);
+
+        $tagMethod = new ReflectionMethod(SourceSetViewHelper::class, 'tag');
+        $tagMethod->setAccessible(true);
+
+        $result = $tagMethod->invoke(
+            $this->viewHelper,
+            'img',
+            [
+                'src' => '/processed/example.jpg',
+                'alt' => 'Example',
+            ]
+        );
+
+        self::assertSame(
+            '<img src="/processed/example.jpg" alt="Example" data-track="hero" aria-hidden="true" loading="lazy" />' . PHP_EOL,
+            $result
+        );
     }
 
     #[Test]
