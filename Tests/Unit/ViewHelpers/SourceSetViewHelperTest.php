@@ -16,6 +16,7 @@ use PHPUnit\Framework\Attributes\Before;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use ReflectionMethod;
 
 #[CoversClass(SourceSetViewHelper::class)]
 class SourceSetViewHelperTest extends TestCase
@@ -27,6 +28,14 @@ class SourceSetViewHelperTest extends TestCase
     {
         $this->viewHelper = new SourceSetViewHelper();
         $this->viewHelper->initializeArguments();
+    }
+
+    private function callMethod(string $method, mixed ...$arguments): mixed
+    {
+        $reflection = new ReflectionMethod(SourceSetViewHelper::class, $method);
+        $reflection->setAccessible(true);
+
+        return $reflection->invoke($this->viewHelper, ...$arguments);
     }
 
     #[Test]
@@ -117,6 +126,28 @@ class SourceSetViewHelperTest extends TestCase
     }
 
     #[Test]
+    public function getWidthVariantsParsesAndSortsValues(): void
+    {
+        $this->viewHelper->setArguments([
+            'path'          => '/path/to/image.jpg',
+            'widthVariants' => '640, 320, 640, foo',
+        ]);
+
+        self::assertSame([320, 640], $this->callMethod('getWidthVariants'));
+    }
+
+    #[Test]
+    public function getWidthVariantsFallsBackToDefaultsWhenInvalid(): void
+    {
+        $this->viewHelper->setArguments([
+            'path'          => '/path/to/image.jpg',
+            'widthVariants' => '0, -100, foo',
+        ]);
+
+        self::assertSame([480, 576, 640, 768, 992, 1200, 1800], $this->callMethod('getWidthVariants'));
+    }
+
+    #[Test]
     public function renderCustomSizes(): void
     {
         $this->viewHelper->setArguments([
@@ -176,6 +207,13 @@ class SourceSetViewHelperTest extends TestCase
         self::assertStringContainsString('w480h240', $result); // 480x240 maintains 2:1
         self::assertStringContainsString('w992h496', $result); // 992x496 maintains 2:1
         self::assertStringContainsString('w1800h900', $result); // 1800x900 maintains 2:1
+    }
+
+    #[Test]
+    public function calculateVariantHeightUsesAspectRatio(): void
+    {
+        self::assertSame(400, $this->callMethod('calculateVariantHeight', 800, 0.5));
+        self::assertSame(0, $this->callMethod('calculateVariantHeight', 800, 0.0));
     }
 
     #[Test]
