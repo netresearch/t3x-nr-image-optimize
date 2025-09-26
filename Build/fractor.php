@@ -18,6 +18,7 @@ return FractorConfiguration::configure()
             __DIR__ . '/../Classes',
             __DIR__ . '/../Configuration',
             __DIR__ . '/../Resources',
+            __DIR__ . '/../Tests',
             __DIR__ . '/../ext_*',
         ]
     )
