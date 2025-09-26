@@ -15,6 +15,7 @@ parameters:
         - %currentWorkingDirectory%/Classes/
         - %currentWorkingDirectory%/Configuration/
         - %currentWorkingDirectory%/Resources/
+        - %currentWorkingDirectory%/Tests/
 
     excludePaths:
         - %currentWorkingDirectory%/.build/*
