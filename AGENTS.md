@@ -27,6 +27,14 @@ Welcome! This repository contains the TYPO3 extension **`nr_image_optimize`**, w
     - Full suite: `composer ci:test`
 - These scripts assume a TYPO3 testing context; run what’s relevant for your change and report the commands you executed.
 
+## Git Workflow Essentials
+
+1. Branch from `main` with a descriptive name: `feature/<slug>` or `bugfix/<slug>`.
+2. Run `composer ci:test` locally **before** committing.
+3. Force pushes **allowed only** on your feature branch using
+   `git push --force-with-lease`. Never force-push `main`.
+4. Keep commits atomic; prefer checkpoints (`feat: …`, `test: …`).
+
 ## Directory Highlights
 - `Build/`: Tooling configs (PHP CS Fixer, Rector, PHPStan, PHPUnit, etc.).
 - `Resources/`: Public assets and localization. Respect existing naming/layout.
@@ -35,7 +43,6 @@ Welcome! This repository contains the TYPO3 extension **`nr_image_optimize`**, w
 - `ext_emconf.php` & `composer.json`: Extension metadata. Update versions consistently when releasing.
 
 ## Contribution Tips
-- Always run `composer ci:test` before committing.
 - Explain how new features affect image processing (e.g., new query flags, formats, or ViewHelper attributes).
 - Keep documentation (`README.rst`, changelog) in sync with code changes.
 - For new services/middleware, wire them up via `Configuration/Services.yaml` or `Configuration/RequestMiddlewares.php`.
