@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Tests\Unit;
 
+use Intervention\Image\Interfaces\EncodedImageInterface;
 use Intervention\Image\Interfaces\ImageInterface;
 use Netresearch\NrImageOptimize\Processor;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -15,6 +16,7 @@ use Psr\Http\Message\UriInterface;
 use ReflectionClass;
 use ReflectionMethod;
 use ReflectionProperty;
+use TYPO3\CMS\Core\Core\Environment;
 
 #[CoversClass(Processor::class)]
 class ProcessorTest extends TestCase
@@ -50,6 +52,56 @@ class ProcessorTest extends TestCase
         $reflection->setAccessible(true);
 
         return $reflection->invoke($object, ...$arguments);
+    }
+
+    #[Test]
+    public function gatherInformationBasedOnUrlParsesVariantConfiguration(): void
+    {
+        $processor = $this->createProcessor();
+
+        $this->setProperty($processor, 'variantUrl', '/processed/path/to/image.w800h400q75m1.webp');
+
+        $this->callMethod($processor, 'gatherInformationBasedOnUrl');
+
+        $basePath = Environment::getPublicPath();
+
+        self::assertSame(
+            $basePath . '/processed/path/to/image.w800h400q75m1.webp',
+            $this->getProperty($processor, 'pathVariant')
+        );
+        self::assertSame(
+            $basePath . '/path/to/image.webp',
+            $this->getProperty($processor, 'pathOriginal')
+        );
+        self::assertSame(800, $this->getProperty($processor, 'targetWidth'));
+        self::assertSame(400, $this->getProperty($processor, 'targetHeight'));
+        self::assertSame(75, $this->getProperty($processor, 'targetQuality'));
+        self::assertSame(1, $this->getProperty($processor, 'processingMode'));
+        self::assertSame('webp', $this->getProperty($processor, 'extension'));
+    }
+
+    #[Test]
+    public function gatherInformationBasedOnUrlNormalizesJpegExtension(): void
+    {
+        $processor = $this->createProcessor();
+
+        $this->setProperty($processor, 'variantUrl', '/processed/path/to/image.w200h100m0q60.jpeg');
+
+        $this->callMethod($processor, 'gatherInformationBasedOnUrl');
+
+        $basePath = Environment::getPublicPath();
+
+        self::assertSame(
+            $basePath . '/processed/path/to/image.w200h100m0q60.jpeg',
+            $this->getProperty($processor, 'pathVariant')
+        );
+        self::assertSame(
+            $basePath . '/path/to/image.jpeg',
+            $this->getProperty($processor, 'pathOriginal')
+        );
+        self::assertSame('jpg', $this->getProperty($processor, 'extension'));
+        self::assertSame(60, $this->getProperty($processor, 'targetQuality'));
+        self::assertSame(0, $this->getProperty($processor, 'processingMode'));
     }
 
     #[Test]
@@ -293,6 +345,48 @@ class ProcessorTest extends TestCase
         self::assertFalse($this->callMethod($processor, 'hasVariantFor', 'avif'));
 
         unlink($webp);
+    }
+
+    #[Test]
+    public function generateWebpVariantEncodesAndSavesImage(): void
+    {
+        $processor = $this->createProcessor();
+
+        /** @var ImageInterface&MockObject $image */
+        $image   = $this->createMock(ImageInterface::class);
+        $encoded = $this->createMock(EncodedImageInterface::class);
+
+        $variantBase = sys_get_temp_dir() . '/nr-image-optimize-' . uniqid('variant', true);
+
+        $image->expects(self::once())->method('toWebp')->with(90)->willReturn($encoded);
+        $image->expects(self::once())->method('save')->with($variantBase . '.webp')->willReturnSelf();
+
+        $this->setProperty($processor, 'image', $image);
+        $this->setProperty($processor, 'targetQuality', 90);
+        $this->setProperty($processor, 'pathVariant', $variantBase);
+
+        $this->callMethod($processor, 'generateWebpVariant');
+    }
+
+    #[Test]
+    public function generateAvifVariantEncodesAndSavesImage(): void
+    {
+        $processor = $this->createProcessor();
+
+        /** @var ImageInterface&MockObject $image */
+        $image   = $this->createMock(ImageInterface::class);
+        $encoded = $this->createMock(EncodedImageInterface::class);
+
+        $variantBase = sys_get_temp_dir() . '/nr-image-optimize-' . uniqid('variant', true);
+
+        $image->expects(self::once())->method('toAvif')->with(75)->willReturn($encoded);
+        $image->expects(self::once())->method('save')->with($variantBase . '.avif')->willReturnSelf();
+
+        $this->setProperty($processor, 'image', $image);
+        $this->setProperty($processor, 'targetQuality', 75);
+        $this->setProperty($processor, 'pathVariant', $variantBase);
+
+        $this->callMethod($processor, 'generateAvifVariant');
     }
 
     #[Test]
