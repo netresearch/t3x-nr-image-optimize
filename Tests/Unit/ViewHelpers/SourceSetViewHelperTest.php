@@ -406,4 +406,61 @@ class SourceSetViewHelperTest extends TestCase
         $resultInvalid = $this->viewHelper->render();
         self::assertStringNotContainsString('fetchpriority="', $resultInvalid);
     }
+
+    #[Test]
+    public function tagMergesAdditionalAttributesAndNativeLazyload(): void
+    {
+        $this->viewHelper->setArguments([
+            'attributes' => [
+                'data-role' => 'hero-image',
+                'aria-hidden' => 'false',
+            ],
+            'lazyload' => true,
+        ]);
+
+        $result = $this->callMethod('tag', 'img', [
+            'src' => '/processed/path/image.jpg',
+            'alt' => 'Example',
+        ]);
+
+        self::assertStringStartsWith('<img ', $result);
+        self::assertStringContainsString('src="/processed/path/image.jpg"', $result);
+        self::assertStringContainsString('alt="Example"', $result);
+        self::assertStringContainsString('data-role="hero-image"', $result);
+        self::assertStringContainsString('aria-hidden="false"', $result);
+        self::assertStringContainsString('loading="lazy"', $result);
+        self::assertStringEndsWith(PHP_EOL, $result);
+    }
+
+    #[Test]
+    public function getArgModeMapsFitAndDefaultsToCover(): void
+    {
+        $this->viewHelper->setArguments([
+            'mode' => 'fit',
+        ]);
+
+        self::assertSame(1, $this->callMethod('getArgMode'));
+
+        $this->viewHelper->setArguments([
+            'mode' => 'cover',
+        ]);
+
+        self::assertSame(0, $this->callMethod('getArgMode'));
+
+        $this->viewHelper->setArguments([
+            'mode' => 'unknown',
+        ]);
+
+        self::assertSame(0, $this->callMethod('getArgMode'));
+    }
+
+    #[Test]
+    public function getAttributesReturnsEmptyArrayForInvalidInput(): void
+    {
+        $this->viewHelper->setArguments([
+            'attributes' => 'not-an-array',
+        ]);
+
+        self::assertSame([], $this->callMethod('getAttributes'));
+    }
 }
