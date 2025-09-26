@@ -35,6 +35,14 @@ Welcome! This repository contains the TYPO3 extension **`nr_image_optimize`**, w
    `git push --force-with-lease`. Never force-push `main`.
 - Keep commits atomic; prefer checkpoints (`feat: …`, `test: …`).
 
+## Git Workflow Essentials
+
+1. Branch from `main` with a descriptive name: `feature/<slug>` or `bugfix/<slug>`.
+2. Run `composer ci:test` locally **before** committing.
+3. Force pushes **allowed only** on your feature branch using
+   `git push --force-with-lease`. Never force-push `main`.
+4. Keep commits atomic; prefer checkpoints (`feat: …`, `test: …`).
+
 ## Directory Highlights
 - `Build/`: Tooling configs (PHP CS Fixer, Rector, PHPStan, PHPUnit, etc.).
 - `Resources/`: Public assets and localization. Respect existing naming/layout.
