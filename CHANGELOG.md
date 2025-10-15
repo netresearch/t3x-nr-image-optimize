@@ -1,3 +1,34 @@
+# 2.2.0
+
+## MISC
+
+- 6535aad BUGFIX: Always render alt attribute
+- 1448d40 TEST: consolidate responsive aspect coverage
+- e61944b TEST: streamline redundant coverage
+- 3c29401 Include test directories in dev tools
+- 293381e Update AGENTS.md
+- 549e3cc test: expand processor and viewhelper coverage
+- 70b6edb test: expand coverage for processor and view helper
+- 65d5a6c Update AGENTS.md
+- 456ce95 Add missing unit tests for processor locking and view helper attributes
+- 39aa08f Update AGENTS.md
+- 6692726 Add package header to ProcessorTest
+- 57ce677 Add processor URL parsing unit tests
+- a0f54d7 Update AGENTS.md
+- 27889d5 Add more tests
+- 99f4486 Add AGENTS.md
+- e65fbcf Add separate phpunit coverage command
+- b38c883 Update dev dependencies
+- da1fb19 Fix order in README
+- d71a270 Update php-cs-fixer configuration
+- ea0c2bc Potential fix for code scanning alert no. 3: Workflow does not contain permissions
+
+## Contributors
+
+- Gitsko
+- Rico Sonntag
+- Rico Sonntag
+
 # 2.1.0
 
 ## MISC
