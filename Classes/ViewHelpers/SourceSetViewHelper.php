@@ -164,7 +164,10 @@ class SourceSetViewHelper extends AbstractViewHelper
                 'img',
                 array_filter(
                     $props,
-                    static fn (int|string|null $value): bool => ($value !== null) && ($value !== '')
+                    static fn (int|string|null $value, string|int $key): bool => $key === 'alt'
+                        ? $value !== null
+                        : ($value !== null) && ($value !== ''),
+                    ARRAY_FILTER_USE_BOTH
                 )
             );
     }
@@ -196,7 +199,10 @@ class SourceSetViewHelper extends AbstractViewHelper
                 'img',
                 array_filter(
                     $props,
-                    static fn (int|string|null $value): bool => ($value !== null) && ($value !== '')
+                    static fn (int|string|null $value, string|int $key): bool => $key === 'alt'
+                        ? $value !== null
+                        : ($value !== null) && ($value !== ''),
+                    ARRAY_FILTER_USE_BOTH
                 )
             );
     }

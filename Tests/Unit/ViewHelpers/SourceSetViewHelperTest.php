@@ -114,6 +114,35 @@ class SourceSetViewHelperTest extends TestCase
     }
 
     #[Test]
+    public function renderAddsEmptyAltAttributeWhenOmitted(): void
+    {
+        $this->viewHelper->setArguments([
+            'path'             => '/path/to/image.jpg',
+            'width'            => 800,
+            'height'           => 600,
+            'responsiveSrcset' => true,
+        ]);
+
+        $result = $this->viewHelper->render();
+
+        self::assertStringContainsString('alt=""', $result);
+    }
+
+    #[Test]
+    public function renderLegacyModeAddsEmptyAltAttributeWhenOmitted(): void
+    {
+        $this->viewHelper->setArguments([
+            'path'   => '/path/to/image.jpg',
+            'width'  => 400,
+            'height' => 300,
+        ]);
+
+        $result = $this->viewHelper->render();
+
+        self::assertStringContainsString('alt=""', $result);
+    }
+
+    #[Test]
     public function renderCustomWidthVariants(): void
     {
         $this->viewHelper->setArguments([
