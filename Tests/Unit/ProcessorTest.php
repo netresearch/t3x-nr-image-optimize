@@ -347,6 +347,31 @@ class ProcessorTest extends TestCase
     }
 
     #[Test]
+    public function generateWebpVariantRestoresOriginalImageAfterEncoding(): void
+    {
+        $processor = $this->createProcessor();
+
+        /** @var ImageInterface&MockObject $image */
+        $image = $this->createMock(ImageInterface::class);
+
+        $variantBase = sys_get_temp_dir() . '/nr-image-optimize-' . uniqid('variant-restore', true);
+
+        $image->expects(self::once())->method('toWebp')->with(55)->willReturn($this->createMock(EncodedImageInterface::class));
+        $image->expects(self::once())->method('save')->with($variantBase . '.webp')->willReturnSelf();
+
+        $this->setProperty($processor, 'image', $image);
+        $this->setProperty($processor, 'targetQuality', 55);
+        $this->setProperty($processor, 'pathVariant', $variantBase);
+
+        $this->callMethod($processor, 'generateWebpVariant');
+
+        $restored = $this->getProperty($processor, 'image');
+
+        self::assertNotSame($image, $restored);
+        self::assertInstanceOf($image::class, $restored);
+    }
+
+    #[Test]
     public function generateAvifVariantEncodesAndSavesImage(): void
     {
         $processor = $this->createProcessor();
@@ -365,6 +390,31 @@ class ProcessorTest extends TestCase
         $this->setProperty($processor, 'pathVariant', $variantBase);
 
         $this->callMethod($processor, 'generateAvifVariant');
+    }
+
+    #[Test]
+    public function generateAvifVariantRestoresOriginalImageAfterEncoding(): void
+    {
+        $processor = $this->createProcessor();
+
+        /** @var ImageInterface&MockObject $image */
+        $image = $this->createMock(ImageInterface::class);
+
+        $variantBase = sys_get_temp_dir() . '/nr-image-optimize-' . uniqid('variant-restore', true);
+
+        $image->expects(self::once())->method('toAvif')->with(45)->willReturn($this->createMock(EncodedImageInterface::class));
+        $image->expects(self::once())->method('save')->with($variantBase . '.avif')->willReturnSelf();
+
+        $this->setProperty($processor, 'image', $image);
+        $this->setProperty($processor, 'targetQuality', 45);
+        $this->setProperty($processor, 'pathVariant', $variantBase);
+
+        $this->callMethod($processor, 'generateAvifVariant');
+
+        $restored = $this->getProperty($processor, 'image');
+
+        self::assertNotSame($image, $restored);
+        self::assertInstanceOf($image::class, $restored);
     }
 
     #[Test]

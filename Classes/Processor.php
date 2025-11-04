@@ -300,8 +300,10 @@ class Processor
      */
     private function generateWebpVariant(): void
     {
-        $this->image->toWebp($this->targetQuality);
-        $this->image->save($this->pathVariant . '.webp');
+        $this->performWithoutMutatingOriginal(function (): void {
+            $this->image->toWebp($this->targetQuality);
+            $this->image->save($this->pathVariant . '.webp');
+        });
     }
 
     /**
@@ -309,8 +311,31 @@ class Processor
      */
     private function generateAvifVariant(): void
     {
-        $this->image->toAvif($this->targetQuality);
-        $this->image->save($this->pathVariant . '.avif');
+        $this->performWithoutMutatingOriginal(function (): void {
+            $this->image->toAvif($this->targetQuality);
+            $this->image->save($this->pathVariant . '.avif');
+        });
+    }
+
+    /**
+     * Execute an image operation without keeping the mutated instance afterwards.
+     *
+     * The Intervention image encoder mutates the underlying image resource when
+     * converting to another format (e.g. WebP or AVIF). This breaks alpha
+     * transparency for the subsequently streamed response because the main image
+     * instance is no longer the original PNG/GIF. By cloning the original state
+     * beforehand and restoring it afterwards, we ensure later operations (like
+     * streaming the processed PNG) still work with an unmodified image.
+     */
+    private function performWithoutMutatingOriginal(callable $operation): void
+    {
+        $original = clone $this->image;
+
+        try {
+            $operation();
+        } finally {
+            $this->image = $original;
+        }
     }
 
     /**
