@@ -44,8 +44,13 @@ final class MaintenanceController extends ActionController
         $moduleTemplate = $this->moduleTemplateFactory->create($this->request);
         $moduleTemplate->assign('processedPath', $processedPath);
         $moduleTemplate->assign('fileCount', $stats['count']);
+        $moduleTemplate->assign('directoryCount', $stats['directories']);
         $moduleTemplate->assign('totalSizeBytes', $stats['size']);
         $moduleTemplate->assign('totalSizeHuman', $this->formatBytes($stats['size']));
+        $moduleTemplate->assign('largestFiles', $stats['largestFiles']);
+        $moduleTemplate->assign('fileTypes', $stats['fileTypes']);
+        $moduleTemplate->assign('oldestFile', $stats['oldestFile']);
+        $moduleTemplate->assign('newestFile', $stats['newestFile']);
 
         return $moduleTemplate->renderResponse('Maintenance/Index');
     }
@@ -85,15 +90,28 @@ final class MaintenanceController extends ActionController
     }
 
     /**
-     * @return array{count: int, size: int}
+     * @return array{count: int, size: int, directories: int, largestFiles: array, fileTypes: array, oldestFile: array|null, newestFile: array|null}
      */
     private function getDirectoryStats(string $path): array
     {
-        $count = 0;
-        $size  = 0;
+        $count       = 0;
+        $size        = 0;
+        $directories = 0;
+        $files       = [];
+        $fileTypes   = [];
+        $oldestFile  = null;
+        $newestFile  = null;
 
         if (!is_dir($path)) {
-            return ['count' => $count, 'size' => $size];
+            return [
+                'count'        => $count,
+                'size'         => $size,
+                'directories'  => $directories,
+                'largestFiles' => [],
+                'fileTypes'    => [],
+                'oldestFile'   => null,
+                'newestFile'   => null,
+            ];
         }
 
         $iterator = new RecursiveIteratorIterator(
@@ -102,13 +120,71 @@ final class MaintenanceController extends ActionController
         );
 
         foreach ($iterator as $file) {
+            if ($file->isDir()) {
+                ++$directories;
+
+                continue;
+            }
+
             if ($file->isFile()) {
                 ++$count;
-                $size += $file->getSize();
+                $fileSize = $file->getSize();
+                $size += $fileSize;
+                $mtime = $file->getMTime();
+
+                // Track file types
+                $extension = strtolower((string) $file->getExtension());
+                if (!isset($fileTypes[$extension])) {
+                    $fileTypes[$extension] = ['count' => 0, 'size' => 0];
+                }
+
+                ++$fileTypes[$extension]['count'];
+                $fileTypes[$extension]['size'] += $fileSize;
+
+                // Track largest files (top 5)
+                $files[] = [
+                    'name' => $file->getFilename(),
+                    'path' => str_replace($path . '/', '', (string) $file->getPathname()),
+                    'size' => $fileSize,
+                ];
+
+                // Track oldest and newest
+                if ($oldestFile === null || $mtime < $oldestFile['mtime']) {
+                    $oldestFile = ['name' => $file->getFilename(), 'mtime' => $mtime, 'date' => date('Y-m-d H:i:s', $mtime)];
+                }
+
+                if ($newestFile === null || $mtime > $newestFile['mtime']) {
+                    $newestFile = ['name' => $file->getFilename(), 'mtime' => $mtime, 'date' => date('Y-m-d H:i:s', $mtime)];
+                }
             }
         }
 
-        return ['count' => $count, 'size' => $size];
+        // Sort and limit largest files
+        usort($files, static fn (array $a, array $b): int => $b['size'] <=> $a['size']);
+        $largestFiles = array_slice($files, 0, 5);
+
+        // Format file sizes
+        foreach ($largestFiles as &$file) {
+            $file['sizeHuman'] = $this->formatBytes($file['size']);
+        }
+
+        // Sort file types by size
+        uasort($fileTypes, static fn ($a, $b): int => $b['size'] <=> $a['size']);
+
+        // Format file type sizes
+        foreach ($fileTypes as &$typeData) {
+            $typeData['sizeHuman'] = $this->formatBytes($typeData['size']);
+        }
+
+        return [
+            'count'        => $count,
+            'size'         => $size,
+            'directories'  => $directories,
+            'largestFiles' => $largestFiles,
+            'fileTypes'    => $fileTypes,
+            'oldestFile'   => $oldestFile,
+            'newestFile'   => $newestFile,
+        ];
     }
 
     private function formatBytes(int $bytes): string

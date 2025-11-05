@@ -1,3 +1,7 @@
 parameters:
 	ignoreErrors:
-		[]
+		-
+			message: '#^Method Netresearch\\NrImageOptimize\\Controller\\MaintenanceController\:\:getDirectoryStats\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 4
+			path: ../Classes/Controller/MaintenanceController.php

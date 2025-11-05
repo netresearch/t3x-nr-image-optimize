@@ -15,14 +15,44 @@
             <trans-unit id="module.maintenance.clearButton" resname="module.maintenance.clearButton">
                 <source>Clear processed images</source>
             </trans-unit>
+            <trans-unit id="stats.overview" resname="stats.overview">
+                <source>Overview</source>
+            </trans-unit>
             <trans-unit id="stats.path" resname="stats.path">
                 <source>Directory</source>
             </trans-unit>
             <trans-unit id="stats.files" resname="stats.files">
-                <source>File count</source>
+                <source>Files</source>
+            </trans-unit>
+            <trans-unit id="stats.directories" resname="stats.directories">
+                <source>Subdirectories</source>
             </trans-unit>
             <trans-unit id="stats.size" resname="stats.size">
                 <source>Total size</source>
+            </trans-unit>
+            <trans-unit id="stats.age" resname="stats.age">
+                <source>File Age</source>
+            </trans-unit>
+            <trans-unit id="stats.oldest" resname="stats.oldest">
+                <source>Oldest file</source>
+            </trans-unit>
+            <trans-unit id="stats.newest" resname="stats.newest">
+                <source>Newest file</source>
+            </trans-unit>
+            <trans-unit id="stats.largest" resname="stats.largest">
+                <source>Largest Files (Top 5)</source>
+            </trans-unit>
+            <trans-unit id="stats.file" resname="stats.file">
+                <source>File</source>
+            </trans-unit>
+            <trans-unit id="stats.types" resname="stats.types">
+                <source>File Types</source>
+            </trans-unit>
+            <trans-unit id="stats.extension" resname="stats.extension">
+                <source>Type</source>
+            </trans-unit>
+            <trans-unit id="stats.count" resname="stats.count">
+                <source>Count</source>
             </trans-unit>
             <trans-unit id="flash.clear.success" resname="flash.clear.success">
                 <source>Processed images have been cleared successfully</source>
