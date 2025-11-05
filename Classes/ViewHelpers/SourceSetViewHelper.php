@@ -87,7 +87,7 @@ class SourceSetViewHelper extends AbstractViewHelper
 
         // New arguments for responsive srcset
         $this->registerArgument('responsiveSrcset', 'bool', 'Enable width-based responsive srcset (default: false for backward compatibility).', false, false);
-        $this->registerArgument('widthVariants', 'string|array', 'Width variants for responsive srcset (comma-separated string or array).', false);
+        $this->registerArgument('widthVariants', 'string|array', 'Width variants for responsive srcset (comma-separated string or array).', false, null);
         $this->registerArgument('sizes', 'string', 'Sizes attribute for responsive images.', false, 'auto, (min-width: 992px) 991px, 100vw');
         $this->registerArgument('fetchpriority', 'string', "Resource fetch priority for the image: 'high', 'low', or 'auto'.", false, '');
     }
