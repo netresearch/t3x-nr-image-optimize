@@ -15,7 +15,6 @@ use Netresearch\NrImageOptimize\Service\SystemRequirementsService;
 use Psr\Http\Message\ResponseInterface;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
-use RuntimeException;
 use Throwable;
 use TYPO3\CMS\Backend\Template\ModuleTemplateFactory;
 use TYPO3\CMS\Core\Page\PageRenderer;
@@ -105,25 +104,6 @@ final class MaintenanceController extends ActionController
         return $this->redirect('index');
     }
 
-    private function addNotification(string $message, ContextualFeedbackSeverity $severity): void
-    {
-        $pageRenderer = GeneralUtility::makeInstance(PageRenderer::class);
-        $pageRenderer->loadJavaScriptModule('@typo3/backend/notification.js');
-        $pageRenderer->addJsInlineCode(
-            'nr-image-optimize-notification',
-            sprintf(
-                'import Notification from "@typo3/backend/notification.js"; Notification.%s("", "%s", 5);',
-                match($severity) {
-                    ContextualFeedbackSeverity::NOTICE => 'notice',
-                    ContextualFeedbackSeverity::INFO => 'info',
-                    ContextualFeedbackSeverity::OK => 'success',
-                    ContextualFeedbackSeverity::WARNING => 'warning',
-                    ContextualFeedbackSeverity::ERROR => 'error',
-                },
-                addslashes($message)
-            )
-        );
-    }
 
     /**
      * @return array{count: int, size: int, directories: int, largestFiles: array, fileTypes: array, oldestFile: array|null, newestFile: array|null}
