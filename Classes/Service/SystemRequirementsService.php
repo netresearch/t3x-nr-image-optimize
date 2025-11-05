@@ -191,7 +191,7 @@ final class SystemRequirementsService
     private function checkCliTools(): array
     {
         $items       = [];
-        $disabled    = array_map('trim', explode(',', (string) ini_get('disable_functions')));
+        $disabled    = array_map(trim(...), explode(',', (string) ini_get('disable_functions')));
         $execAllowed = function_exists('exec') && !in_array('exec', $disabled, true);
 
         $items[] = $this->makeItem('PHP exec() Availability', $execAllowed ? 'Enabled' : 'Disabled', 'Optional', $execAllowed ? 'success' : 'warning');
