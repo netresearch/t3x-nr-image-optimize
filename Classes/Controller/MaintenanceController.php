@@ -17,6 +17,7 @@ use RecursiveIteratorIterator;
 use RuntimeException;
 use Throwable;
 use TYPO3\CMS\Backend\Template\ModuleTemplateFactory;
+use TYPO3\CMS\Core\Page\PageRenderer;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Type\ContextualFeedbackSeverity;
@@ -87,6 +88,26 @@ final class MaintenanceController extends ActionController
         }
 
         return $this->redirect('index');
+    }
+
+    private function addNotification(string $message, ContextualFeedbackSeverity $severity): void
+    {
+        $pageRenderer = GeneralUtility::makeInstance(PageRenderer::class);
+        $pageRenderer->loadJavaScriptModule('@typo3/backend/notification.js');
+        $pageRenderer->addJsInlineCode(
+            'nr-image-optimize-notification',
+            sprintf(
+                'import Notification from "@typo3/backend/notification.js"; Notification.%s("", "%s", 5);',
+                match($severity) {
+                    ContextualFeedbackSeverity::NOTICE => 'notice',
+                    ContextualFeedbackSeverity::INFO => 'info',
+                    ContextualFeedbackSeverity::OK => 'success',
+                    ContextualFeedbackSeverity::WARNING => 'warning',
+                    ContextualFeedbackSeverity::ERROR => 'error',
+                },
+                addslashes($message)
+            )
+        );
     }
 
     /**

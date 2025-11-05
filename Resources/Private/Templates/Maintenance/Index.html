@@ -7,6 +7,14 @@
 <f:section name="Content">
     <h1>Processed Images Maintenance - EXT:nr_image_optimize</h1>
 
+    <f:flashMessages as="flashMessages">
+        <f:for each="{flashMessages}" as="flashMessage">
+            <div class="alert alert-{f:if(condition: '{flashMessage.severity} == 2', then: 'danger', else: 'success')}" role="alert">
+                {flashMessage.message}
+            </div>
+        </f:for>
+    </f:flashMessages>
+
     <p><f:translate key="LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:module.maintenance.description"/></p>
 
     <div class="row">
@@ -28,26 +36,6 @@
                     <tr>
                         <th><f:translate key="LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:stats.size"/></th>
                         <td><strong>{totalSizeHuman}</strong></td>
-                    </tr>
-                </table>
-            </div>
-
-            <div class="table-fit mt-3">
-                <table class="table table-striped table-hover">
-                    <tr>
-                        <th colspan="2"><strong>TYPO3 FAL</strong></th>
-                    </tr>
-                    <tr>
-                        <th><f:translate key="LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:stats.path"/></th>
-                        <td><code>{typo3ProcessedPath}</code></td>
-                    </tr>
-                    <tr>
-                        <th><f:translate key="LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:stats.files"/></th>
-                        <td>{typo3FileCount}</td>
-                    </tr>
-                    <tr>
-                        <th><f:translate key="LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:stats.size"/></th>
-                        <td><strong>{typo3TotalSizeHuman}</strong></td>
                     </tr>
                 </table>
             </div>
@@ -75,6 +63,10 @@
                         </f:else>
                     </f:if>
                 </table>
+            </div>
+
+            <div class="alert alert-warning mt-3" role="alert">
+                <strong>Notice:</strong> After clearing, images must be regenerated on first frontend access. This may cause longer loading times.
             </div>
 
             <f:form action="clearProcessedImages" class="mt-3">
