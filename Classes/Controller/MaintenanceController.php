@@ -15,9 +15,9 @@ use Netresearch\NrImageOptimize\Service\SystemRequirementsService;
 use Psr\Http\Message\ResponseInterface;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
+use RuntimeException;
 use Throwable;
 use TYPO3\CMS\Backend\Template\ModuleTemplateFactory;
-use TYPO3\CMS\Core\Page\PageRenderer;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Type\ContextualFeedbackSeverity;
@@ -103,7 +103,6 @@ final class MaintenanceController extends ActionController
 
         return $this->redirect('index');
     }
-
 
     /**
      * @return array{count: int, size: int, directories: int, largestFiles: array, fileTypes: array, oldestFile: array|null, newestFile: array|null}
