@@ -283,3 +283,28 @@ For issues and feature requests, please use the `GitHub issue tracker <https://g
 ===========
 
 Developed by `Netresearch DTT GmbH <https://www.netresearch.de/>`_
+
+🔧 Maintenance
+==============
+
+Backend Module
+--------------
+
+The extension provides a backend module for maintenance tasks accessible via **Admin Tools → Processed Images Maintenance**.
+
+Features:
+
+- **Overview**: View statistics about processed images (file count, total size, directory count, largest files, file types distribution)
+- **System Requirements**: Check all technical prerequisites and tool availability:
+  
+  - PHP version and extensions (Imagick, GD)
+  - ImageMagick/GraphicsMagick capabilities (WebP, AVIF support)
+  - Composer dependencies (Intervention Image)
+  - TYPO3 version compatibility
+  - CLI tools (magick, convert, identify, gm - optional)
+
+- **Clear Processed Images**: Remove all on-demand generated images. Images will be regenerated automatically when first accessed again.
+
+.. note::
+   After clearing processed images, expect temporarily increased loading times on the frontend until images are regenerated on-demand.
+
