@@ -8,5 +8,8 @@ services:
     resource: '../Classes/*'
     exclude: '../Classes/Domain/Model/*'
 
+  Netresearch\NrImageOptimize\Service\SystemRequirementsService:
+    public: false
+
   Netresearch\NrImageOptimize\Controller\MaintenanceController:
     public: true
