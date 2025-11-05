@@ -99,15 +99,17 @@
                     
                     <f:if condition="{oldestFile}">
                         <f:then>
-                            <div class="row">
-                                <div class="col-6">
+                            <div class="row mb-3">
+                                <div class="col-12 mb-2">
+                            <div class="mb-3">
+                                <div class="mb-2">
                                     <label class="form-label text-muted small mb-1">Oldest File</label>
-                                    <p class="mb-0 small"><strong>{oldestFile.name}</strong></p>
+                                    <p class="mb-0 small text-break"><strong>{oldestFile.name}</strong></p>
                                     <p class="text-muted small mb-0">{oldestFile.date}</p>
                                 </div>
-                                <div class="col-6">
+                                <div>
                                     <label class="form-label text-muted small mb-1">Newest File</label>
-                                    <p class="mb-0 small"><strong>{newestFile.name}</strong></p>
+                                    <p class="mb-0 small text-break"><strong>{newestFile.name}</strong></p>
                                     <p class="text-muted small mb-0">{newestFile.date}</p>
                                 </div>
                             </div>
