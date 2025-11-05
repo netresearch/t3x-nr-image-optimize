@@ -6,65 +6,131 @@
 <f:layout name="Module"/>
 
 <f:section name="Content">
-    <h1>System Requirements</h1>
-    <p class="text-body-secondary">
-        Overview of technical prerequisites and their current status
-    </p>
-
-    <div class="mb-3">
-        <f:link.action action="index" class="btn btn-secondary">
-            &laquo; Back to Maintenance
-        </f:link.action>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="mb-1">System Requirements</h1>
+            <p class="text-muted mb-0">Technical prerequisites and current system status</p>
+        </div>
+        <div>
+            <f:link.action action="index" class="btn btn-default">
+                <core:icon identifier="actions-arrow-left" size="small"/>
+                Back to Maintenance
+            </f:link.action>
+        </div>
     </div>
 
     <f:for each="{requirements}" as="category">
-        <h2 class="h4 mt-4">{category.label -> f:format.raw()}</h2>
-        <table class="table table-striped align-middle">
-            <thead>
-                <tr>
-                    <th style="width:30%">Requirement</th>
-                    <th style="width:15%">Status</th>
-                    <th style="width:25%">Current</th>
-                    <th style="width:15%">Required</th>
-                    <th style="width:15%">Details</th>
-                </tr>
-            </thead>
-            <tbody>
-                <f:for each="{category.items}" as="item">
-                    <tr>
-                        <td>{item.label -> f:format.raw()}</td>
-                        <td>
-                            <span class="badge {item.badgeClass}">
-                                <core:icon identifier="{item.icon}" size="small"/>
-                                <span class="ms-1">
-                                    <f:if condition="{item.status} == 'success'">
-                                        <f:then>Available</f:then>
-                                        <f:else>
-                                            <f:if condition="{item.status} == 'warning'">
-                                                <f:then>Limited</f:then>
-                                                <f:else>Missing</f:else>
-                                            </f:if>
-                                        </f:else>
-                                    </f:if>
-                                </span>
-                            </span>
-                        </td>
-                        <td><code>{item.current}</code></td>
-                        <td>
-                            <f:if condition="{item.required}">
-                                <code>{item.required}</code>
-                            </f:if>
-                        </td>
-                        <td>
-                            <f:if condition="{item.details}">
-                                <span class="text-body-secondary small" style="word-break: break-word;">{item.details -> f:format.nl2br()}</span>
-                            </f:if>
-                        </td>
-                    </tr>
-                </f:for>
-            </tbody>
-        </table>
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <h2 class="card-title mb-0 h5">
+                    <strong>{category.label}</strong>
+                </h2>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-3" style="width:35%">Component</th>
+                                <th style="width:15%">Status</th>
+                                <th style="width:20%">Current</th>
+                                <th style="width:15%">Required</th>
+                                <th class="pe-3" style="width:15%">Details</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <f:for each="{category.items}" as="item">
+                                <tr class="align-middle">
+                                    <td class="ps-3">
+                                        <span class="fw-medium">{item.label}</span>
+                                    </td>
+                                    <td>
+                                        <f:if condition="{item.status} == 'success'">
+                                            <f:then>
+                                                <span class="badge rounded-pill bg-success text-white d-inline-flex align-items-center gap-1">
+                                                    <core:icon identifier="actions-check" size="small"/>
+                                                    Available
+                                                </span>
+                                            </f:then>
+                                            <f:else>
+                                                <f:if condition="{item.status} == 'warning'">
+                                                    <f:then>
+                                                        <span class="badge rounded-pill bg-warning text-dark d-inline-flex align-items-center gap-1">
+                                                            <core:icon identifier="actions-exclamation" size="small"/>
+                                                            Limited
+                                                        </span>
+                                                    </f:then>
+                                                    <f:else>
+                                                        <span class="badge rounded-pill bg-danger text-white d-inline-flex align-items-center gap-1">
+                                                            <core:icon identifier="actions-close" size="small"/>
+                                                            Missing
+                                                        </span>
+                                                    </f:else>
+                                                </f:if>
+                                            </f:else>
+                                        </f:if>
+                                    </td>
+                                    <td>
+                                        <f:if condition="{item.current}">
+                                            <code class="text-dark bg-light px-2 py-1 rounded small">{item.current}</code>
+                                        </f:if>
+                                    </td>
+                                    <td>
+                                        <f:if condition="{item.required}">
+                                            <span class="text-muted small">{item.required}</span>
+                                        </f:if>
+                                    </td>
+                                    <td class="pe-3">
+                                        <f:if condition="{item.details}">
+                                            <button type="button" 
+                                                    class="btn btn-link btn-sm p-0 text-decoration-none"
+                                                    data-bs-toggle="tooltip" 
+                                                    data-bs-placement="left"
+                                                    data-bs-html="true"
+                                                    title="{item.details -> f:format.htmlspecialchars()}">
+                                                <core:icon identifier="actions-info" size="small"/>
+                                            </button>
+                                        </f:if>
+                                    </td>
+                                </tr>
+                            </f:for>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </f:for>
+
+    <div class="alert alert-info d-flex align-items-start">
+        <core:icon identifier="actions-info-circle-alt" size="default" class="me-2 mt-1"/>
+        <div>
+            <strong>Status Legend:</strong>
+            <ul class="mb-0 mt-2 small">
+                <li><strong>Available:</strong> Component is installed and meets requirements</li>
+                <li><strong>Limited:</strong> Component is optional or has limited functionality</li>
+                <li><strong>Missing:</strong> Required component is not available</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl, {
+                    boundary: 'window',
+                    customClass: 'tooltip-wide'
+                });
+            });
+        });
+    </script>
+    
+    <style>
+        .tooltip-wide .tooltip-inner {
+            max-width: 400px;
+            text-align: left;
+        }
+    </style>
 </f:section>
 
 </html>
