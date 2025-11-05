@@ -20,7 +20,7 @@ return [
         'path'              => '/module/system/nr-image-optimize',
         'labels'            => 'LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:module.maintenance',
         'extensionName'     => 'NrImageOptimize',
-        'iconIdentifier'    => 'actions-edit-delete',
+        'iconIdentifier'    => 'module-image-optimize',
         'controllerActions' => [
             MaintenanceController::class => [
                 'index',
