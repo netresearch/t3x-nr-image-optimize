@@ -60,6 +60,143 @@
             <trans-unit id="flash.clear.error" resname="flash.clear.error">
                 <source>An error occurred while clearing processed images</source>
             </trans-unit>
+
+            <!-- System Requirements -->
+            <trans-unit id="requirements.title" resname="requirements.title">
+                <source>System Requirements</source>
+            </trans-unit>
+            <trans-unit id="requirements.description" resname="requirements.description">
+                <source>Overview of technical prerequisites and their current status</source>
+            </trans-unit>
+            <trans-unit id="requirements.backToMaintenance" resname="requirements.backToMaintenance">
+                <source>Back to Maintenance</source>
+            </trans-unit>
+
+            <!-- Table Headers -->
+            <trans-unit id="requirements.table.requirement" resname="requirements.table.requirement">
+                <source>Requirement</source>
+            </trans-unit>
+            <trans-unit id="requirements.table.status" resname="requirements.table.status">
+                <source>Status</source>
+            </trans-unit>
+            <trans-unit id="requirements.table.current" resname="requirements.table.current">
+                <source>Current</source>
+            </trans-unit>
+            <trans-unit id="requirements.table.required" resname="requirements.table.required">
+                <source>Required</source>
+            </trans-unit>
+            <trans-unit id="requirements.table.details" resname="requirements.table.details">
+                <source>Details</source>
+            </trans-unit>
+
+            <!-- Status Labels -->
+            <trans-unit id="requirements.status.success" resname="requirements.status.success">
+                <source>Available</source>
+            </trans-unit>
+            <trans-unit id="requirements.status.warning" resname="requirements.status.warning">
+                <source>Limited</source>
+            </trans-unit>
+            <trans-unit id="requirements.status.error" resname="requirements.status.error">
+                <source>Missing</source>
+            </trans-unit>
+
+            <!-- Categories -->
+            <trans-unit id="requirements.category.php" resname="requirements.category.php">
+                <source>PHP Requirements</source>
+            </trans-unit>
+            <trans-unit id="requirements.category.imagick" resname="requirements.category.imagick">
+                <source>ImageMagick (Primary Driver)</source>
+            </trans-unit>
+            <trans-unit id="requirements.category.gd" resname="requirements.category.gd">
+                <source>GD Library (Fallback Driver)</source>
+            </trans-unit>
+            <trans-unit id="requirements.category.composer" resname="requirements.category.composer">
+                <source>Composer Dependencies</source>
+            </trans-unit>
+            <trans-unit id="requirements.category.typo3" resname="requirements.category.typo3">
+                <source>TYPO3 Requirements</source>
+            </trans-unit>
+            <trans-unit id="requirements.category.cli" resname="requirements.category.cli">
+                <source>CLI Tools (Optional)</source>
+            </trans-unit>
+
+            <!-- PHP Requirements -->
+            <trans-unit id="requirements.php.version" resname="requirements.php.version">
+                <source>PHP Version</source>
+            </trans-unit>
+            <trans-unit id="requirements.extension.imagick" resname="requirements.extension.imagick">
+                <source>PHP Extension: imagick</source>
+            </trans-unit>
+            <trans-unit id="requirements.extension.gd" resname="requirements.extension.gd">
+                <source>PHP Extension: gd</source>
+            </trans-unit>
+            <trans-unit id="requirements.extension.mbstring" resname="requirements.extension.mbstring">
+                <source>PHP Extension: mbstring</source>
+            </trans-unit>
+            <trans-unit id="requirements.extension.exif" resname="requirements.extension.exif">
+                <source>PHP Extension: exif</source>
+            </trans-unit>
+
+            <!-- Imagick Requirements -->
+            <trans-unit id="requirements.imagick.extension" resname="requirements.imagick.extension">
+                <source>Imagick Extension Version</source>
+            </trans-unit>
+            <trans-unit id="requirements.imagemagick.version" resname="requirements.imagemagick.version">
+                <source>ImageMagick Version</source>
+            </trans-unit>
+            <trans-unit id="requirements.imagemagick.formats" resname="requirements.imagemagick.formats">
+                <source>Supported Formats</source>
+            </trans-unit>
+            <trans-unit id="requirements.imagick.webp" resname="requirements.imagick.webp">
+                <source>WebP Support</source>
+            </trans-unit>
+            <trans-unit id="requirements.imagick.avif" resname="requirements.imagick.avif">
+                <source>AVIF Support</source>
+            </trans-unit>
+
+            <!-- GD Requirements -->
+            <trans-unit id="requirements.gd.version" resname="requirements.gd.version">
+                <source>GD Version</source>
+            </trans-unit>
+            <trans-unit id="requirements.gd.webp" resname="requirements.gd.webp">
+                <source>WebP Support</source>
+            </trans-unit>
+            <trans-unit id="requirements.gd.avif" resname="requirements.gd.avif">
+                <source>AVIF Support</source>
+            </trans-unit>
+            <trans-unit id="requirements.gd.extension" resname="requirements.gd.extension">
+                <source>GD Extension</source>
+            </trans-unit>
+
+            <!-- Composer Dependencies -->
+            <trans-unit id="requirements.composer.intervention_image" resname="requirements.composer.intervention_image">
+                <source>intervention/image</source>
+            </trans-unit>
+            <trans-unit id="requirements.composer.intervention_gif" resname="requirements.composer.intervention_gif">
+                <source>intervention/gif</source>
+            </trans-unit>
+
+            <!-- TYPO3 Requirements -->
+            <trans-unit id="requirements.typo3.version" resname="requirements.typo3.version">
+                <source>TYPO3 Version</source>
+            </trans-unit>
+
+            <!-- CLI Tools -->
+            <trans-unit id="requirements.cli.exec" resname="requirements.cli.exec">
+                <source>PHP exec() Availability</source>
+            </trans-unit>
+            <trans-unit id="requirements.cli.magick" resname="requirements.cli.magick">
+                <source>CLI: magick</source>
+            </trans-unit>
+            <trans-unit id="requirements.cli.convert" resname="requirements.cli.convert">
+                <source>CLI: convert</source>
+            </trans-unit>
+            <trans-unit id="requirements.cli.identify" resname="requirements.cli.identify">
+                <source>CLI: identify</source>
+            </trans-unit>
+            <trans-unit id="requirements.cli.gm" resname="requirements.cli.gm">
+                <source>CLI: gm (GraphicsMagick)</source>
+            </trans-unit>
         </body>
     </file>
 </xliff>
