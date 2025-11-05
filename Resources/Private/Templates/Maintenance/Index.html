@@ -5,7 +5,7 @@
 <f:layout name="Module"/>
 
 <f:section name="Content">
-    <h1><f:translate key="LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:module.maintenance.title"/></h1>
+    <h1>Processed Images Maintenance - EXT:nr_image_optimize</h1>
 
     <p><f:translate key="LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:module.maintenance.description"/></p>
 
@@ -15,6 +15,9 @@
             <div class="table-fit">
                 <table class="table table-striped table-hover">
                     <tr>
+                        <th colspan="2"><strong>EXT:nr_image_optimize</strong></th>
+                    </tr>
+                    <tr>
                         <th><f:translate key="LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:stats.path"/></th>
                         <td><code>{processedPath}</code></td>
                     </tr>
@@ -23,33 +26,56 @@
                         <td>{fileCount}</td>
                     </tr>
                     <tr>
-                        <th><f:translate key="LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:stats.directories"/></th>
-                        <td>{directoryCount}</td>
-                    </tr>
-                    <tr>
                         <th><f:translate key="LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:stats.size"/></th>
                         <td><strong>{totalSizeHuman}</strong></td>
                     </tr>
                 </table>
             </div>
 
-            <f:if condition="{oldestFile}">
-                <h3><f:translate key="LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:stats.age"/></h3>
-                <div class="table-fit">
-                    <table class="table table-sm">
-                        <tr>
-                            <th><f:translate key="LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:stats.oldest"/></th>
-                            <td>{oldestFile.name}</td>
-                            <td><small class="text-muted">{oldestFile.date}</small></td>
-                        </tr>
-                        <tr>
-                            <th><f:translate key="LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:stats.newest"/></th>
-                            <td>{newestFile.name}</td>
-                            <td><small class="text-muted">{newestFile.date}</small></td>
-                        </tr>
-                    </table>
-                </div>
-            </f:if>
+            <div class="table-fit mt-3">
+                <table class="table table-striped table-hover">
+                    <tr>
+                        <th colspan="2"><strong>TYPO3 FAL</strong></th>
+                    </tr>
+                    <tr>
+                        <th><f:translate key="LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:stats.path"/></th>
+                        <td><code>{typo3ProcessedPath}</code></td>
+                    </tr>
+                    <tr>
+                        <th><f:translate key="LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:stats.files"/></th>
+                        <td>{typo3FileCount}</td>
+                    </tr>
+                    <tr>
+                        <th><f:translate key="LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:stats.size"/></th>
+                        <td><strong>{typo3TotalSizeHuman}</strong></td>
+                    </tr>
+                </table>
+            </div>
+
+            <h3 class="mt-3"><f:translate key="LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:stats.age"/></h3>
+            <div class="table-fit">
+                <table class="table table-sm">
+                    <f:if condition="{oldestFile}">
+                        <f:then>
+                            <tr>
+                                <th><f:translate key="LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:stats.oldest"/></th>
+                                <td>{oldestFile.name}</td>
+                                <td><small class="text-muted">{oldestFile.date}</small></td>
+                            </tr>
+                            <tr>
+                                <th><f:translate key="LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:stats.newest"/></th>
+                                <td>{newestFile.name}</td>
+                                <td><small class="text-muted">{newestFile.date}</small></td>
+                            </tr>
+                        </f:then>
+                        <f:else>
+                            <tr>
+                                <td colspan="3" class="text-muted">No files</td>
+                            </tr>
+                        </f:else>
+                    </f:if>
+                </table>
+            </div>
 
             <f:form action="clearProcessedImages" class="mt-3">
                 <f:form.button type="submit" class="btn btn-danger">
@@ -59,51 +85,65 @@
         </div>
 
         <div class="col-md-6">
-            <f:if condition="{largestFiles}">
-                <h2><f:translate key="LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:stats.largest"/></h2>
-                <div class="table-fit">
-                    <table class="table table-sm">
-                        <thead>
-                            <tr>
-                                <th><f:translate key="LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:stats.file"/></th>
-                                <th class="text-end"><f:translate key="LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:stats.size"/></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <f:for each="{largestFiles}" as="file">
+            <h2><f:translate key="LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:stats.largest"/></h2>
+            <div class="table-fit">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th><f:translate key="LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:stats.file"/></th>
+                            <th class="text-end"><f:translate key="LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:stats.size"/></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <f:if condition="{largestFiles}">
+                            <f:then>
+                                <f:for each="{largestFiles}" as="file">
+                                    <tr>
+                                        <td><small>{file.path}</small></td>
+                                        <td class="text-end"><strong>{file.sizeHuman}</strong></td>
+                                    </tr>
+                                </f:for>
+                            </f:then>
+                            <f:else>
                                 <tr>
-                                    <td><small>{file.path}</small></td>
-                                    <td class="text-end"><strong>{file.sizeHuman}</strong></td>
+                                    <td colspan="2" class="text-muted">No files</td>
                                 </tr>
-                            </f:for>
-                        </tbody>
-                    </table>
-                </div>
-            </f:if>
+                            </f:else>
+                        </f:if>
+                    </tbody>
+                </table>
+            </div>
 
-            <f:if condition="{fileTypes}">
-                <h2 class="mt-3"><f:translate key="LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:stats.types"/></h2>
-                <div class="table-fit">
-                    <table class="table table-sm">
-                        <thead>
-                            <tr>
-                                <th><f:translate key="LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:stats.extension"/></th>
-                                <th class="text-end"><f:translate key="LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:stats.count"/></th>
-                                <th class="text-end"><f:translate key="LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:stats.size"/></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <f:for each="{fileTypes}" key="ext" as="typeData">
+            <h2 class="mt-3"><f:translate key="LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:stats.types"/></h2>
+            <div class="table-fit">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th><f:translate key="LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:stats.extension"/></th>
+                            <th class="text-end"><f:translate key="LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:stats.count"/></th>
+                            <th class="text-end"><f:translate key="LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:stats.size"/></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <f:if condition="{fileTypes}">
+                            <f:then>
+                                <f:for each="{fileTypes}" key="ext" as="typeData">
+                                    <tr>
+                                        <td><code>.{ext}</code></td>
+                                        <td class="text-end">{typeData.count}</td>
+                                        <td class="text-end"><strong>{typeData.sizeHuman}</strong></td>
+                                    </tr>
+                                </f:for>
+                            </f:then>
+                            <f:else>
                                 <tr>
-                                    <td><code>.{ext}</code></td>
-                                    <td class="text-end">{typeData.count}</td>
-                                    <td class="text-end"><strong>{typeData.sizeHuman}</strong></td>
+                                    <td colspan="3" class="text-muted">No files</td>
                                 </tr>
-                            </f:for>
-                        </tbody>
-                    </table>
-                </div>
-            </f:if>
+                            </f:else>
+                        </f:if>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 </f:section>
