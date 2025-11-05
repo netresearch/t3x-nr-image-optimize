@@ -104,7 +104,7 @@ class SourceSetViewHelperTest extends TestCase
         self::assertArrayHasKey(1, $matches);
 
         $variants = array_filter(
-            array_map('trim', explode(',', $matches[1])),
+            array_map(trim(...), explode(',', $matches[1])),
             static fn (string $variant): bool => $variant !== ''
         );
         self::assertNotEmpty($variants);
@@ -264,7 +264,7 @@ class SourceSetViewHelperTest extends TestCase
         $expectedRatio = 0.5;
 
         $variants = array_filter(
-            array_map('trim', explode(',', $matches[1])),
+            array_map(trim(...), explode(',', $matches[1])),
             static fn (string $variant): bool => $variant !== ''
         );
 
