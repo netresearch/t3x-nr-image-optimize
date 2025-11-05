@@ -190,11 +190,12 @@ final class SystemRequirementsService
      */
     private function checkCliTools(): array
     {
-        $items       = [];
+        $items            = [];
         $disableFunctions = ini_get('disable_functions');
         if ($disableFunctions === false) {
             $disableFunctions = '';
         }
+
         $disabled    = array_map(trim(...), explode(',', $disableFunctions));
         $execAllowed = function_exists('exec') && !in_array('exec', $disabled, true);
 
