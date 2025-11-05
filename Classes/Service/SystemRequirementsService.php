@@ -52,24 +52,26 @@ final class SystemRequirementsService
         $ok = version_compare($current, '8.2.0', '>=');
 
         $items = [];
-        $items[] = $this->makeItem('requirements.php.version', $current, $required, $ok ? 'success' : 'error');
+        $items[] = $this->makeItem('PHP Version', $current, $required, $ok ? 'success' : 'error');
 
-        foreach (['imagick', 'gd', 'mbstring', 'exif'] as $ext) {
+        $extensions = [
+            'imagick' => 'PHP Extension: imagick',
+            'gd' => 'PHP Extension: gd',
+            'mbstring' => 'PHP Extension: mbstring',
+            'exif' => 'PHP Extension: exif',
+        ];
+
+        foreach ($extensions as $ext => $label) {
             $loaded = extension_loaded($ext);
             if ($ext === 'imagick' || $ext === 'gd') {
                 $status = $loaded ? 'success' : 'warning';
             } else {
                 $status = $loaded ? 'success' : 'error';
             }
-            $items[] = $this->makeItem(
-                "requirements.extension.$ext",
-                $loaded ? 'Loaded' : 'Not loaded',
-                null,
-                $status
-            );
+            $items[] = $this->makeItem($label, $loaded ? 'Loaded' : 'Not loaded', null, $status);
         }
 
-        return $this->makeCategory('requirements.category.php', $items);
+        return $this->makeCategory('PHP Requirements', $items);
     }
 
     /**
@@ -84,7 +86,7 @@ final class SystemRequirementsService
 
         if ($hasImagick) {
             $imagickVersion = phpversion('imagick') ?: 'unknown';
-            $items[] = $this->makeItem('requirements.imagick.extension', $imagickVersion, null, 'success');
+            $items[] = $this->makeItem('Imagick Extension Version', $imagickVersion, null, 'success');
 
             try {
                 $im = new Imagick();
@@ -92,45 +94,24 @@ final class SystemRequirementsService
                 $imVersion = is_array($imInfo) && isset($imInfo['versionString'])
                     ? $imInfo['versionString']
                     : 'unknown';
-                $items[] = $this->makeItem('requirements.imagemagick.version', $imVersion, null, 'success');
+                $items[] = $this->makeItem('ImageMagick Version', $imVersion, null, 'success');
 
                 $formats = $im->queryFormats();
                 $webp = in_array('WEBP', $formats, true);
                 $avif = in_array('AVIF', $formats, true);
-                $items[] = $this->makeItem(
-                    'requirements.imagick.webp',
-                    $webp ? 'Yes' : 'No',
-                    'Optional',
-                    $webp ? 'success' : 'warning'
-                );
-                $items[] = $this->makeItem(
-                    'requirements.imagick.avif',
-                    $avif ? 'Yes' : 'No',
-                    'Optional',
-                    $avif ? 'success' : 'warning'
-                );
+                $items[] = $this->makeItem('WebP Support', $webp ? 'Yes' : 'No', 'Optional', $webp ? 'success' : 'warning');
+                $items[] = $this->makeItem('AVIF Support', $avif ? 'Yes' : 'No', 'Optional', $avif ? 'success' : 'warning');
 
                 $relevant = array_values(array_intersect($formats, ['AVIF', 'WEBP', 'JPEG', 'JPG', 'PNG', 'GIF', 'SVG']));
-                $items[] = $this->makeItem(
-                    'requirements.imagemagick.formats',
-                    implode(', ', $relevant),
-                    null,
-                    'success'
-                );
+                $items[] = $this->makeItem('Supported Formats', implode(', ', $relevant), null, 'success');
             } catch (\Throwable $e) {
-                $items[] = $this->makeItem(
-                    'requirements.imagemagick.version',
-                    'unavailable',
-                    null,
-                    'warning',
-                    $e->getMessage()
-                );
+                $items[] = $this->makeItem('ImageMagick Version', 'unavailable', null, 'warning', $e->getMessage());
             }
         } else {
-            $items[] = $this->makeItem('requirements.imagick.extension', 'Not loaded', 'Recommended', 'warning');
+            $items[] = $this->makeItem('Imagick Extension', 'Not loaded', 'Recommended', 'warning');
         }
 
-        return $this->makeCategory('requirements.category.imagick', $items);
+        return $this->makeCategory('ImageMagick (Primary Driver)', $items);
     }
 
     /**
@@ -144,27 +125,17 @@ final class SystemRequirementsService
 
         if (extension_loaded('gd')) {
             $info = gd_info();
-            $items[] = $this->makeItem('requirements.gd.version', $info['GD Version'] ?? 'unknown', null, 'success');
+            $items[] = $this->makeItem('GD Version', $info['GD Version'] ?? 'unknown', null, 'success');
 
             $webp = (bool)($info['WebP Support'] ?? false);
             $avif = (bool)($info['AVIF Support'] ?? false);
-            $items[] = $this->makeItem(
-                'requirements.gd.webp',
-                $webp ? 'Yes' : 'No',
-                'Optional',
-                $webp ? 'success' : 'warning'
-            );
-            $items[] = $this->makeItem(
-                'requirements.gd.avif',
-                $avif ? 'Yes' : 'No',
-                'Optional',
-                $avif ? 'success' : 'warning'
-            );
+            $items[] = $this->makeItem('WebP Support', $webp ? 'Yes' : 'No', 'Optional', $webp ? 'success' : 'warning');
+            $items[] = $this->makeItem('AVIF Support', $avif ? 'Yes' : 'No', 'Optional', $avif ? 'success' : 'warning');
         } else {
-            $items[] = $this->makeItem('requirements.gd.extension', 'Not loaded', 'Fallback', 'warning');
+            $items[] = $this->makeItem('GD Extension', 'Not loaded', 'Fallback', 'warning');
         }
 
-        return $this->makeCategory('requirements.category.gd', $items);
+        return $this->makeCategory('GD Library (Fallback Driver)', $items);
     }
 
     /**
@@ -175,8 +146,8 @@ final class SystemRequirementsService
     private function checkComposer(): array
     {
         $packages = [
-            'intervention/image' => 'requirements.composer.intervention_image',
-            'intervention/gif' => 'requirements.composer.intervention_gif',
+            'intervention/image' => 'intervention/image',
+            'intervention/gif' => 'intervention/gif',
         ];
         $items = [];
 
@@ -189,15 +160,10 @@ final class SystemRequirementsService
                 $installed = $version !== null;
             }
 
-            $items[] = $this->makeItem(
-                $label,
-                $version ?? 'Not installed',
-                null,
-                $installed ? 'success' : 'error'
-            );
+            $items[] = $this->makeItem($label, $version ?? 'Not installed', null, $installed ? 'success' : 'error');
         }
 
-        return $this->makeCategory('requirements.category.composer', $items);
+        return $this->makeCategory('Composer Dependencies', $items);
     }
 
     /**
@@ -210,9 +176,9 @@ final class SystemRequirementsService
         $typo3 = (new Typo3Version())->getVersion();
         $ok = version_compare($typo3, '13.4.0', '>=');
         $items = [];
-        $items[] = $this->makeItem('requirements.typo3.version', $typo3, '>= 13.4', $ok ? 'success' : 'error');
+        $items[] = $this->makeItem('TYPO3 Version', $typo3, '>= 13.4', $ok ? 'success' : 'error');
 
-        return $this->makeCategory('requirements.category.typo3', $items);
+        return $this->makeCategory('TYPO3 Requirements', $items);
     }
 
     /**
@@ -226,12 +192,7 @@ final class SystemRequirementsService
         $disabled = array_map('trim', explode(',', (string)ini_get('disable_functions')));
         $execAllowed = function_exists('exec') && !in_array('exec', $disabled, true);
 
-        $items[] = $this->makeItem(
-            'requirements.cli.exec',
-            $execAllowed ? 'Enabled' : 'Disabled',
-            'Optional',
-            $execAllowed ? 'success' : 'warning'
-        );
+        $items[] = $this->makeItem('PHP exec() Availability', $execAllowed ? 'Enabled' : 'Disabled', 'Optional', $execAllowed ? 'success' : 'warning');
 
         $checkBin = static function (string $cmd) use ($execAllowed): array {
             if (!$execAllowed) {
@@ -251,28 +212,20 @@ final class SystemRequirementsService
             return ['available' => true, 'version' => $ver ?: 'unknown'];
         };
 
-        foreach (['magick', 'convert', 'identify'] as $cmd) {
+        $cliTools = [
+            'magick' => 'CLI: magick',
+            'convert' => 'CLI: convert',
+            'identify' => 'CLI: identify',
+            'gm' => 'CLI: gm (GraphicsMagick)',
+        ];
+
+        foreach ($cliTools as $cmd => $label) {
             $res = $checkBin($cmd);
             $status = $res['available'] === true ? 'success' : 'warning';
-            $items[] = $this->makeItem(
-                "requirements.cli.$cmd",
-                $res['available'] ? 'Found' : 'Not found',
-                'Optional',
-                $status,
-                $res['version']
-            );
+            $items[] = $this->makeItem($label, $res['available'] ? 'Found' : 'Not found', 'Optional', $status, $res['version']);
         }
 
-        $gm = $checkBin('gm');
-        $items[] = $this->makeItem(
-            'requirements.cli.gm',
-            $gm['available'] ? 'Found' : 'Not found',
-            'Optional',
-            $gm['available'] ? 'success' : 'warning',
-            $gm['version']
-        );
-
-        return $this->makeCategory('requirements.category.cli', $items);
+        return $this->makeCategory('CLI Tools (Optional)', $items);
     }
 
     /**
@@ -318,9 +271,9 @@ final class SystemRequirementsService
      * @param array<int, array<string, mixed>> $items
      * @return array<string, mixed>
      */
-    private function makeCategory(string $labelKey, array $items): array
+    private function makeCategory(string $label, array $items): array
     {
-        return ['label' => $labelKey, 'items' => $items];
+        return ['label' => $label, 'items' => $items];
     }
 
     /**
@@ -329,14 +282,14 @@ final class SystemRequirementsService
      * @return array<string, mixed>
      */
     private function makeItem(
-        string $labelKey,
+        string $label,
         ?string $current,
         ?string $required,
         string $status,
         ?string $details = null
     ): array {
         return [
-            'label' => $labelKey,
+            'label' => $label,
             'current' => $current,
             'required' => $required,
             'status' => $status,
