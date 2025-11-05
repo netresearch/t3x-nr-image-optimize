@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xliff version="1.0">
+    <file source-language="en" datatype="plaintext" original="messages" product-name="nr_image_optimize">
+        <header/>
+        <body>
+            <trans-unit id="maintenance.removeTemporaryAssets.processedImages.title" resname="maintenance.removeTemporaryAssets.processedImages.title">
+                <source>Processed images</source>
+            </trans-unit>
+            <trans-unit id="maintenance.removeTemporaryAssets.processedImages.description" resname="maintenance.removeTemporaryAssets.processedImages.description">
+                <source>Remove all generated image variants created on demand by EXT:nr_image_optimize.</source>
+            </trans-unit>
+        </body>
+    </file>
+</xliff>

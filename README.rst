@@ -25,6 +25,7 @@ The ``nr_image_optimize`` extension is an advanced TYPO3 extension for image opt
 - ⚡ **Performance Optimized**: Middleware-based processing for efficiency.
 - 🔧 **Intervention Image**: Powered by the Intervention Image library.
 - 📊 **Core Web Vitals**: Improves LCP and overall page performance.
+- 🧹 **Backend Cleanup**: Remove generated variants via "Remove Temporary Assets" in the TYPO3 Maintenance module.
 
 🛠️ Requirements
 ================
