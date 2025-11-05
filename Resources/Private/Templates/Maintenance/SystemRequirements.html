@@ -47,7 +47,7 @@
                                     <td>
                                         <f:if condition="{item.status} == 'success'">
                                             <f:then>
-                                                <span class="badge rounded-pill bg-success text-white d-inline-flex align-items-center gap-1">
+                                                <span class="badge rounded-pill bg-success d-inline-flex align-items-center gap-1">
                                                     <core:icon identifier="actions-check" size="small"/>
                                                     Available
                                                 </span>
@@ -55,13 +55,13 @@
                                             <f:else>
                                                 <f:if condition="{item.status} == 'warning'">
                                                     <f:then>
-                                                        <span class="badge rounded-pill bg-warning text-dark d-inline-flex align-items-center gap-1">
+                                                        <span class="badge rounded-pill bg-warning text-white d-inline-flex align-items-center gap-1">
                                                             <core:icon identifier="actions-exclamation" size="small"/>
                                                             Limited
                                                         </span>
                                                     </f:then>
                                                     <f:else>
-                                                        <span class="badge rounded-pill bg-danger text-white d-inline-flex align-items-center gap-1">
+                                                        <span class="badge rounded-pill bg-danger d-inline-flex align-items-center gap-1">
                                                             <core:icon identifier="actions-close" size="small"/>
                                                             Missing
                                                         </span>
