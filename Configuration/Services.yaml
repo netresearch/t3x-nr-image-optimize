@@ -3,12 +3,10 @@ services:
     autowire: true
     autoconfigure: true
     public: false
+
   Netresearch\NrImageOptimize\:
     resource: '../Classes/*'
     exclude: '../Classes/Domain/Model/*'
 
-  Netresearch\NrImageOptimize\EventListener\RegisterTemporaryAssetEventListener:
-    tags:
-      - name: event.listener
-        identifier: 'nr-image-optimize/temporary-assets'
-        event: TYPO3\CMS\Backend\Controller\Event\ModifyTemporaryAssetsEvent
+  Netresearch\NrImageOptimize\Controller\MaintenanceController:
+    public: true
