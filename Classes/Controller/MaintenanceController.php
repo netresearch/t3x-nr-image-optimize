@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Controller;
 
+use Netresearch\NrImageOptimize\Service\SystemRequirementsService;
 use Psr\Http\Message\ResponseInterface;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
@@ -28,12 +29,13 @@ use function is_dir;
 use function realpath;
 
 /**
- * Backend module controller for clearing processed images.
+ * Backend module controller for clearing processed images and checking system requirements.
  */
 final class MaintenanceController extends ActionController
 {
     public function __construct(
         private readonly ModuleTemplateFactory $moduleTemplateFactory,
+        private readonly SystemRequirementsService $systemRequirementsService,
     ) {
     }
 
@@ -54,6 +56,19 @@ final class MaintenanceController extends ActionController
         $moduleTemplate->assign('newestFile', $stats['newestFile']);
 
         return $moduleTemplate->renderResponse('Maintenance/Index');
+    }
+
+    /**
+     * Display system requirements and their current status.
+     */
+    public function systemRequirementsAction(): ResponseInterface
+    {
+        $data = $this->systemRequirementsService->collect();
+
+        $moduleTemplate = $this->moduleTemplateFactory->create($this->request);
+        $moduleTemplate->assign('requirements', $data);
+
+        return $moduleTemplate->renderResponse('Maintenance/SystemRequirements');
     }
 
     public function clearProcessedImagesAction(): ResponseInterface

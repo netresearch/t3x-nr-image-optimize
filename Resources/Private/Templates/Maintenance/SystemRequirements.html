@@ -1,0 +1,70 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers"
+      xmlns:be="http://typo3.org/ns/TYPO3/CMS/Backend/ViewHelpers"
+      xmlns:core="http://typo3.org/ns/TYPO3/CMS/Core/ViewHelpers"
+      data-namespace-typo3-fluid="true">
+
+<f:layout name="Module"/>
+
+<f:section name="Content">
+    <h1><f:translate key="LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:requirements.title"/></h1>
+    <p class="text-body-secondary">
+        <f:translate key="LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:requirements.description"/>
+    </p>
+
+    <div class="mb-3">
+        <f:link.action action="index" class="btn btn-secondary">
+            &laquo; <f:translate key="LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:requirements.backToMaintenance"/>
+        </f:link.action>
+    </div>
+
+    <f:for each="{requirements}" as="category">
+        <h2 class="h4 mt-4"><f:translate key="LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:{category.label}"/></h2>
+        <table class="table table-striped align-middle">
+            <thead>
+                <tr>
+                    <th style="width:30%"><f:translate key="LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:requirements.table.requirement"/></th>
+                    <th style="width:15%"><f:translate key="LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:requirements.table.status"/></th>
+                    <th style="width:25%"><f:translate key="LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:requirements.table.current"/></th>
+                    <th style="width:15%"><f:translate key="LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:requirements.table.required"/></th>
+                    <th style="width:15%"><f:translate key="LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:requirements.table.details"/></th>
+                </tr>
+            </thead>
+            <tbody>
+                <f:for each="{category.items}" as="item">
+                    <tr>
+                        <td><f:translate key="LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:{item.label}"/></td>
+                        <td>
+                            <span class="badge {item.badgeClass}">
+                                <core:icon identifier="{item.icon}" size="small"/>
+                                <span class="ms-1">
+                                    <f:if condition="{item.status} == 'success'">
+                                        <f:then><f:translate key="LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:requirements.status.success"/></f:then>
+                                        <f:else>
+                                            <f:if condition="{item.status} == 'warning'">
+                                                <f:then><f:translate key="LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:requirements.status.warning"/></f:then>
+                                                <f:else><f:translate key="LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:requirements.status.error"/></f:else>
+                                            </f:if>
+                                        </f:else>
+                                    </f:if>
+                                </span>
+                            </span>
+                        </td>
+                        <td><code>{item.current}</code></td>
+                        <td>
+                            <f:if condition="{item.required}">
+                                <code>{item.required}</code>
+                            </f:if>
+                        </td>
+                        <td>
+                            <f:if condition="{item.details}">
+                                <span class="text-body-secondary small" style="word-break: break-word;">{item.details -> f:format.nl2br()}</span>
+                            </f:if>
+                        </td>
+                    </tr>
+                </f:for>
+            </tbody>
+        </table>
+    </f:for>
+</f:section>
+
+</html>
