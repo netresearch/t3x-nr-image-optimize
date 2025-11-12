@@ -1,3 +1,13 @@
+# 2.2.1
+
+## MISC
+
+- e529f72 NEXT-98: Adjust author in ext_emconf
+
+## Contributors
+
+- Sebastian Altenburg
+
 # 2.2.0
 
 ## MISC
