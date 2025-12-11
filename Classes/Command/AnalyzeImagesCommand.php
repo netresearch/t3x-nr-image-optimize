@@ -30,6 +30,7 @@ use function floor;
 use function is_numeric;
 use function is_string;
 use function max;
+use function number_format;
 use function preg_replace;
 use function sprintf;
 use function strlen;
@@ -101,6 +102,10 @@ final class AnalyzeImagesCommand extends Command
             $file = $this->factory->getFileObject($record['uid']);
             $file->getStorage()->setEvaluatePermissions(false);
 
+            if (!$file->exists()) {
+                continue;
+            }
+
             $result = $this->optimizer->analyzeHeuristic($file, $maxWidth, $maxHeight, $minSize);
 
             if ($result['optimized']) {
@@ -116,7 +121,7 @@ final class AnalyzeImagesCommand extends Command
         $progress->finish();
         $io->newLine(2);
 
-        $io->success(sprintf('Analyse fertig. Dateien: %d, Verbesserbar: %d, Ohne Potenzial: %d, Potenziell einsparbare Bytes: %d', $total['files'], $total['improvable'], $total['noGain'], $total['bytesPotential']));
+        $io->success(sprintf('Analyse fertig. Dateien: %d, Verbesserbar: %d, Ohne Potenzial: %d, Potenzial: %d Bytes (%s)', $total['files'], $total['improvable'], $total['noGain'], $total['bytesPotential'], $this->formatMbGb($total['bytesPotential'])));
 
         return Command::SUCCESS;
     }
@@ -133,6 +138,14 @@ final class AnalyzeImagesCommand extends Command
         $keep = (int) max(1, floor(($maxLen - 1) / 2));
 
         return substr($plain, 0, $keep) . '…' . substr($plain, -$keep);
+    }
+
+    private function formatMbGb(int $bytes): string
+    {
+        $mb = $bytes / 1048576;
+        $gb = $bytes / 1073741824;
+
+        return number_format($mb, 2) . ' MB / ' . number_format($gb, 2) . ' GB';
     }
 
     /**

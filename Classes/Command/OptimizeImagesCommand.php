@@ -37,6 +37,7 @@ use function is_file;
 use function is_numeric;
 use function is_string;
 use function max;
+use function number_format;
 use function preg_replace;
 use function sprintf;
 use function strlen;
@@ -194,8 +195,9 @@ final class OptimizeImagesCommand extends Command
                     ++$total['optimized'];
                     $total['bytesSaved'] += $saved;
                     $percentage = (100.0 * $saved) / max($before, 1);
+                    $savedHuman = $this->formatMbGb($saved);
                     $progress->clear();
-                    $io->writeln(sprintf('Optimiert: %s (-%0.2f%%, %d ➜ %d Bytes) mit %s', $file->getIdentifier(), $percentage, $before, $after, $tool['name']));
+                    $io->writeln(sprintf('Optimiert: %s (-%0.2f%%, %d ➜ %d Bytes, gespart: %s) mit %s', $file->getIdentifier(), $percentage, $before, $after, $savedHuman, $tool['name']));
                     $progress->display();
                 } else {
                     $progress->clear();
@@ -211,7 +213,7 @@ final class OptimizeImagesCommand extends Command
 
         $progress->finish();
         $io->newLine(2);
-        $io->success(sprintf('Fertig. Dateien: %d, Optimiert: %d, Übersprungen: %d, Eingesparte Bytes: %d', $total['files'], $total['optimized'], $total['skipped'], $total['bytesSaved']));
+        $io->success(sprintf('Fertig. Dateien: %d, Optimiert: %d, Übersprungen: %d, Eingespart: %d Bytes (%s)', $total['files'], $total['optimized'], $total['skipped'], $total['bytesSaved'], $this->formatMbGb($total['bytesSaved'])));
 
         return Command::SUCCESS;
     }
@@ -228,6 +230,14 @@ final class OptimizeImagesCommand extends Command
         $keep = (int) max(1, floor(($maxLen - 1) / 2));
 
         return substr($plain, 0, $keep) . '…' . substr($plain, -$keep);
+    }
+
+    private function formatMbGb(int $bytes): string
+    {
+        $mb = $bytes / 1048576;
+        $gb = $bytes / 1073741824;
+
+        return number_format($mb, 2) . ' MB / ' . number_format($gb, 2) . ' GB';
     }
 
     /**
