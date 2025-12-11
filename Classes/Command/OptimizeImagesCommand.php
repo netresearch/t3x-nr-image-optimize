@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of the package netresearch/nr-image-optimize.
  *
@@ -10,6 +11,7 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Command;
 
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Exception;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -18,20 +20,24 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\Process\Process;
+use Throwable;
+use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Resource\File;
 use TYPO3\CMS\Core\Resource\ResourceFactory;
-use TYPO3\CMS\Core\Resource\ResourceStorage;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3\CMS\Core\Database\Connection;
-use TYPO3\CMS\Core\Database\ConnectionPool;
 
 use function array_key_exists;
 use function array_merge;
-use function in_array;
+use function filesize;
+use function getenv;
 use function is_file;
-use function strtolower;
-use function str_starts_with;
+use function is_numeric;
+use function is_string;
+use function max;
+use function sprintf;
+use function strtoupper;
 use function trim;
+use function unlink;
 
 #[AsCommand(
     name: 'nr:image:optimize',
@@ -58,10 +64,10 @@ final class OptimizeImagesCommand extends Command
     {
         $io = new SymfonyStyle($input, $output);
 
-        $dryRun = (bool)$input->getOption('dry-run');
-        $strip = (bool)$input->getOption('strip-metadata');
-        $jpegQuality = $input->getOption('jpeg-quality');
-        $onlyStorageUids = $this->parseStorageUidsOption((array)$input->getOption('storages'));
+        $dryRun          = (bool) $input->getOption('dry-run');
+        $strip           = (bool) $input->getOption('strip-metadata');
+        $jpegQuality     = $input->getOption('jpeg-quality');
+        $onlyStorageUids = $this->parseStorageUidsOption((array) $input->getOption('storages'));
 
         [$optipng, $gifsicle, $jpegoptim] = [
             $this->resolveBinary('optipng'),
@@ -69,16 +75,22 @@ final class OptimizeImagesCommand extends Command
             $this->resolveBinary('jpegoptim'),
         ];
 
-        if (!$optipng && !$gifsicle && !$jpegoptim) {
+        if (($optipng === null || $optipng === '' || $optipng === '0') && ($gifsicle === null || $gifsicle === '' || $gifsicle === '0') && ($jpegoptim === null || $jpegoptim === '' || $jpegoptim === '0')) {
             $io->error('Keine Optimierungstools gefunden (optipng, gifsicle, jpegoptim). Bitte installieren und im PATH verfügbar machen.');
+
             return Command::FAILURE;
         }
 
-        $total = [];
+        $total = [
+            'files'      => 0,
+            'optimized'  => 0,
+            'bytesSaved' => 0,
+            'skipped'    => 0,
+        ];
 
         foreach ($this->iterateViaIndex($onlyStorageUids) as $record) {
-            $file = $this->factory->getFileObject($record['uid']);
-            $ext = $file->getExtension();
+            $file    = $this->factory->getFileObject($record['uid']);
+            $ext     = $file->getExtension();
             $storage = $file->getStorage();
             $storage->setEvaluatePermissions(false);
             if (!$file instanceof File) {
@@ -89,90 +101,103 @@ final class OptimizeImagesCommand extends Command
             $tool = $this->resolveToolForExtension($ext, $optipng, $gifsicle, $jpegoptim);
             if ($tool === null) {
                 $io->writeln(sprintf('<comment>Überspringe %s: kein geeignetes Tool gefunden</comment>', $file->getIdentifier()));
-                $total['skipped']++;
+                ++$total['skipped'];
                 continue;
             }
 
-            $total['files']++;
+            ++$total['files'];
 
             try {
                 $localPath = $file->getForLocalProcessing(true);
-            } catch (\Throwable $e) {
+            } catch (Throwable) {
                 $io->writeln(sprintf('<comment>Überspringe %s: konnte nicht kopieren</comment>', $file->getIdentifier()));
-                $total['skipped']++;
+                ++$total['skipped'];
                 continue;
             }
+
             // Writable lokale Kopie besorgen (funktioniert für lokale und Remote-Driver)
 
             if (!is_file($localPath)) {
                 $io->writeln(sprintf('<comment>Überspringe %s: lokale Kopie nicht verfügbar</comment>', $file->getIdentifier()));
-                $total['skipped']++;
+                ++$total['skipped'];
                 continue;
             }
 
-            $before = @filesize($localPath) ?: 0;
+            $sizeBefore = @filesize($localPath);
+            $before     = $sizeBefore === false ? 0 : $sizeBefore;
 
-            if ($dryRun) {
-                $io->writeln(sprintf('[DRY] Würde %s mit %s optimieren', $file->getIdentifier(), $tool['name']));
-                continue;
-            }
+            try {
+                if ($dryRun) {
+                    $io->writeln(sprintf('[DRY] Würde %s mit %s optimieren', $file->getIdentifier(), $tool['name']));
+                    continue;
+                }
 
-            $args = match ($tool['name']) {
-                'optipng' => array_merge(['-o2', '-quiet'], [$localPath]),
-                'gifsicle' => array_merge(['-O3', '-b'], [$localPath]),
-                'jpegoptim' => $this->buildJpegoptimArgs($localPath, $jpegQuality, $strip),
-                default => [$localPath],
-            };
+                $args = match ($tool['name']) {
+                    'optipng'   => ['-o2', '-quiet', $localPath],
+                    'gifsicle'  => ['-O3', '-b', $localPath],
+                    'jpegoptim' => $this->buildJpegoptimArgs($localPath, $jpegQuality, $strip),
+                    default     => [$localPath],
+                };
 
-            $process = new Process(array_merge([$tool['bin']], $args));
-            $process->setTimeout(600.0);
-            $process->run();
+                $process = new Process(array_merge([$tool['bin']], $args));
+                $process->setTimeout(600.0);
+                $process->run();
 
-            if (!$process->isSuccessful()) {
-                $io->writeln(sprintf('<error>%s fehlgeschlagen für %s</error>', $tool['name'], $file->getIdentifier()));
-                $io->writeln($process->getErrorOutput());
-                $total['skipped']++;
-                continue;
-            }
+                if (!$process->isSuccessful()) {
+                    $io->writeln(sprintf('<error>%s fehlgeschlagen für %s</error>', $tool['name'], $file->getIdentifier()));
+                    $io->writeln($process->getErrorOutput());
+                    ++$total['skipped'];
+                    continue;
+                }
 
-            $after = @filesize($localPath) ?: 0;
-            if ($after > 0 && $after < $before) {
-                // Zurück ins Storage schreiben (auch für lokale Treiber sicher)
-                $storage->replaceFile($file, $localPath);
-                $saved = $before - $after;
-                $total['optimized']++;
-                $total['bytesSaved'] += $saved;
-                $io->writeln(sprintf('Optimiert: %s (-%0.2f%%, %d ➜ %d Bytes) mit %s', $file->getIdentifier(), $before > 0 ? (100.0 * ($saved) / $before) : 0.0, $before, $after, $tool['name']));
-            } else {
-                $io->writeln(sprintf('Keine Einsparung: %s (Tool: %s)', $file->getIdentifier(), $tool['name']));
+                $sizeAfter = @filesize($localPath);
+                $after     = $sizeAfter === false ? 0 : $sizeAfter;
+                if ($after < $before) {
+                    $storage->replaceFile($file, $localPath);
+                    $saved = $before - $after;
+                    ++$total['optimized'];
+                    $total['bytesSaved'] += $saved;
+                    $percentage = (100.0 * $saved) / max($before, 1);
+                    $io->writeln(sprintf('Optimiert: %s (-%0.2f%%, %d ➜ %d Bytes) mit %s', $file->getIdentifier(), $percentage, $before, $after, $tool['name']));
+                } else {
+                    $io->writeln(sprintf('Keine Einsparung: %s (Tool: %s)', $file->getIdentifier(), $tool['name']));
+                }
+            } finally {
+                @unlink($localPath);
             }
         }
 
         $io->success(sprintf('Fertig. Dateien: %d, Optimiert: %d, Übersprungen: %d, Eingesparte Bytes: %d', $total['files'], $total['optimized'], $total['skipped'], $total['bytesSaved']));
+
         return Command::SUCCESS;
     }
 
-/**
+    /**
      * @param list<string> $values
+     *
      * @return list<int>
      */
     private function parseStorageUidsOption(array $values): array
     {
         $uids = [];
         foreach ($values as $val) {
-            foreach (GeneralUtility::trimExplode(',', (string)$val, true) as $part) {
+            foreach (GeneralUtility::trimExplode(',', (string) $val, true) as $part) {
                 if (is_numeric($part)) {
-                    $uids[] = (int)$part;
+                    $uids[] = (int) $part;
                 }
             }
         }
+
         return $uids;
     }
 
     /**
      * Iteriert Dateien eines Storages über den FAL-Index (sys_file), unabhängig von Browsability.
      *
-     * @return array
+     * @param list<int> $onlyStorageUids
+     *
+     * @return list<array<string,mixed>>
+     *
      * @throws Exception
      */
     private function iterateViaIndex(array $onlyStorageUids): array
@@ -181,7 +206,7 @@ final class OptimizeImagesCommand extends Command
         // JOIN sys_file_storage s ON s.uid=f.storage AND s.is_public=1 AND s.is_online=1
         // WHERE f.deleted=0 AND f.missing=0 AND f.mime_type IN (...) [AND f.storage IN (...)]
         $fileConn = GeneralUtility::makeInstance(ConnectionPool::class)->getConnectionForTable('sys_file');
-        $qb = $fileConn->createQueryBuilder();
+        $qb       = $fileConn->createQueryBuilder();
 
         $qb->select('f.*')
             ->from('sys_file', 'f')
@@ -191,14 +216,14 @@ final class OptimizeImagesCommand extends Command
                 $qb->expr()->eq('s.is_online', 1),
                 $qb->expr()->in(
                     'f.mime_type',
-                    $qb->createNamedParameter(['image/jpeg','image/gif','image/png'], Connection::PARAM_STR_ARRAY)
+                    $qb->createNamedParameter(['image/jpeg', 'image/gif', 'image/png'], ArrayParameterType::STRING)
                 )
             )
             ->orderBy('f.uid', 'ASC');
 
         if ($onlyStorageUids !== []) {
             $qb->andWhere(
-                $qb->expr()->in('f.storage', $qb->createNamedParameter($onlyStorageUids, Connection::PARAM_INT_ARRAY))
+                $qb->expr()->in('f.storage', $qb->createNamedParameter($onlyStorageUids, ArrayParameterType::INTEGER))
             );
         }
 
@@ -206,49 +231,57 @@ final class OptimizeImagesCommand extends Command
     }
 
     /**
-     * Liefert ['name' => 'jpegoptim', 'bin' => '/usr/bin/jpegoptim'] oder null
+     * Liefert ['name' => 'jpegoptim', 'bin' => '/usr/bin/jpegoptim'] oder null.
      *
      * @return array{name:string,bin:string}|null
      */
     private function resolveToolForExtension(string $ext, ?string $optipng, ?string $gifsicle, ?string $jpegoptim): ?array
     {
         $map = [
-            'png' => ['name' => 'optipng', 'bin' => $optipng],
-            'gif' => ['name' => 'gifsicle', 'bin' => $gifsicle],
-            'jpg' => ['name' => 'jpegoptim', 'bin' => $jpegoptim],
+            'png'  => ['name' => 'optipng', 'bin' => $optipng],
+            'gif'  => ['name' => 'gifsicle', 'bin' => $gifsicle],
+            'jpg'  => ['name' => 'jpegoptim', 'bin' => $jpegoptim],
             'jpeg' => ['name' => 'jpegoptim', 'bin' => $jpegoptim],
         ];
         if (!array_key_exists($ext, $map) || $map[$ext]['bin'] === null) {
             return null;
         }
+
         return $map[$ext];
     }
 
+    /**
+     * @return list<string>
+     */
     private function buildJpegoptimArgs(string $path, string|int|null $quality, bool $strip): array
     {
         $args = [];
         if ($strip) {
             $args[] = '--strip-all';
         }
+
         if ($quality !== null && $quality !== '') {
-            $q = (int)$quality;
+            $q = (int) $quality;
             if ($q < 0) {
                 $q = 0;
             } elseif ($q > 100) {
                 $q = 100;
             }
+
             $args[] = '--max=' . $q; // lossy, gewünschte Zielqualität
         }
+
         // jpegoptim schreibt in-place, -q reduziert Ausgabe
         $args[] = '-q';
         $args[] = $path;
+
         return $args;
     }
 
     private function resolveBinary(string $binary): ?string
     {
         // Erlaubt Override per ENV, z.B. OPTIPNG_BIN, GIFSICLE_BIN, JPEGOPTIM_BIN
-        $envName = strtoupper($binary) . '_BIN';
+        $envName  = strtoupper($binary) . '_BIN';
         $override = getenv($envName);
         if (is_string($override) && $override !== '' && is_file($override)) {
             return $override;
@@ -258,8 +291,10 @@ final class OptimizeImagesCommand extends Command
         $process->run();
         if ($process->isSuccessful()) {
             $path = trim($process->getOutput());
+
             return $path !== '' ? $path : null;
         }
+
         return null;
     }
 }

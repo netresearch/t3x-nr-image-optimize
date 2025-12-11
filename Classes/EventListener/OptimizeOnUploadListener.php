@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of the package netresearch/nr-image-optimize.
  *
@@ -20,7 +21,7 @@ use function strtolower;
 
 final class OptimizeOnUploadListener
 {
-    /** @var array<int, true> */
+    /** @var array<string, true> */
     private array $guard = [];
 
     public function __construct(private readonly ImageOptimizer $optimizer)
@@ -39,8 +40,8 @@ final class OptimizeOnUploadListener
 
     private function handle(FileInterface $file): void
     {
-        $uid = $file->getUid();
-        if (isset($this->guard[$uid])) {
+        $id = $file->getIdentifier();
+        if (isset($this->guard[$id])) {
             return; // Re-Entrancy (z. B. durch replaceFile ausgelöst)
         }
 
@@ -57,12 +58,11 @@ final class OptimizeOnUploadListener
         // Rechteprüfung im CLI/BE-unabhängigen Kontext deaktivieren
         $storage->setEvaluatePermissions(false);
 
-        $this->guard[$uid] = true;
+        $this->guard[$id] = true;
         try {
             $this->optimizer->optimize($file, false, null, false);
         } finally {
-            unset($this->guard[$uid]);
+            unset($this->guard[$id]);
         }
     }
-
 }
