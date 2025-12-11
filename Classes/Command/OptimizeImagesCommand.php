@@ -19,6 +19,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
+use Symfony\Component\Console\Terminal;
 use Symfony\Component\Process\Process;
 use Throwable;
 use TYPO3\CMS\Core\Database\ConnectionPool;
@@ -30,13 +31,17 @@ use function array_key_exists;
 use function array_merge;
 use function count;
 use function filesize;
+use function floor;
 use function getenv;
 use function is_file;
 use function is_numeric;
 use function is_string;
 use function max;
+use function preg_replace;
 use function sprintf;
+use function strlen;
 use function strtoupper;
+use function substr;
 use function trim;
 use function unlink;
 
@@ -109,11 +114,14 @@ final class OptimizeImagesCommand extends Command
         $progress->setFormat(' %current%/%max% [%bar%] %percent:3s%% | %elapsed:6s% | %message%');
         $progress->start();
 
+        $termWidth  = (new Terminal())->getWidth();
+        $messageMax = max(10, $termWidth - 40);
+
         foreach ($records as $record) {
             $label = isset($record['identifier']) && is_string($record['identifier']) && $record['identifier'] !== ''
                 ? $record['identifier']
                 : ('#' . ($record['uid'] ?? '?'));
-            $progress->setMessage($label);
+            $progress->setMessage($this->shortenLabel($label, $messageMax));
 
             $file    = $this->factory->getFileObject($record['uid']);
             $ext     = $file->getExtension();
@@ -206,6 +214,20 @@ final class OptimizeImagesCommand extends Command
         $io->success(sprintf('Fertig. Dateien: %d, Optimiert: %d, Übersprungen: %d, Eingesparte Bytes: %d', $total['files'], $total['optimized'], $total['skipped'], $total['bytesSaved']));
 
         return Command::SUCCESS;
+    }
+
+    private function shortenLabel(string $text, int $maxLen): string
+    {
+        $plain = preg_replace('/\s+/', ' ', $text) ?? $text;
+        if ($maxLen <= 3) {
+            return strlen($plain) > $maxLen ? substr($plain, 0, $maxLen) : $plain;
+        }
+        if (strlen($plain) <= $maxLen) {
+            return $plain;
+        }
+        $keep = (int) max(1, floor(($maxLen - 1) / 2));
+
+        return substr($plain, 0, $keep) . '…' . substr($plain, -$keep);
     }
 
     /**
