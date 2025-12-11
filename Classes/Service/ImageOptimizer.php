@@ -18,9 +18,14 @@ use function array_key_exists;
 use function array_merge;
 use function filesize;
 use function getenv;
+use function getimagesize;
 use function in_array;
+use function is_array;
 use function is_file;
 use function is_string;
+use function max;
+use function min;
+use function round;
 use function strtolower;
 use function strtoupper;
 use function trim;
@@ -256,5 +261,75 @@ final class ImageOptimizer
         }
 
         return null;
+    }
+
+    /**
+     * Fast heuristic analysis based on size and resolution only.
+     * No external tools are invoked.
+     *
+     * @return array{optimized:bool, savedBytes:int, before:int, after:int, tool: null}
+     */
+    public function analyzeHeuristic(FileInterface $file, int $maxWidth = 2560, int $maxHeight = 1440, int $minSize = 512000): array
+    {
+        $ext = strtolower($file->getExtension());
+        if (!in_array($ext, self::SUPPORTED_EXT, true)) {
+            return ['optimized' => false, 'savedBytes' => 0, 'before' => 0, 'after' => 0, 'tool' => null];
+        }
+
+        $localPath = $file->getForLocalProcessing(true);
+        if (!is_file($localPath)) {
+            return ['optimized' => false, 'savedBytes' => 0, 'before' => 0, 'after' => 0, 'tool' => null];
+        }
+
+        try {
+            $sizeBefore = @filesize($localPath);
+            $before     = $sizeBefore === false ? 0 : $sizeBefore;
+            if ($before < $minSize) {
+                return ['optimized' => false, 'savedBytes' => 0, 'before' => $before, 'after' => $before, 'tool' => null];
+            }
+
+            $w    = 0;
+            $h    = 0;
+            $info = @getimagesize($localPath);
+            if (is_array($info)) {
+                $w = $info[0];
+                $h = $info[1];
+            } else {
+                $w = (int) ($file->getProperty('width') ?? 0);
+                $h = (int) ($file->getProperty('height') ?? 0);
+            }
+
+            // Scale factor by target box (maintain aspect ratio)
+            $scale = 1.0;
+            if ($w > 0 && $h > 0 && ($w > $maxWidth || $h > $maxHeight)) {
+                $scale = min($maxWidth / max(1, $w), $maxHeight / max(1, $h));
+            }
+
+            // Experience-based compression gains per type (without re-encoding)
+            $baseGainByType = [
+                'jpg'  => 0.15,
+                'jpeg' => 0.15,
+                'png'  => 0.10,
+                'gif'  => 0.10,
+            ];
+            $baseGain = $baseGainByType[$ext];
+
+            // Estimated size scales with pixel count; add base compression gain
+            $areaFactor = $scale * $scale; // 1.0 if no resize
+            $after      = (int) max(0, (int) round($before * $areaFactor * (1 - $baseGain)));
+            $saved      = max(0, $before - $after);
+
+            $improvable = $saved > 0;
+
+            return [
+                'optimized'  => $improvable,
+                'savedBytes' => $saved,
+                'before'     => $before,
+                'after'      => $after,
+                'tool'       => null,
+            ];
+        } finally {
+            @unlink($localPath);
+        }
     }
 }

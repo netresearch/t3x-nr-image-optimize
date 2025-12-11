@@ -46,23 +46,19 @@ final class AnalyzeImagesCommand extends Command
     {
         $this
             ->addOption('storages', null, InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY, 'Nur diese Storage-UIDs (Komma-separiert oder mehrfach angeben) berücksichtigen')
-            ->addOption('jpeg-quality', null, InputOption::VALUE_REQUIRED, 'JPEG-Qualität (0-100) für jpegoptim (Simulation)')
-            ->addOption('strip-metadata', null, InputOption::VALUE_NONE, 'Metadaten (EXIF, Kommentare) entfernen (Simulation)');
+            ->addOption('max-width', null, InputOption::VALUE_REQUIRED, 'Zielanzeige Breite (px), Default 2560')
+            ->addOption('max-height', null, InputOption::VALUE_REQUIRED, 'Zielanzeige Höhe (px), Default 1440')
+            ->addOption('min-size', null, InputOption::VALUE_REQUIRED, 'Nur Dateien >= Mindestgröße in Bytes berücksichtigen, Default 512000');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
 
-        if (!$this->optimizer->hasAnyTool()) {
-            $io->error('Keine Optimierungstools gefunden (optipng, gifsicle, jpegoptim). Bitte installieren und im PATH verfügbar machen.');
-
-            return Command::FAILURE;
-        }
-
-        $jpegQuality     = $input->getOption('jpeg-quality');
-        $strip           = (bool) $input->getOption('strip-metadata');
         $onlyStorageUids = $this->parseStorageUidsOption((array) $input->getOption('storages'));
+        $maxWidth        = (int) ($input->getOption('max-width') ?? 2560);
+        $maxHeight       = (int) ($input->getOption('max-height') ?? 1440);
+        $minSize         = (int) ($input->getOption('min-size') ?? 512000);
 
         /** @var list<array<string,mixed>> $records */
         $records = $this->iterateViaIndex($onlyStorageUids);
@@ -74,7 +70,7 @@ final class AnalyzeImagesCommand extends Command
         }
 
         $io->title('Image optimization — Analyse');
-        $io->note(sprintf('Gefundene Bilddateien: %d (Simulation, keine Änderungen).', $count));
+        $io->note(sprintf('Gefundene Bilddateien: %d (Heuristik, keine Tools, keine Änderungen).', $count));
 
         $total = [
             'files'          => $count,
@@ -96,7 +92,7 @@ final class AnalyzeImagesCommand extends Command
             $file = $this->factory->getFileObject($record['uid']);
             $file->getStorage()->setEvaluatePermissions(false);
 
-            $result = $this->optimizer->analyze($file, $strip, $jpegQuality !== null && $jpegQuality !== '' ? (int) $jpegQuality : null);
+            $result = $this->optimizer->analyzeHeuristic($file, $maxWidth, $maxHeight, $minSize);
 
             if ($result['optimized']) {
                 ++$total['improvable'];
