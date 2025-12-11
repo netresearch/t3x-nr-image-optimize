@@ -114,6 +114,68 @@ final class ImageOptimizer
         return ($this->optipng !== null) || ($this->gifsicle !== null) || ($this->jpegoptim !== null);
     }
 
+    /**
+     * Analyze potential optimization without modifying original file.
+     * Returns the same structure as optimize(), but never writes back.
+     *
+     * @return array{optimized:bool, savedBytes:int, before:int, after:int, tool: string|null}
+     */
+    public function analyze(FileInterface $file, bool $stripMetadata = false, ?int $jpegQuality = null): array
+    {
+        $this->resolveTools();
+
+        $ext = strtolower($file->getExtension());
+        if (!in_array($ext, self::SUPPORTED_EXT, true)) {
+            return ['optimized' => false, 'savedBytes' => 0, 'before' => 0, 'after' => 0, 'tool' => null];
+        }
+
+        $tool = $this->resolveToolForExtension($ext);
+        if ($tool === null) {
+            return ['optimized' => false, 'savedBytes' => 0, 'before' => 0, 'after' => 0, 'tool' => null];
+        }
+
+        $localPath = $file->getForLocalProcessing(true);
+        if (!is_file($localPath)) {
+            return ['optimized' => false, 'savedBytes' => 0, 'before' => 0, 'after' => 0, 'tool' => $tool['name']];
+        }
+
+        $sizeBefore = @filesize($localPath);
+        $before     = $sizeBefore === false ? 0 : $sizeBefore;
+
+        try {
+            $args = match ($tool['name']) {
+                'optipng'   => ['-o2', '-quiet', $localPath],
+                'gifsicle'  => ['-O3', '-b', $localPath],
+                'jpegoptim' => $this->buildJpegoptimArgs($localPath, $jpegQuality, $stripMetadata),
+                default     => [$localPath],
+            };
+
+            $process = new Process(array_merge([$tool['bin']], $args));
+            $process->setTimeout(600.0);
+            $process->run();
+            if (!$process->isSuccessful()) {
+                return ['optimized' => false, 'savedBytes' => 0, 'before' => $before, 'after' => $before, 'tool' => $tool['name']];
+            }
+
+            $sizeAfter = @filesize($localPath);
+            $after     = $sizeAfter === false ? 0 : $sizeAfter;
+
+            if ($after < $before) {
+                return [
+                    'optimized'  => true,
+                    'savedBytes' => $before - $after,
+                    'before'     => $before,
+                    'after'      => $after,
+                    'tool'       => $tool['name'],
+                ];
+            }
+
+            return ['optimized' => false, 'savedBytes' => 0, 'before' => $before, 'after' => $after, 'tool' => $tool['name']];
+        } finally {
+            @unlink($localPath);
+        }
+    }
+
     /** @return list<string> */
     public function supportedExtensions(): array
     {

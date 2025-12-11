@@ -109,10 +109,10 @@ final class OptimizeImagesCommand extends Command
         $progress->setFormat(' %current%/%max% [%bar%] %percent:3s%% | %elapsed:6s% | %message%');
         $progress->start();
 
-        foreach ($records as $index => $record) {
+        foreach ($records as $record) {
             $label = isset($record['identifier']) && is_string($record['identifier']) && $record['identifier'] !== ''
                 ? $record['identifier']
-                : ('#' . (string)($record['uid'] ?? '?'));
+                : ('#' . ($record['uid'] ?? '?'));
             $progress->setMessage($label);
 
             $file    = $this->factory->getFileObject($record['uid']);
@@ -197,6 +197,7 @@ final class OptimizeImagesCommand extends Command
             } finally {
                 @unlink($localPath);
             }
+
             $progress->advance();
         }
 
