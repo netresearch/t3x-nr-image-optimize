@@ -28,6 +28,7 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 use function array_key_exists;
 use function array_merge;
+use function count;
 use function filesize;
 use function getenv;
 use function is_file;
@@ -88,7 +89,33 @@ final class OptimizeImagesCommand extends Command
             'skipped'    => 0,
         ];
 
-        foreach ($this->iterateViaIndex($onlyStorageUids) as $record) {
+        /** @var list<array<string,mixed>> $records */
+        $records = $this->iterateViaIndex($onlyStorageUids);
+        $count   = count($records);
+        if ($count === 0) {
+            $io->warning('No matching image files found to process.');
+
+            return Command::SUCCESS;
+        }
+
+        $io->title('Image optimization');
+        if ($dryRun) {
+            $io->note(sprintf('Dry-run enabled. Found %d image file(s) to evaluate.', $count));
+        } else {
+            $io->note(sprintf('Found %d image file(s) to process.', $count));
+        }
+
+        $progress = $io->createProgressBar($count);
+        $progress->setFormat(' %current%/%max% [%bar%] %percent:3s%% | %elapsed:6s% | %message%');
+        $progress->start();
+
+        foreach ($records as $index => $record) {
+            $label = isset($record['identifier']) && is_string($record['identifier']) && $record['identifier'] !== ''
+                ? $record['identifier']
+                : ('#' . (string) ($record['uid'] ?? '?'));
+            $remaining = $count - $index - 1;
+            $progress->setMessage(sprintf('%s (%d remaining)', $label, $remaining));
+
             $file    = $this->factory->getFileObject($record['uid']);
             $ext     = $file->getExtension();
             $storage = $file->getStorage();
@@ -144,8 +171,10 @@ final class OptimizeImagesCommand extends Command
                 $process->run();
 
                 if (!$process->isSuccessful()) {
+                    $progress->clear();
                     $io->writeln(sprintf('<error>%s fehlgeschlagen für %s</error>', $tool['name'], $file->getIdentifier()));
                     $io->writeln($process->getErrorOutput());
+                    $progress->display();
                     ++$total['skipped'];
                     continue;
                 }
@@ -158,15 +187,22 @@ final class OptimizeImagesCommand extends Command
                     ++$total['optimized'];
                     $total['bytesSaved'] += $saved;
                     $percentage = (100.0 * $saved) / max($before, 1);
+                    $progress->clear();
                     $io->writeln(sprintf('Optimiert: %s (-%0.2f%%, %d ➜ %d Bytes) mit %s', $file->getIdentifier(), $percentage, $before, $after, $tool['name']));
+                    $progress->display();
                 } else {
+                    $progress->clear();
                     $io->writeln(sprintf('Keine Einsparung: %s (Tool: %s)', $file->getIdentifier(), $tool['name']));
+                    $progress->display();
                 }
             } finally {
                 @unlink($localPath);
             }
+            $progress->advance();
         }
 
+        $progress->finish();
+        $io->newLine(2);
         $io->success(sprintf('Fertig. Dateien: %d, Optimiert: %d, Übersprungen: %d, Eingesparte Bytes: %d', $total['files'], $total['optimized'], $total['skipped'], $total['bytesSaved']));
 
         return Command::SUCCESS;
