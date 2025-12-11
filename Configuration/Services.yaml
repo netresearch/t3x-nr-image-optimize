@@ -3,6 +3,18 @@ services:
     autowire: true
     autoconfigure: true
     public: false
+
   Netresearch\NrImageOptimize\:
     resource: '../Classes/*'
     exclude: '../Classes/Domain/Model/*'
+
+  Netresearch\NrImageOptimize\EventListener\OptimizeOnUploadListener:
+    tags:
+      - name: event.listener
+        identifier: 'nr_image_optimize.optimize_on_upload.added'
+        event: TYPO3\CMS\Core\Resource\Event\AfterFileAddedEvent
+        method: optimizeAfterAdd
+      - name: event.listener
+        identifier: 'nr_image_optimize.optimize_on_upload.replaced'
+        event: TYPO3\CMS\Core\Resource\Event\AfterFileReplacedEvent
+        method: optimizeAfterReplace

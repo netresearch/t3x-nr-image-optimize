@@ -35,7 +35,7 @@ use function trim;
 
 #[AsCommand(
     name: 'nr:image:optimize',
-    description: 'Optimiert PNG, GIF und JPEG in öffentlichen TYPO3-Storages (optipng, gifsicle, jpegoptim).'
+    description: 'Optimiert PNG, GIF und JPEG in TYPO3-Storages (optipng, gifsicle, jpegoptim).'
 )]
 final class OptimizeImagesCommand extends Command
 {
@@ -49,6 +49,7 @@ final class OptimizeImagesCommand extends Command
     {
         $this
             ->addOption('dry-run', null, InputOption::VALUE_NONE, 'Nur analysieren und anzeigen, keine Dateien verändern')
+            ->addOption('storages', null, InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY, 'Nur diese Storage-UIDs (Komma-separiert oder mehrfach angeben) berücksichtigen')
             ->addOption('jpeg-quality', null, InputOption::VALUE_REQUIRED, 'JPEG-Qualität (0-100) für jpegoptim; ohne Angabe wird verlustfrei optimiert')
             ->addOption('strip-metadata', null, InputOption::VALUE_NONE, 'Metadaten (EXIF, Kommentare) entfernen, sofern vom Tool unterstützt');
     }
@@ -60,6 +61,7 @@ final class OptimizeImagesCommand extends Command
         $dryRun = (bool)$input->getOption('dry-run');
         $strip = (bool)$input->getOption('strip-metadata');
         $jpegQuality = $input->getOption('jpeg-quality');
+        $onlyStorageUids = $this->parseStorageUidsOption((array)$input->getOption('storages'));
 
         [$optipng, $gifsicle, $jpegoptim] = [
             $this->resolveBinary('optipng'),
@@ -74,7 +76,7 @@ final class OptimizeImagesCommand extends Command
 
         $total = [];
 
-        foreach ($this->iterateViaIndex() as $record) {
+        foreach ($this->iterateViaIndex($onlyStorageUids) as $record) {
             $file = $this->factory->getFileObject($record['uid']);
             $ext = $file->getExtension();
             $storage = $file->getStorage();
@@ -167,36 +169,40 @@ final class OptimizeImagesCommand extends Command
         return $uids;
     }
 
-    private function isPublicStorage(ResourceStorage $storage): bool
-    {
-        if (method_exists($storage, 'isPublic')) {
-            return $storage->isPublic();
-        }
-        $record = $storage->getStorageRecord();
-        return (bool)($record['is_public'] ?? false);
-    }
-
     /**
      * Iteriert Dateien eines Storages über den FAL-Index (sys_file), unabhängig von Browsability.
      *
      * @return array
      * @throws Exception
      */
-    private function iterateViaIndex(): array
+    private function iterateViaIndex(array $onlyStorageUids): array
     {
-        $connection = GeneralUtility::makeInstance(ConnectionPool::class)->getConnectionForTable('sys_file');
+        // SELECT f.* FROM sys_file f
+        // JOIN sys_file_storage s ON s.uid=f.storage AND s.is_public=1 AND s.is_online=1
+        // WHERE f.deleted=0 AND f.missing=0 AND f.mime_type IN (...) [AND f.storage IN (...)]
+        $fileConn = GeneralUtility::makeInstance(ConnectionPool::class)->getConnectionForTable('sys_file');
+        $qb = $fileConn->createQueryBuilder();
 
-        $qb = $connection->createQueryBuilder();
-
-        return $qb->select('*')
-            ->from('sys_file')
+        $qb->select('f.*')
+            ->from('sys_file', 'f')
+            ->join('f', 'sys_file_storage', 's', 's.uid = f.storage')
             ->where(
+                $qb->expr()->eq('f.missing', 0),
+                $qb->expr()->eq('s.is_online', 1),
                 $qb->expr()->in(
-                    'mime_type',
+                    'f.mime_type',
                     $qb->createNamedParameter(['image/jpeg','image/gif','image/png'], Connection::PARAM_STR_ARRAY)
                 )
             )
-            ->executeQuery()->fetchAllAssociative();
+            ->orderBy('f.uid', 'ASC');
+
+        if ($onlyStorageUids !== []) {
+            $qb->andWhere(
+                $qb->expr()->in('f.storage', $qb->createNamedParameter($onlyStorageUids, Connection::PARAM_INT_ARRAY))
+            );
+        }
+
+        return $qb->executeQuery()->fetchAllAssociative();
     }
 
     /**
