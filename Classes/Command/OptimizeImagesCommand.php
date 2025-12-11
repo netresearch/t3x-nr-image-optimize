@@ -112,9 +112,8 @@ final class OptimizeImagesCommand extends Command
         foreach ($records as $index => $record) {
             $label = isset($record['identifier']) && is_string($record['identifier']) && $record['identifier'] !== ''
                 ? $record['identifier']
-                : ('#' . (string) ($record['uid'] ?? '?'));
-            $remaining = $count - $index - 1;
-            $progress->setMessage(sprintf('%s (%d remaining)', $label, $remaining));
+                : ('#' . (string)($record['uid'] ?? '?'));
+            $progress->setMessage($label);
 
             $file    = $this->factory->getFileObject($record['uid']);
             $ext     = $file->getExtension();
