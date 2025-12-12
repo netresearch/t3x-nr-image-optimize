@@ -11,12 +11,12 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize;
 
-use GuzzleHttp\Psr7\Query;
 use Intervention\Image\Drivers\Imagick\Driver;
 use Intervention\Image\ImageManager;
 use Intervention\Image\Interfaces\ImageInterface;
 use Psr\Http\Message\RequestInterface;
 use TYPO3\CMS\Core\Core\Environment;
+use TYPO3\CMS\Core\Http\ServerRequestFactory;
 use TYPO3\CMS\Core\Locking\Exception\LockCreateException;
 use TYPO3\CMS\Core\Locking\LockFactory;
 use TYPO3\CMS\Core\Locking\LockingStrategyInterface;
@@ -25,9 +25,11 @@ use TYPO3\CMS\Core\Utility\HttpUtility;
 
 use function array_search;
 use function dirname;
+use function explode;
 use function file_exists;
 use function file_get_contents;
 use function header;
+use function in_array;
 use function is_dir;
 use function md5;
 use function mkdir;
@@ -182,23 +184,6 @@ class Processor
         return $this->extension === 'avif';
     }
 
-    private function getQueryValue(string $key): mixed
-    {
-        $query = Query::parse($this->request->getUri()->getQuery());
-
-        return $query[$key] ?? null;
-    }
-
-    private function skipWebPCreation(): bool
-    {
-        return (bool) $this->getQueryValue('skipWebP');
-    }
-
-    private function skipAvifCreation(): bool
-    {
-        return (bool) $this->getQueryValue('skipAvif');
-    }
-
     private function generateWebpVariant(): void
     {
         $this->image->toWebp($this->targetQuality);
@@ -265,14 +250,12 @@ class Processor
             mkdir($dir, 0775, true);
         }
 
-        $this->image->save($this->pathVariant, $this->targetQuality);
-
-        if ($this->isWebpImage() === false && $this->skipWebPCreation() === false) {
-            $this->generateWebpVariant();
-        }
-
-        if ($this->isAvifImage() === false && $this->skipAvifCreation() === false) {
+        if ($this->determineBrowserSupport('image/avif') && $this->isAvifImage() === false) {
             $this->generateAvifVariant();
+        } elseif ($this->determineBrowserSupport('image/webp') && $this->isWebpImage() === false) {
+            $this->generateWebpVariant();
+        } else {
+            $this->image->save($this->pathVariant, $this->targetQuality);
         }
 
         $this->output();
@@ -311,5 +294,15 @@ class Processor
         $lockFactory = GeneralUtility::makeInstance(LockFactory::class);
 
         return $lockFactory->createLocker('nr_image_optimize-' . md5($key));
+    }
+
+    private function determineBrowserSupport(string $mimeType): bool
+    {
+        $serverRequest = ServerRequestFactory::fromGlobals();
+
+        $accept   = $serverRequest->getHeader('accept')[0] ?? '';
+        $variants = explode(',', $accept);
+
+        return in_array($mimeType, $variants, true);
     }
 }
