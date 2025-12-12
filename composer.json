@@ -20,7 +20,7 @@
     },
     "require": {
         "typo3/cms-core": "^13.4 || ^14.0",
-        "typo3/cms-fluid": "^13.4",
+        "typo3/cms-fluid": "^13.4 || ^14.0",
         "intervention/image": "^3.11"
     },
     "require-dev": {
