@@ -11,38 +11,26 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Command;
 
-use Doctrine\DBAL\ArrayParameterType;
-use Doctrine\DBAL\Exception;
 use Symfony\Component\Console\Attribute\AsCommand;
-use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
-use Symfony\Component\Console\Terminal;
 use Symfony\Component\Process\Process;
 use Throwable;
-use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Resource\File;
 use TYPO3\CMS\Core\Resource\ResourceFactory;
-use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 use function array_key_exists;
 use function array_merge;
 use function count;
 use function filesize;
-use function floor;
 use function getenv;
 use function is_file;
-use function is_numeric;
 use function is_string;
 use function max;
-use function number_format;
-use function preg_replace;
 use function sprintf;
-use function strlen;
 use function strtoupper;
-use function substr;
 use function trim;
 use function unlink;
 
@@ -50,7 +38,7 @@ use function unlink;
     name: 'nr:image:optimize',
     description: 'Optimiert PNG, GIF und JPEG in TYPO3-Storages (optipng, gifsicle, jpegoptim).'
 )]
-final class OptimizeImagesCommand extends Command
+final class OptimizeImagesCommand extends AbstractImageCommand
 {
     public function __construct(
         private readonly ResourceFactory $factory
@@ -85,7 +73,7 @@ final class OptimizeImagesCommand extends Command
         if (($optipng === null || $optipng === '' || $optipng === '0') && ($gifsicle === null || $gifsicle === '' || $gifsicle === '0') && ($jpegoptim === null || $jpegoptim === '' || $jpegoptim === '0')) {
             $io->error('Keine Optimierungstools gefunden (optipng, gifsicle, jpegoptim). Bitte installieren und im PATH verfügbar machen.');
 
-            return Command::FAILURE;
+            return self::FAILURE;
         }
 
         $total = [
@@ -101,7 +89,7 @@ final class OptimizeImagesCommand extends Command
         if ($count === 0) {
             $io->warning('No matching image files found to process.');
 
-            return Command::SUCCESS;
+            return self::SUCCESS;
         }
 
         $io->title('Image optimization');
@@ -111,17 +99,10 @@ final class OptimizeImagesCommand extends Command
             $io->note(sprintf('Found %d image file(s) to process.', $count));
         }
 
-        $progress = $io->createProgressBar($count);
-        $progress->setFormat(' %current%/%max% [%bar%] %percent:3s%% | %elapsed:6s% | %message%');
-        $progress->start();
-
-        $termWidth  = (new Terminal())->getWidth();
-        $messageMax = max(10, $termWidth - 40);
+        ['progress' => $progress, 'messageMax' => $messageMax] = $this->createProgress($io, $count);
 
         foreach ($records as $record) {
-            $label = isset($record['identifier']) && is_string($record['identifier']) && $record['identifier'] !== ''
-                ? $record['identifier']
-                : ('#' . ($record['uid'] ?? '?'));
+            $label = $this->buildLabel($record);
             $progress->setMessage($this->shortenLabel($label, $messageMax));
 
             $file    = $this->factory->getFileObject($record['uid']);
@@ -215,87 +196,7 @@ final class OptimizeImagesCommand extends Command
         $io->newLine(2);
         $io->success(sprintf('Fertig. Dateien: %d, Optimiert: %d, Übersprungen: %d, Eingespart: %d Bytes (%s)', $total['files'], $total['optimized'], $total['skipped'], $total['bytesSaved'], $this->formatMbGb($total['bytesSaved'])));
 
-        return Command::SUCCESS;
-    }
-
-    private function shortenLabel(string $text, int $maxLen): string
-    {
-        $plain = preg_replace('/\s+/', ' ', $text) ?? $text;
-        if ($maxLen <= 3) {
-            return strlen($plain) > $maxLen ? substr($plain, 0, $maxLen) : $plain;
-        }
-        if (strlen($plain) <= $maxLen) {
-            return $plain;
-        }
-        $keep = (int) max(1, floor(($maxLen - 1) / 2));
-
-        return substr($plain, 0, $keep) . '…' . substr($plain, -$keep);
-    }
-
-    private function formatMbGb(int $bytes): string
-    {
-        $mb = $bytes / 1048576;
-        $gb = $bytes / 1073741824;
-
-        return number_format($mb, 2) . ' MB / ' . number_format($gb, 2) . ' GB';
-    }
-
-    /**
-     * @param list<string> $values
-     *
-     * @return list<int>
-     */
-    private function parseStorageUidsOption(array $values): array
-    {
-        $uids = [];
-        foreach ($values as $val) {
-            foreach (GeneralUtility::trimExplode(',', (string) $val, true) as $part) {
-                if (is_numeric($part)) {
-                    $uids[] = (int) $part;
-                }
-            }
-        }
-
-        return $uids;
-    }
-
-    /**
-     * Iteriert Dateien eines Storages über den FAL-Index (sys_file), unabhängig von Browsability.
-     *
-     * @param list<int> $onlyStorageUids
-     *
-     * @return list<array<string,mixed>>
-     *
-     * @throws Exception
-     */
-    private function iterateViaIndex(array $onlyStorageUids): array
-    {
-        // SELECT f.* FROM sys_file f
-        // JOIN sys_file_storage s ON s.uid=f.storage AND s.is_public=1 AND s.is_online=1
-        // WHERE f.deleted=0 AND f.missing=0 AND f.mime_type IN (...) [AND f.storage IN (...)]
-        $fileConn = GeneralUtility::makeInstance(ConnectionPool::class)->getConnectionForTable('sys_file');
-        $qb       = $fileConn->createQueryBuilder();
-
-        $qb->select('f.*')
-            ->from('sys_file', 'f')
-            ->join('f', 'sys_file_storage', 's', 's.uid = f.storage')
-            ->where(
-                $qb->expr()->eq('f.missing', 0),
-                $qb->expr()->eq('s.is_online', 1),
-                $qb->expr()->in(
-                    'f.mime_type',
-                    $qb->createNamedParameter(['image/jpeg', 'image/gif', 'image/png'], ArrayParameterType::STRING)
-                )
-            )
-            ->orderBy('f.uid', 'ASC');
-
-        if ($onlyStorageUids !== []) {
-            $qb->andWhere(
-                $qb->expr()->in('f.storage', $qb->createNamedParameter($onlyStorageUids, ArrayParameterType::INTEGER))
-            );
-        }
-
-        return $qb->executeQuery()->fetchAllAssociative();
+        return self::SUCCESS;
     }
 
     /**
