@@ -1,6 +1,6 @@
 {
     "name": "netresearch/nr-image-optimize",
-    "description": "Add capability to optimize the delivered images to benefit from better compression and smaller image size. This extension also add the ability to process images only if it is really requested.",
+    "description": "On-demand image optimization for TYPO3 with processed delivery, WebP and AVIF variants, and responsive srcset ViewHelpers.",
     "type": "typo3-cms-extension",
     "license": [
         "GPL-3.0-or-later"
