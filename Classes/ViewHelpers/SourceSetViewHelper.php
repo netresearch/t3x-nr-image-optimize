@@ -63,7 +63,7 @@ class SourceSetViewHelper extends AbstractViewHelper
     /**
      * Fluid internal: do not escape child content since we assemble HTML ourselves.
      *
-     * @var bool
+     * @var bool|null
      */
     protected $escapeChildren = false;
 
