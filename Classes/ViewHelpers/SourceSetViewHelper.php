@@ -55,15 +55,11 @@ class SourceSetViewHelper extends AbstractViewHelper
 
     /**
      * Fluid internal: disable automatic output escaping as we output HTML tags.
-     *
-     * @var bool
      */
     protected $escapeOutput = false;
 
     /**
      * Fluid internal: do not escape child content since we assemble HTML ourselves.
-     *
-     * @var bool|null
      */
     protected $escapeChildren = false;
 
