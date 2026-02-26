@@ -111,7 +111,7 @@ class SourceSetViewHelper extends AbstractViewHelper
 
         $url = sprintf(
             '/processed%s/%s.%s.%s',
-            $pathInfo['dirname'],
+            $pathInfo['dirname'] ?? '',
             $pathInfo['filename'] ?? '',
             $generatorConfig,
             $pathInfo['extension'] ?? ''

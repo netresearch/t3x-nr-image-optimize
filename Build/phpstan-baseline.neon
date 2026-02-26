@@ -36,11 +36,6 @@ parameters:
             path: ../Classes/ViewHelpers/SourceSetViewHelper.php
 
         -
-            message: "#^Offset 'dirname' does not exist on array\\<string\\>\\|string\\.$#"
-            count: 1
-            path: ../Classes/ViewHelpers/SourceSetViewHelper.php
-
-        -
             message: "#^Construct empty\\(\\) is not allowed\\. Use more strict comparison\\.$#"
             count: 1
             path: ../Classes/ViewHelpers/SourceSetViewHelper.php
