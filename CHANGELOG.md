@@ -1,3 +1,13 @@
+# 1.0.2
+
+## MISC
+
+- 6b72dc3 OPSCHEM-347: [Fix] Fix nullable dirname access in SourceSetViewHelper
+
+## Contributors
+
+- axel.seemann@netresearch.de
+
 # 1.0.1
 
 ## TASK
@@ -19,6 +29,15 @@
 
 - bd3dbfa [Fix] Fix tailor pipeline to user version w/o v in version
 - 31d1121 [Fix] Fix pipline check for php versions
+
+## Contributors
+
+- Gitsko
+
+# 0.1.5
+
+## MISC
+
 - 6a2678e Fix "strtolower(): Argument #1 ($string) must be of type string, null given"
 - 41a6905 Allow possible file extensions include numbers
 - ba1e265 Fix "Trying to access array offset on value of type bool"
