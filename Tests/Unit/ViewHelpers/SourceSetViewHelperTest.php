@@ -99,6 +99,7 @@ class SourceSetViewHelperTest extends TestCase
 
         preg_match('/src="([^"]+)"/', $result, $srcMatches);
         self::assertArrayHasKey(1, $srcMatches);
+        assert(isset($srcMatches[1]));
         self::assertSame('/processed/path/to/image.w1250h1250m0q100.jpg', $srcMatches[1]);
 
         preg_match('/srcset="([^"]+)"/', $result, $matches);
