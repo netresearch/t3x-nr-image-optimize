@@ -98,10 +98,13 @@ class SourceSetViewHelperTest extends TestCase
         self::assertMatchesRegularExpression('/srcset="[^"]+"/', $result);
 
         preg_match('/src="([^"]+)"/', $result, $srcMatches);
+        self::assertArrayHasKey(1, $srcMatches);
+        assert(isset($srcMatches[1]));
         self::assertSame('/processed/path/to/image.w1250h1250m0q100.jpg', $srcMatches[1]);
 
         preg_match('/srcset="([^"]+)"/', $result, $matches);
         self::assertArrayHasKey(1, $matches);
+        assert(isset($matches[1]));
 
         $variants = array_filter(
             array_map(trim(...), explode(',', $matches[1])),
@@ -260,6 +263,7 @@ class SourceSetViewHelperTest extends TestCase
 
         preg_match('/srcset="([^"]+)"/', $result, $matches);
         self::assertArrayHasKey(1, $matches);
+        assert(isset($matches[1]));
 
         $expectedRatio = 0.5;
 
