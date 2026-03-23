@@ -307,6 +307,10 @@
                 <source>Not found</source>
                 <target>Ikke fundet</target>
             </trans-unit>
+            <trans-unit id="sysreq.unknown" resname="sysreq.unknown">
+                <source>unknown</source>
+                <target>ukendt</target>
+            </trans-unit>
         </body>
     </file>
 </xliff>
