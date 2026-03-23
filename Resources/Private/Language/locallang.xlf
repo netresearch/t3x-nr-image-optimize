@@ -231,6 +231,9 @@
             <trans-unit id="sysreq.notFound" resname="sysreq.notFound">
                 <source>Not found</source>
             </trans-unit>
+            <trans-unit id="sysreq.unknown" resname="sysreq.unknown">
+                <source>unknown</source>
+            </trans-unit>
         </body>
     </file>
 </xliff>

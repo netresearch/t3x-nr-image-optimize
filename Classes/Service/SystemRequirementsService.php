@@ -95,8 +95,8 @@ final class SystemRequirementsService
         $hasImagick = extension_loaded('imagick');
 
         if ($hasImagick) {
-            $imagickVersion = phpversion('imagick') !== false ? phpversion('imagick') : 'unknown';
-            $items[]        = $this->makeItem('sysreq.imagickVersion', $imagickVersion, null, 'success');
+            $imagickVersion = phpversion('imagick') !== false ? phpversion('imagick') : null;
+            $items[]        = $this->makeItem('sysreq.imagickVersion', $imagickVersion, null, 'success', null, [], $imagickVersion === null ? 'sysreq.unknown' : null);
 
             try {
                 $imInfo    = Imagick::getVersion();
@@ -166,8 +166,9 @@ final class SystemRequirementsService
         $items = [];
 
         if (extension_loaded('gd')) {
-            $info    = gd_info();
-            $items[] = $this->makeItem('sysreq.gdVersion', $info['GD Version'] ?? 'unknown', null, 'success');
+            $info      = gd_info();
+            $gdVersion = $info['GD Version'] ?? null;
+            $items[]   = $this->makeItem('sysreq.gdVersion', $gdVersion, null, 'success', null, [], $gdVersion === null ? 'sysreq.unknown' : null);
 
             $webp    = (bool) ($info['WebP Support'] ?? false);
             $avif    = (bool) ($info['AVIF Support'] ?? false);
@@ -302,7 +303,7 @@ final class SystemRequirementsService
                 $ver = trim((string) @shell_exec(escapeshellarg($cmd) . ' --version 2>&1'));
             }
 
-            return ['available' => true, 'version' => $ver !== '' ? $ver : 'unknown'];
+            return ['available' => true, 'version' => $ver !== '' ? $ver : null, 'versionKey' => $ver === '' ? 'sysreq.unknown' : null];
         };
 
         $cliTools = [
@@ -317,10 +318,10 @@ final class SystemRequirementsService
             $status  = $res['available'] === true ? 'success' : 'warning';
             $items[] = $this->makeItem(
                 null,
-                null,
+                $res['version'],
                 null,
                 $status,
-                $res['version'],
+                null,
                 [],
                 ($res['available'] === true) ? 'sysreq.found' : 'sysreq.notFound',
                 'sysreq.optional',
