@@ -17,10 +17,6 @@ use function file_exists;
 use function file_get_contents;
 
 use GuzzleHttp\Psr7\Query;
-
-use function header;
-
-use Intervention\Image\Drivers\Imagick\Driver;
 use Intervention\Image\ImageManager;
 use Intervention\Image\Interfaces\ImageInterface;
 
@@ -31,6 +27,9 @@ use function preg_match;
 use function preg_match_all;
 
 use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ResponseFactoryInterface;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\StreamFactoryInterface;
 
 use function round;
 
@@ -43,8 +42,6 @@ use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Locking\Exception\LockCreateException;
 use TYPO3\CMS\Core\Locking\LockFactory;
 use TYPO3\CMS\Core\Locking\LockingStrategyInterface;
-use TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3\CMS\Core\Utility\HttpUtility;
 
 use function urldecode;
 use function usleep;
@@ -68,87 +65,115 @@ use function usleep;
 class Processor
 {
     /**
-     * The incoming PSR-7 request used to determine variant path and query flags.
+     * Initialize the image processor with all required dependencies.
      *
-     * @var RequestInterface
+     * @param ImageManager             $imageManager    Intervention Image manager used to read/encode images
+     * @param LockFactory              $lockFactory     TYPO3 lock factory for concurrent processing coordination
+     * @param ResponseFactoryInterface $responseFactory PSR-17 response factory
+     * @param StreamFactoryInterface   $streamFactory   PSR-17 stream factory
      */
-    private RequestInterface $request;
+    public function __construct(
+        private readonly ImageManager $imageManager,
+        private readonly LockFactory $lockFactory,
+        private readonly ResponseFactoryInterface $responseFactory,
+        private readonly StreamFactoryInterface $streamFactory,
+    ) {}
 
     /**
-     * URL path of the requested processed variant (decoded).
-     */
-    private string $variantUrl;
-
-    /**
-     * Intervention Image manager used to read/encode images.
+     * Entry point invoked by the middleware to handle a processed image request.
      *
-     * @var ImageManager
-     */
-    private readonly ImageManager $imageManager;
-
-    /**
-     * The currently loaded original image.
+     * Parses the requested variant from the URI, acquires a processing lock to
+     * avoid duplicate work, loads and resizes/crops the original image, writes
+     * the processed files (including optional WebP/AVIF variants), and returns
+     * a PSR-7 response with the best available representation.
      *
-     * @var ImageInterface
-     */
-    private ImageInterface $image;
-
-    /**
-     * Target width in pixels (null when not specified).
-     */
-    private ?int $targetWidth = null;
-
-    /**
-     * Target height in pixels (null when not specified).
-     */
-    private ?int $targetHeight = null;
-
-    /**
-     * Output quality (1-100) for encoding.
-     */
-    private int $targetQuality = 80;
-
-    /**
-     * Processing mode: 0 = cover (crop), 1 = fit (scale to contain).
-     */
-    private int $processingMode;
-
-    /**
-     * Absolute filesystem path to the original image file.
-     */
-    private string $pathOriginal;
-
-    /**
-     * Absolute filesystem path (without extension) for the processed variant.
-     */
-    private string $pathVariant;
-
-    /**
-     * Lowercased extension of the requested variant (e.g., jpg, webp, avif).
-     */
-    private string $extension;
-
-    /**
-     * Initialize the image processor.
-     *
-     * The constructor checks for external optimization tools and creates the
-     * Intervention Image manager using the Imagick driver.
-     */
-    public function __construct()
-    {
-        $this->imageManager = new ImageManager(
-            new Driver(),
-        );
-    }
-
-    /**
-     * Set the current PSR-7 request to be used for processing.
+     * Returns 404 if the original image is missing and 503 if a lock cannot be
+     * acquired in time.
      *
      * @param RequestInterface $request Incoming request containing the processed URL and query params
+     *
+     * @return ResponseInterface The image response or an error response
      */
-    public function setRequest(RequestInterface $request): void
+    public function generateAndSend(RequestInterface $request): ResponseInterface
     {
-        $this->request = $request;
+        $variantUrl = urldecode($request->getUri()->getPath());
+
+        $locker    = $this->getLocker($variantUrl . '-process');
+        $lockCount = 0;
+
+        while ($locker->acquire() === false) {
+            usleep(100000);
+
+            ++$lockCount;
+
+            if ($lockCount === 10) {
+                return $this->responseFactory->createResponse(503)
+                    ->withBody($this->streamFactory->createStream('Image is currently being processed'));
+            }
+        }
+
+        $urlInfo = $this->gatherInformationBasedOnUrl($variantUrl);
+
+        if (!file_exists($urlInfo['pathOriginal'])) {
+            $locker->release();
+
+            return $this->responseFactory->createResponse(404);
+        }
+
+        $image = $this->loadOriginal($urlInfo['pathOriginal']);
+
+        if ($image instanceof ResponseInterface) {
+            $locker->release();
+
+            return $image;
+        }
+
+        $targetWidth  = $urlInfo['targetWidth'];
+        $targetHeight = $urlInfo['targetHeight'];
+
+        [$targetWidth, $targetHeight] = $this->calculateTargetDimensions(
+            $image,
+            $targetWidth,
+            $targetHeight,
+        );
+
+        $targetQuality  = $urlInfo['targetQuality'];
+        $processingMode = $urlInfo['processingMode'];
+
+        $image = $this->processImage($image, $targetWidth, $targetHeight, $processingMode);
+
+        $dir = dirname($urlInfo['pathVariant']);
+
+        if (!is_dir($dir)
+            && !mkdir($dir, 0o775, true)
+            && !is_dir($dir)
+        ) {
+            throw new RuntimeException(
+                sprintf(
+                    'Directory "%s" was not created',
+                    $dir,
+                ),
+            );
+        }
+
+        $image->save($urlInfo['pathVariant'], $targetQuality);
+
+        $extension   = $urlInfo['extension'];
+        $pathVariant = $urlInfo['pathVariant'];
+
+        if ($this->isWebpImage($extension) === false && $this->skipWebPCreation($request) === false) {
+            $this->generateWebpVariant($image, $targetQuality, $pathVariant);
+        }
+
+        if ($this->isAvifImage($extension) === false && $this->skipAvifCreation($request) === false) {
+            $this->generateAvifVariant($image, $targetQuality, $pathVariant);
+        }
+
+        $response = $this->buildOutputResponse($image, $extension, $targetQuality, $pathVariant);
+
+        $locker->release();
+
+        return $response;
     }
 
     /**
@@ -156,31 +181,46 @@ class Processor
      *
      * Computes original/variant file paths, normalizes the extension, and
      * extracts width/height/quality/mode values from the encoded mode string.
+     *
+     * @param string $variantUrl The decoded variant URL path
+     *
+     * @return array{
+     *     pathVariant: string,
+     *     pathOriginal: string,
+     *     extension: string,
+     *     targetWidth: int|null,
+     *     targetHeight: int|null,
+     *     targetQuality: int,
+     *     processingMode: int,
+     * }
      */
-    private function gatherInformationBasedOnUrl(): void
+    private function gatherInformationBasedOnUrl(string $variantUrl): array
     {
         $information = [];
 
         preg_match(
             '/^(\/processed\/)(.*)\.([0-9whqm]+)\.([a-zA-Z0-9]{1,4})$/',
-            $this->variantUrl,
+            $variantUrl,
             $information,
         );
 
         $basePath = Environment::getPublicPath();
 
-        $this->pathVariant  = $basePath . $this->variantUrl;
-        $this->pathOriginal = $basePath . '/' . ($information[2] ?? '') . '.' . ($information[4] ?? '');
-        $this->extension    = strtolower($information[4] ?? '');
+        $extension = strtolower($information[4] ?? '');
 
-        if ($this->extension === 'jpeg') {
-            $this->extension = 'jpg';
+        if ($extension === 'jpeg') {
+            $extension = 'jpg';
         }
 
-        $this->targetWidth    = $this->getValueFromMode('w', $information[3] ?? '');
-        $this->targetHeight   = $this->getValueFromMode('h', $information[3] ?? '');
-        $this->targetQuality  = $this->getValueFromMode('q', $information[3] ?? '') ?? 100;
-        $this->processingMode = $this->getValueFromMode('m', $information[3] ?? '') ?? 0;
+        return [
+            'pathVariant'    => $basePath . $variantUrl,
+            'pathOriginal'   => $basePath . '/' . ($information[2] ?? '') . '.' . ($information[4] ?? ''),
+            'extension'      => $extension,
+            'targetWidth'    => $this->getValueFromMode('w', $information[3] ?? ''),
+            'targetHeight'   => $this->getValueFromMode('h', $information[3] ?? ''),
+            'targetQuality'  => $this->getValueFromMode('q', $information[3] ?? '') ?? 100,
+            'processingMode' => $this->getValueFromMode('m', $information[3] ?? '') ?? 0,
+        ];
     }
 
     /**
@@ -215,11 +255,16 @@ class Processor
     /**
      * Load the original image from the disk under a read lock to avoid conflicts.
      *
-     * Sends a 503 response if the lock cannot be acquired after several tries.
+     * Returns a 503 response if the lock cannot be acquired after several tries,
+     * or the loaded image on success.
+     *
+     * @param string $pathOriginal Absolute filesystem path to the original image
+     *
+     * @return ImageInterface|ResponseInterface The loaded image or a 503 error response
      */
-    private function loadOriginal(): void
+    private function loadOriginal(string $pathOriginal): ImageInterface|ResponseInterface
     {
-        $locker = $this->getLocker($this->pathOriginal . '-read');
+        $locker = $this->getLocker($pathOriginal . '-read');
 
         $count = 0;
 
@@ -227,196 +272,170 @@ class Processor
             usleep(100000);
             ++$count;
             if ($count === 10) {
-                header(HttpUtility::HTTP_STATUS_503);
-                echo 'Image is currently being processed';
-                exit;
+                return $this->responseFactory->createResponse(503)
+                    ->withBody($this->streamFactory->createStream('Image is currently being processed'));
             }
         }
 
-        $this->image = $this->imageManager->read($this->pathOriginal);
+        $image = $this->imageManager->read($pathOriginal);
         $locker->release();
+
+        return $image;
     }
 
     /**
      * Derive the missing target dimension while preserving the original aspect ratio.
      *
      * If only width or height is provided, the other is computed from the image's ratio.
+     *
+     * @param ImageInterface $image        The loaded image
+     * @param int|null       $targetWidth  Target width (may be null)
+     * @param int|null       $targetHeight Target height (may be null)
+     *
+     * @return array{0: int|null, 1: int|null} The resolved [width, height] pair
      */
-    private function calculateTargetDimensions(): void
-    {
-        $aspectRatio = $this->image->width() / $this->image->height();
+    private function calculateTargetDimensions(
+        ImageInterface $image,
+        ?int $targetWidth,
+        ?int $targetHeight,
+    ): array {
+        $aspectRatio = $image->width() / $image->height();
 
-        if (($this->targetHeight === null)
-            && ($this->targetWidth !== null)
+        if (($targetHeight === null)
+            && ($targetWidth !== null)
         ) {
-            $this->targetHeight = (int) round($this->targetWidth / $aspectRatio);
+            $targetHeight = (int) round($targetWidth / $aspectRatio);
         }
 
-        if (($this->targetWidth === null)
-            && ($this->targetHeight !== null)
+        if (($targetWidth === null)
+            && ($targetHeight !== null)
         ) {
-            $this->targetWidth = (int) round($this->targetHeight * $aspectRatio);
+            $targetWidth = (int) round($targetHeight * $aspectRatio);
         }
+
+        return [$targetWidth, $targetHeight];
     }
 
     /**
-     * Whether the requested variant's extension is WebP.
+     * Whether the given extension is WebP.
+     *
+     * @param string $extension Lowercased file extension
      */
-    private function isWebpImage(): bool
+    private function isWebpImage(string $extension): bool
     {
-        return $this->extension === 'webp';
+        return $extension === 'webp';
     }
 
     /**
-     * Whether the requested variant's extension is AVIF.
+     * Whether the given extension is AVIF.
+     *
+     * @param string $extension Lowercased file extension
      */
-    private function isAvifImage(): bool
+    private function isAvifImage(string $extension): bool
     {
-        return $this->extension === 'avif';
+        return $extension === 'avif';
     }
 
     /**
      * Fetch a query parameter value from the incoming request URI.
      *
-     * @param string $key Parameter name
+     * @param RequestInterface $request The incoming request
+     * @param string           $key     Parameter name
      *
      * @return mixed The raw query value or null if not present
      */
-    private function getQueryValue(string $key): mixed
+    private function getQueryValue(RequestInterface $request, string $key): mixed
     {
-        $query = Query::parse($this->request->getUri()->getQuery());
+        $query = Query::parse($request->getUri()->getQuery());
 
         return $query[$key] ?? null;
     }
 
     /**
      * Check whether WebP generation should be skipped for this request.
+     *
+     * @param RequestInterface $request The incoming request
      */
-    private function skipWebPCreation(): bool
+    private function skipWebPCreation(RequestInterface $request): bool
     {
-        return (bool) $this->getQueryValue('skipWebP');
+        return (bool) $this->getQueryValue($request, 'skipWebP');
     }
 
     /**
      * Check whether AVIF generation should be skipped for this request.
+     *
+     * @param RequestInterface $request The incoming request
      */
-    private function skipAvifCreation(): bool
+    private function skipAvifCreation(RequestInterface $request): bool
     {
-        return (bool) $this->getQueryValue('skipAvif');
+        return (bool) $this->getQueryValue($request, 'skipAvif');
     }
 
     /**
      * Encode and persist the WebP variant of the current image.
+     *
+     * @param ImageInterface $image         The processed image
+     * @param int            $targetQuality Output quality (1-100)
+     * @param string         $pathVariant   Absolute path (without extension) for the variant
      */
-    private function generateWebpVariant(): void
+    private function generateWebpVariant(ImageInterface $image, int $targetQuality, string $pathVariant): void
     {
-        $this->image->toWebp($this->targetQuality);
-        $this->image->save($this->pathVariant . '.webp');
+        $image->toWebp($targetQuality);
+        $image->save($pathVariant . '.webp');
     }
 
     /**
      * Encode and persist the AVIF variant of the current image.
+     *
+     * @param ImageInterface $image         The processed image
+     * @param int            $targetQuality Output quality (1-100)
+     * @param string         $pathVariant   Absolute path (without extension) for the variant
      */
-    private function generateAvifVariant(): void
+    private function generateAvifVariant(ImageInterface $image, int $targetQuality, string $pathVariant): void
     {
-        $this->image->toAvif($this->targetQuality);
-        $this->image->save($this->pathVariant . '.avif');
+        $image->toAvif($targetQuality);
+        $image->save($pathVariant . '.avif');
     }
 
     /**
-     * Stream the best available image representation to the client.
+     * Build the PSR-7 response with the best available image representation.
      *
      * Prefers AVIF, then WebP, falling back to the processed original format.
-     * Sets an appropriate Content-Type header and echoes the binary content.
-     */
-    private function output(): void
-    {
-        if ($this->hasVariantFor('avif')) {
-            header('Content-Type: image/avif');
-            echo file_get_contents($this->pathVariant . '.avif');
-
-            return;
-        }
-
-        if ($this->hasVariantFor('webp')) {
-            header('Content-Type: image/webp');
-            echo file_get_contents($this->pathVariant . '.webp');
-
-            return;
-        }
-
-        header('Content-Type: ' . $this->image->origin()->mimetype());
-        echo $this->image->encodeByExtension($this->extension, $this->targetQuality)->toString();
-    }
-
-    /**
-     * Entry point invoked by the middleware to handle a processed image request.
      *
-     * Parses the requested variant from the URI, acquires a processing lock to
-     * avoid duplicate work, loads and resizes/crops the original image, writes
-     * the processed files (including optional WebP/AVIF variants), and streams
-     * the best available representation back to the client.
+     * @param ImageInterface $image         The processed image
+     * @param string         $extension     Lowercased extension of the variant
+     * @param int            $targetQuality Output quality (1-100)
+     * @param string         $pathVariant   Absolute path (without extension) for the variant
      *
-     * Sends 404 if the original image is missing and 503 if a lock cannot be
-     * acquired in time. This method echoes the response body and sets headers.
+     * @return ResponseInterface The image response with appropriate Content-Type
      */
-    public function generateAndSend(): void
-    {
-        $this->variantUrl = urldecode($this->request->getUri()->getPath());
-
-        $locker    = $this->getLocker($this->variantUrl . '-process');
-        $lockCount = 0;
-
-        while ($locker->acquire() === false) {
-            usleep(100000);
-
-            ++$lockCount;
-
-            if ($lockCount === 10) {
-                header(HttpUtility::HTTP_STATUS_503);
-                echo 'Image is currently being processed';
-                exit;
-            }
+    private function buildOutputResponse(
+        ImageInterface $image,
+        string $extension,
+        int $targetQuality,
+        string $pathVariant,
+    ): ResponseInterface {
+        if ($this->hasVariantFor($pathVariant, 'avif')) {
+            return $this->responseFactory->createResponse(200)
+                ->withHeader('Content-Type', 'image/avif')
+                ->withBody($this->streamFactory->createStream(
+                    (string) file_get_contents($pathVariant . '.avif'),
+                ));
         }
 
-        $this->gatherInformationBasedOnUrl();
-
-        if (!file_exists($this->pathOriginal)) {
-            header(HttpUtility::HTTP_STATUS_404);
-            exit;
+        if ($this->hasVariantFor($pathVariant, 'webp')) {
+            return $this->responseFactory->createResponse(200)
+                ->withHeader('Content-Type', 'image/webp')
+                ->withBody($this->streamFactory->createStream(
+                    (string) file_get_contents($pathVariant . '.webp'),
+                ));
         }
 
-        $this->loadOriginal();
-        $this->calculateTargetDimensions();
-        $this->processImage();
-
-        $dir = dirname($this->pathVariant);
-
-        if (!is_dir($dir)
-            && !mkdir($dir, 0o775, true)
-            && !is_dir($dir)
-        ) {
-            throw new RuntimeException(
-                sprintf(
-                    'Directory "%s" was not created',
-                    $dir,
-                ),
-            );
-        }
-
-        $this->image->save($this->pathVariant, $this->targetQuality);
-
-        if ($this->isWebpImage() === false && $this->skipWebPCreation() === false) {
-            $this->generateWebpVariant();
-        }
-
-        if ($this->isAvifImage() === false && $this->skipAvifCreation() === false) {
-            $this->generateAvifVariant();
-        }
-
-        $this->output();
-
-        $locker->release();
+        return $this->responseFactory->createResponse(200)
+            ->withHeader('Content-Type', $image->origin()->mimetype())
+            ->withBody($this->streamFactory->createStream(
+                $image->encodeByExtension($extension, $targetQuality)->toString(),
+            ));
     }
 
     /**
@@ -424,31 +443,45 @@ class Processor
      *
      * Mode 0 = cover (crop to fill), Mode 1 = scale to fit inside.
      * If either dimension is missing, no processing is performed.
+     *
+     * @param ImageInterface $image          The loaded image
+     * @param int|null       $targetWidth    Target width in pixels
+     * @param int|null       $targetHeight   Target height in pixels
+     * @param int            $processingMode Processing mode (0 = cover, 1 = scale)
+     *
+     * @return ImageInterface The (possibly resized) image
      */
-    private function processImage(): void
-    {
-        if (($this->targetWidth === null)
-            || ($this->targetHeight === null)
+    private function processImage(
+        ImageInterface $image,
+        ?int $targetWidth,
+        ?int $targetHeight,
+        int $processingMode,
+    ): ImageInterface {
+        if (($targetWidth === null)
+            || ($targetHeight === null)
         ) {
-            return;
+            return $image;
         }
 
-        match ($this->processingMode) {
-            1       => $this->image->scale($this->targetWidth, $this->targetHeight),
-            default => $this->image->cover($this->targetWidth, $this->targetHeight),
+        match ($processingMode) {
+            1       => $image->scale($targetWidth, $targetHeight),
+            default => $image->cover($targetWidth, $targetHeight),
         };
+
+        return $image;
     }
 
     /**
      * Check whether a processed variant file exists for the given extension.
      *
-     * @param string $variant File extension without dot (e.g., 'webp', 'avif')
+     * @param string $pathVariant Base path (without extension) of the variant
+     * @param string $variant     File extension without dot (e.g., 'webp', 'avif')
      *
      * @return bool True if the variant file exists
      */
-    private function hasVariantFor(string $variant): bool
+    private function hasVariantFor(string $pathVariant, string $variant): bool
     {
-        return file_exists($this->pathVariant . '.' . $variant);
+        return file_exists($pathVariant . '.' . $variant);
     }
 
     /**
@@ -462,7 +495,7 @@ class Processor
      */
     public function getLocker(string $key): LockingStrategyInterface
     {
-        return GeneralUtility::makeInstance(LockFactory::class)
+        return $this->lockFactory
             ->createLocker('nr_image_optimize-' . md5($key));
     }
 }

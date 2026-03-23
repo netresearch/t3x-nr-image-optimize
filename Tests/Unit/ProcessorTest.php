@@ -11,6 +11,8 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Tests\Unit;
 
+use Intervention\Image\Drivers\Gd\Driver;
+use Intervention\Image\ImageManager;
 use Intervention\Image\Interfaces\EncodedImageInterface;
 use Intervention\Image\Interfaces\ImageInterface;
 use Netresearch\NrImageOptimize\Processor;
@@ -20,39 +22,57 @@ use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ResponseFactoryInterface;
+use Psr\Http\Message\StreamFactoryInterface;
 use Psr\Http\Message\UriInterface;
-use ReflectionClass;
 use ReflectionMethod;
-use ReflectionProperty;
+use TYPO3\CMS\Core\Core\ApplicationContext;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Locking\LockFactory;
 use TYPO3\CMS\Core\Locking\LockingStrategyInterface;
-use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 #[CoversClass(Processor::class)]
 class ProcessorTest extends TestCase
 {
+    private LockFactory&MockObject $lockFactory;
+
+    private ResponseFactoryInterface&MockObject $responseFactory;
+
+    private StreamFactoryInterface&MockObject $streamFactory;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Environment::initialize(
+            new ApplicationContext('Testing'),
+            true,
+            true,
+            '/var/www/html',
+            '/var/www/html/public',
+            '/var/www/html/var',
+            '/var/www/html/config',
+            '/var/www/html/public/index.php',
+            'UNIX',
+        );
+
+        $this->lockFactory     = $this->createMock(LockFactory::class);
+        $this->responseFactory = $this->createMock(ResponseFactoryInterface::class);
+        $this->streamFactory   = $this->createMock(StreamFactoryInterface::class);
+    }
+
+    /**
+     * Create a Processor instance using the GD driver (Imagick may not be
+     * available in all environments).
+     */
     private function createProcessor(): Processor
     {
-        $reflection = new ReflectionClass(Processor::class);
-
-        /** @var Processor $processor */
-        $processor = $reflection->newInstanceWithoutConstructor();
-
-        return $processor;
-    }
-
-    private function setProperty(object $object, string $property, mixed $value): void
-    {
-        $reflection = new ReflectionProperty($object, $property);
-        $reflection->setValue($object, $value);
-    }
-
-    private function getProperty(object $object, string $property): mixed
-    {
-        $reflection = new ReflectionProperty($object, $property);
-
-        return $reflection->getValue($object);
+        return new Processor(
+            new ImageManager(new Driver()),
+            $this->lockFactory,
+            $this->responseFactory,
+            $this->streamFactory,
+        );
     }
 
     private function callMethod(object $object, string $method, mixed ...$arguments): mixed
@@ -67,25 +87,22 @@ class ProcessorTest extends TestCase
     {
         $processor = $this->createProcessor();
 
-        $this->setProperty($processor, 'variantUrl', '/processed/path/to/image.w800h400q75m1.webp');
-
-        $this->callMethod($processor, 'gatherInformationBasedOnUrl');
-
-        $basePath = Environment::getPublicPath();
+        /** @var array<string, mixed> $result */
+        $result = $this->callMethod($processor, 'gatherInformationBasedOnUrl', '/processed/path/to/image.w800h400q75m1.webp');
 
         self::assertSame(
-            $basePath . '/processed/path/to/image.w800h400q75m1.webp',
-            $this->getProperty($processor, 'pathVariant'),
+            '/var/www/html/public/processed/path/to/image.w800h400q75m1.webp',
+            $result['pathVariant'],
         );
         self::assertSame(
-            $basePath . '/path/to/image.webp',
-            $this->getProperty($processor, 'pathOriginal'),
+            '/var/www/html/public/path/to/image.webp',
+            $result['pathOriginal'],
         );
-        self::assertSame(800, $this->getProperty($processor, 'targetWidth'));
-        self::assertSame(400, $this->getProperty($processor, 'targetHeight'));
-        self::assertSame(75, $this->getProperty($processor, 'targetQuality'));
-        self::assertSame(1, $this->getProperty($processor, 'processingMode'));
-        self::assertSame('webp', $this->getProperty($processor, 'extension'));
+        self::assertSame(800, $result['targetWidth']);
+        self::assertSame(400, $result['targetHeight']);
+        self::assertSame(75, $result['targetQuality']);
+        self::assertSame(1, $result['processingMode']);
+        self::assertSame('webp', $result['extension']);
     }
 
     #[Test]
@@ -93,11 +110,10 @@ class ProcessorTest extends TestCase
     {
         $processor = $this->createProcessor();
 
-        $this->setProperty($processor, 'variantUrl', '/processed/path/to/image.w200h100m0q60.jpeg');
+        /** @var array<string, mixed> $result */
+        $result = $this->callMethod($processor, 'gatherInformationBasedOnUrl', '/processed/path/to/image.w200h100m0q60.jpeg');
 
-        $this->callMethod($processor, 'gatherInformationBasedOnUrl');
-
-        self::assertSame('jpg', $this->getProperty($processor, 'extension'));
+        self::assertSame('jpg', $result['extension']);
     }
 
     #[Test]
@@ -105,14 +121,13 @@ class ProcessorTest extends TestCase
     {
         $processor = $this->createProcessor();
 
-        $this->setProperty($processor, 'variantUrl', '/processed/path/to/image.w800.jpg');
+        /** @var array<string, mixed> $result */
+        $result = $this->callMethod($processor, 'gatherInformationBasedOnUrl', '/processed/path/to/image.w800.jpg');
 
-        $this->callMethod($processor, 'gatherInformationBasedOnUrl');
-
-        self::assertSame(800, $this->getProperty($processor, 'targetWidth'));
-        self::assertNull($this->getProperty($processor, 'targetHeight'));
-        self::assertSame(100, $this->getProperty($processor, 'targetQuality'));
-        self::assertSame(0, $this->getProperty($processor, 'processingMode'));
+        self::assertSame(800, $result['targetWidth']);
+        self::assertNull($result['targetHeight']);
+        self::assertSame(100, $result['targetQuality']);
+        self::assertSame(0, $result['processingMode']);
     }
 
     #[Test]
@@ -147,9 +162,7 @@ class ProcessorTest extends TestCase
         $request = $this->createMock(RequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
-        $this->setProperty($processor, 'request', $request);
-
-        self::assertSame($expected, $this->callMethod($processor, $method));
+        self::assertSame($expected, $this->callMethod($processor, $method, $request));
     }
 
     /**
@@ -176,10 +189,8 @@ class ProcessorTest extends TestCase
         $request = $this->createMock(RequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
-        $this->setProperty($processor, 'request', $request);
-
-        self::assertSame('bar', $this->callMethod($processor, 'getQueryValue', 'foo'));
-        self::assertSame('1', $this->callMethod($processor, 'getQueryValue', 'skipWebP'));
+        self::assertSame('bar', $this->callMethod($processor, 'getQueryValue', $request, 'foo'));
+        self::assertSame('1', $this->callMethod($processor, 'getQueryValue', $request, 'skipWebP'));
     }
 
     #[Test]
@@ -193,9 +204,7 @@ class ProcessorTest extends TestCase
         $request = $this->createMock(RequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
-        $this->setProperty($processor, 'request', $request);
-
-        self::assertNull($this->callMethod($processor, 'getQueryValue', 'baz'));
+        self::assertNull($this->callMethod($processor, 'getQueryValue', $request, 'baz'));
     }
 
     #[Test]
@@ -208,13 +217,11 @@ class ProcessorTest extends TestCase
         $image->method('width')->willReturn(800);
         $image->method('height')->willReturn(400);
 
-        $this->setProperty($processor, 'image', $image);
-        $this->setProperty($processor, 'targetWidth', 400);
-        $this->setProperty($processor, 'targetHeight', null);
+        /** @var array{0: int|null, 1: int|null} $result */
+        $result = $this->callMethod($processor, 'calculateTargetDimensions', $image, 400, null);
 
-        $this->callMethod($processor, 'calculateTargetDimensions');
-
-        self::assertSame(200, $this->getProperty($processor, 'targetHeight'));
+        self::assertSame(400, $result[0]);
+        self::assertSame(200, $result[1]);
     }
 
     #[Test]
@@ -227,13 +234,11 @@ class ProcessorTest extends TestCase
         $image->method('width')->willReturn(800);
         $image->method('height')->willReturn(400);
 
-        $this->setProperty($processor, 'image', $image);
-        $this->setProperty($processor, 'targetWidth', null);
-        $this->setProperty($processor, 'targetHeight', 200);
+        /** @var array{0: int|null, 1: int|null} $result */
+        $result = $this->callMethod($processor, 'calculateTargetDimensions', $image, null, 200);
 
-        $this->callMethod($processor, 'calculateTargetDimensions');
-
-        self::assertSame(400, $this->getProperty($processor, 'targetWidth'));
+        self::assertSame(400, $result[0]);
+        self::assertSame(200, $result[1]);
     }
 
     #[Test]
@@ -246,12 +251,7 @@ class ProcessorTest extends TestCase
         $image->expects(self::once())->method('cover')->with(400, 200);
         $image->expects(self::never())->method('scale');
 
-        $this->setProperty($processor, 'image', $image);
-        $this->setProperty($processor, 'targetWidth', 400);
-        $this->setProperty($processor, 'targetHeight', 200);
-        $this->setProperty($processor, 'processingMode', 0);
-
-        $this->callMethod($processor, 'processImage');
+        $this->callMethod($processor, 'processImage', $image, 400, 200, 0);
     }
 
     #[Test]
@@ -264,12 +264,7 @@ class ProcessorTest extends TestCase
         $image->expects(self::once())->method('cover')->with(600, 400);
         $image->expects(self::never())->method('scale');
 
-        $this->setProperty($processor, 'image', $image);
-        $this->setProperty($processor, 'targetWidth', 600);
-        $this->setProperty($processor, 'targetHeight', 400);
-        $this->setProperty($processor, 'processingMode', 99);
-
-        $this->callMethod($processor, 'processImage');
+        $this->callMethod($processor, 'processImage', $image, 600, 400, 99);
     }
 
     #[Test]
@@ -282,12 +277,7 @@ class ProcessorTest extends TestCase
         $image->expects(self::never())->method('cover');
         $image->expects(self::once())->method('scale')->with(320, 180);
 
-        $this->setProperty($processor, 'image', $image);
-        $this->setProperty($processor, 'targetWidth', 320);
-        $this->setProperty($processor, 'targetHeight', 180);
-        $this->setProperty($processor, 'processingMode', 1);
-
-        $this->callMethod($processor, 'processImage');
+        $this->callMethod($processor, 'processImage', $image, 320, 180, 1);
     }
 
     #[Test]
@@ -300,12 +290,7 @@ class ProcessorTest extends TestCase
         $image->expects(self::never())->method('cover');
         $image->expects(self::never())->method('scale');
 
-        $this->setProperty($processor, 'image', $image);
-        $this->setProperty($processor, 'targetWidth', null);
-        $this->setProperty($processor, 'targetHeight', 200);
-        $this->setProperty($processor, 'processingMode', 0);
-
-        $this->callMethod($processor, 'processImage');
+        $this->callMethod($processor, 'processImage', $image, null, 200, 0);
     }
 
     #[Test]
@@ -317,10 +302,8 @@ class ProcessorTest extends TestCase
         $webp = $base . '.webp';
         touch($webp);
 
-        $this->setProperty($processor, 'pathVariant', $base);
-
-        self::assertTrue($this->callMethod($processor, 'hasVariantFor', 'webp'));
-        self::assertFalse($this->callMethod($processor, 'hasVariantFor', 'avif'));
+        self::assertTrue($this->callMethod($processor, 'hasVariantFor', $base, 'webp'));
+        self::assertFalse($this->callMethod($processor, 'hasVariantFor', $base, 'avif'));
 
         unlink($webp);
     }
@@ -339,11 +322,7 @@ class ProcessorTest extends TestCase
         $image->expects(self::once())->method('toWebp')->with(90)->willReturn($encoded);
         $image->expects(self::once())->method('save')->with($variantBase . '.webp')->willReturnSelf();
 
-        $this->setProperty($processor, 'image', $image);
-        $this->setProperty($processor, 'targetQuality', 90);
-        $this->setProperty($processor, 'pathVariant', $variantBase);
-
-        $this->callMethod($processor, 'generateWebpVariant');
+        $this->callMethod($processor, 'generateWebpVariant', $image, 90, $variantBase);
     }
 
     #[Test]
@@ -360,11 +339,7 @@ class ProcessorTest extends TestCase
         $image->expects(self::once())->method('toAvif')->with(75)->willReturn($encoded);
         $image->expects(self::once())->method('save')->with($variantBase . '.avif')->willReturnSelf();
 
-        $this->setProperty($processor, 'image', $image);
-        $this->setProperty($processor, 'targetQuality', 75);
-        $this->setProperty($processor, 'pathVariant', $variantBase);
-
-        $this->callMethod($processor, 'generateAvifVariant');
+        $this->callMethod($processor, 'generateAvifVariant', $image, 75, $variantBase);
     }
 
     #[Test]
@@ -372,38 +347,28 @@ class ProcessorTest extends TestCase
     {
         $processor = $this->createProcessor();
 
-        $this->setProperty($processor, 'extension', 'webp');
-        self::assertTrue($this->callMethod($processor, 'isWebpImage'));
-        self::assertFalse($this->callMethod($processor, 'isAvifImage'));
+        self::assertTrue($this->callMethod($processor, 'isWebpImage', 'webp'));
+        self::assertFalse($this->callMethod($processor, 'isAvifImage', 'webp'));
 
-        $this->setProperty($processor, 'extension', 'avif');
-        self::assertTrue($this->callMethod($processor, 'isAvifImage'));
-        self::assertFalse($this->callMethod($processor, 'isWebpImage'));
+        self::assertTrue($this->callMethod($processor, 'isAvifImage', 'avif'));
+        self::assertFalse($this->callMethod($processor, 'isWebpImage', 'avif'));
 
-        $this->setProperty($processor, 'extension', 'jpg');
-        self::assertFalse($this->callMethod($processor, 'isWebpImage'));
-        self::assertFalse($this->callMethod($processor, 'isAvifImage'));
+        self::assertFalse($this->callMethod($processor, 'isWebpImage', 'jpg'));
+        self::assertFalse($this->callMethod($processor, 'isAvifImage', 'jpg'));
     }
 
     #[Test]
     public function getLockerCreatesPrefixedLockName(): void
     {
-        $processor = $this->createProcessor();
-
         $locker = $this->createMock(LockingStrategyInterface::class);
 
-        $factory = $this->createMock(LockFactory::class);
-        $factory->expects(self::once())
+        $this->lockFactory->expects(self::once())
             ->method('createLocker')
             ->with('nr_image_optimize-' . md5('test-key'))
             ->willReturn($locker);
 
-        GeneralUtility::setSingletonInstance(LockFactory::class, $factory);
+        $processor = $this->createProcessor();
 
-        try {
-            self::assertSame($locker, $processor->getLocker('test-key'));
-        } finally {
-            GeneralUtility::purgeInstances();
-        }
+        self::assertSame($locker, $processor->getLocker('test-key'));
     }
 }

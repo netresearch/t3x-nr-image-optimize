@@ -8,6 +8,14 @@ services:
     resource: '../Classes/*'
     exclude: '../Classes/Domain/Model/*'
 
+  Netresearch\NrImageOptimize\Processor:
+    arguments:
+      $imageManager: !service
+        class: Intervention\Image\ImageManager
+        arguments:
+          - !service
+            class: Intervention\Image\Drivers\Imagick\Driver
+
   Netresearch\NrImageOptimize\Service\SystemRequirementsService:
     public: false
 
