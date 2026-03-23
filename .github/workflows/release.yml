@@ -26,6 +26,32 @@ jobs:
       TYPO3_EXTENSION_KEY: ${{ secrets.TYPO3_EXTENSION_KEY }}
       TYPO3_TER_ACCESS_TOKEN: ${{ secrets.TYPO3_TER_ACCESS_TOKEN }}
 
+  ter-metadata:
+    name: Update TER Metadata
+    needs: publish-to-ter
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        with:
+          egress-policy: audit
+
+      - name: Install tailor
+        run: composer global require typo3/tailor
+
+      - name: Update TER metadata
+        env:
+          TYPO3_API_TOKEN: ${{ secrets.TYPO3_TER_ACCESS_TOKEN }}
+        run: |
+          ~/.composer/vendor/bin/tailor ter:update \
+            --composer="netresearch/nr-image-optimize" \
+            --manual="https://github.com/netresearch/t3x-nr-image-optimize" \
+            --issues="https://github.com/netresearch/t3x-nr-image-optimize/issues" \
+            --repository="https://github.com/netresearch/t3x-nr-image-optimize" \
+            nr_image_optimize
+
   slsa-provenance:
     needs: release
     uses: netresearch/typo3-ci-workflows/.github/workflows/slsa-provenance.yml@main
