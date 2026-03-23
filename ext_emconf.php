@@ -18,7 +18,7 @@ $EM_CONF['nr_image_optimize'] = [
     'version'        => '2.2.1',
     'constraints'    => [
         'depends' => [
-            'typo3' => '13.0.0-13.4.99',
+            'typo3' => '13.0.0-14.4.99',
         ],
         'conflicts' => [],
         'suggests'  => [],
