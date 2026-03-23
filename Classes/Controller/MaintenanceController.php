@@ -1,6 +1,6 @@
 <?php
 
-/**
+/*
  * This file is part of the package netresearch/nr-image-optimize.
  *
  * For the full copyright and license information, please read the
@@ -11,8 +11,13 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Controller;
 
+use function is_dir;
+
 use Netresearch\NrImageOptimize\Service\SystemRequirementsService;
 use Psr\Http\Message\ResponseInterface;
+
+use function realpath;
+
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use RuntimeException;
@@ -24,9 +29,6 @@ use TYPO3\CMS\Core\Type\ContextualFeedbackSeverity;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Extbase\Mvc\Controller\ActionController;
 
-use function is_dir;
-use function realpath;
-
 /**
  * Backend module controller for clearing processed images and checking system requirements.
  */
@@ -35,8 +37,7 @@ final class MaintenanceController extends ActionController
     public function __construct(
         private readonly ModuleTemplateFactory $moduleTemplateFactory,
         private readonly SystemRequirementsService $systemRequirementsService,
-    ) {
-    }
+    ) {}
 
     public function indexAction(): ResponseInterface
     {
@@ -91,13 +92,13 @@ final class MaintenanceController extends ActionController
             $this->addFlashMessage(
                 $this->getLanguageService()->sL('LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:flash.clear.success'),
                 '',
-                ContextualFeedbackSeverity::OK
+                ContextualFeedbackSeverity::OK,
             );
         } catch (Throwable $e) {
             $this->addFlashMessage(
                 $this->getLanguageService()->sL('LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:flash.clear.error') . ': ' . $e->getMessage(),
                 '',
-                ContextualFeedbackSeverity::ERROR
+                ContextualFeedbackSeverity::ERROR,
             );
         }
 
@@ -131,7 +132,7 @@ final class MaintenanceController extends ActionController
 
         $iterator = new RecursiveIteratorIterator(
             new RecursiveDirectoryIterator($path, RecursiveDirectoryIterator::SKIP_DOTS),
-            RecursiveIteratorIterator::SELF_FIRST
+            RecursiveIteratorIterator::SELF_FIRST,
         );
 
         foreach ($iterator as $file) {
