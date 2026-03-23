@@ -104,15 +104,15 @@ class SourceSetViewHelperTest extends TestCase
 
         self::assertMatchesRegularExpression('/srcset="[^"]+"/', $result);
 
-        preg_match('/src="([^"]+)"/', $result, $srcMatches);
-        self::assertArrayHasKey(1, $srcMatches);
-        self::assertSame('/processed/path/to/image.w1250h1250m0q100.jpg', $srcMatches[1]); // @phpstan-ignore offsetAccess.notFound
+        $srcMatchResult = preg_match('/src="([^"]+)"/', $result, $srcMatches);
+        self::assertSame(1, $srcMatchResult);
+        self::assertSame('/processed/path/to/image.w1250h1250m0q100.jpg', $srcMatches[1]);
 
-        preg_match('/srcset="([^"]+)"/', $result, $matches);
-        self::assertArrayHasKey(1, $matches);
+        $srcsetMatchResult = preg_match('/srcset="([^"]+)"/', $result, $matches);
+        self::assertSame(1, $srcsetMatchResult);
 
         $variants = array_filter(
-            array_map(trim(...), explode(',', $matches[1])), // @phpstan-ignore offsetAccess.notFound
+            array_map(trim(...), explode(',', $matches[1])),
             static fn (string $variant): bool => $variant !== '',
         );
         self::assertNotEmpty($variants);
@@ -266,13 +266,13 @@ class SourceSetViewHelperTest extends TestCase
 
         $result = $this->viewHelper->render();
 
-        preg_match('/srcset="([^"]+)"/', $result, $matches);
-        self::assertArrayHasKey(1, $matches);
+        $matchResult = preg_match('/srcset="([^"]+)"/', $result, $matches);
+        self::assertSame(1, $matchResult);
 
         $expectedRatio = 0.5;
 
         $variants = array_filter(
-            array_map(trim(...), explode(',', $matches[1])), // @phpstan-ignore offsetAccess.notFound
+            array_map(trim(...), explode(',', $matches[1])),
             static fn (string $variant): bool => $variant !== '',
         );
 
