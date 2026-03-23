@@ -3,8 +3,8 @@
 .. |license| image:: https://img.shields.io/github/license/netresearch/t3x-nr-image-optimize
    :target: https://github.com/netresearch/t3x-nr-image-optimize/blob/main/LICENSE
 .. |ci| image:: https://github.com/netresearch/t3x-nr-image-optimize/actions/workflows/ci.yml/badge.svg
-.. |php| image:: https://img.shields.io/badge/PHP-8.2%20|%208.3%20|%208.4-blue.svg
-.. |typo3| image:: https://img.shields.io/badge/TYPO3-13.4-orange.svg
+.. |php| image:: https://img.shields.io/badge/PHP-8.2%20|%208.3%20|%208.4%20|%208.5-blue.svg
+.. |typo3| image:: https://img.shields.io/badge/TYPO3-13.4%20|%2014-orange.svg
 
 |php| |typo3| |license| |ci| |release|
 
@@ -30,8 +30,8 @@ The ``nr_image_optimize`` extension is an advanced TYPO3 extension for image opt
 🛠️ Requirements
 ================
 
-- PHP 8.2, 8.3, or 8.4
-- TYPO3 13.4
+- PHP 8.2, 8.3, 8.4, or 8.5
+- TYPO3 13.4 or 14
 - Intervention Image library (installed via Composer automatically)
 
 📌 Recommended Extensions
