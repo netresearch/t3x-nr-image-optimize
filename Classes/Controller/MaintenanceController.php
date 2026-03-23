@@ -25,6 +25,7 @@ use Throwable;
 use TYPO3\CMS\Backend\Template\ModuleTemplateFactory;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Localization\LanguageService;
+use TYPO3\CMS\Core\Localization\LanguageServiceFactory;
 use TYPO3\CMS\Core\Type\ContextualFeedbackSeverity;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Extbase\Mvc\Controller\ActionController;
@@ -37,6 +38,7 @@ final class MaintenanceController extends ActionController
     public function __construct(
         private readonly ModuleTemplateFactory $moduleTemplateFactory,
         private readonly SystemRequirementsService $systemRequirementsService,
+        private readonly LanguageServiceFactory $languageServiceFactory,
     ) {}
 
     public function indexAction(): ResponseInterface
@@ -215,6 +217,6 @@ final class MaintenanceController extends ActionController
 
     private function getLanguageService(): LanguageService
     {
-        return $GLOBALS['LANG'];
+        return $this->languageServiceFactory->createFromUserPreferences($GLOBALS['BE_USER']);
     }
 }
