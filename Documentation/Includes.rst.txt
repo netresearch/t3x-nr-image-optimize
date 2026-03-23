@@ -1,0 +1,4 @@
+..  This is a common file included in all documentation files via
+    ``..  include:: /Includes.rst.txt``
+
+..  |release| replace:: 2.2.1
