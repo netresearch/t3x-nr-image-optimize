@@ -91,12 +91,11 @@ final class SystemRequirementsService
             $items[]        = $this->makeItem('Imagick Extension Version', $imagickVersion, null, 'success');
 
             try {
-                $im        = new Imagick();
-                $imInfo    = $im->getVersion();
+                $imInfo    = Imagick::getVersion();
                 $imVersion = $imInfo['versionString'];
                 $items[]   = $this->makeItem('ImageMagick Version', $imVersion, null, 'success');
 
-                $formats = $im->queryFormats();
+                $formats = Imagick::queryFormats();
                 $avif    = in_array('AVIF', $formats, true);
                 $webp    = in_array('WEBP', $formats, true);
                 $items[] = $this->makeItem('WebP Support', $webp ? 'Yes' : 'No', 'Optional', $webp ? 'success' : 'warning');

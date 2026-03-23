@@ -106,15 +106,13 @@ class SourceSetViewHelperTest extends TestCase
 
         preg_match('/src="([^"]+)"/', $result, $srcMatches);
         self::assertArrayHasKey(1, $srcMatches);
-        assert(isset($srcMatches[1]));
-        self::assertSame('/processed/path/to/image.w1250h1250m0q100.jpg', $srcMatches[1]);
+        self::assertSame('/processed/path/to/image.w1250h1250m0q100.jpg', $srcMatches[1]); // @phpstan-ignore offsetAccess.notFound
 
         preg_match('/srcset="([^"]+)"/', $result, $matches);
         self::assertArrayHasKey(1, $matches);
-        assert(isset($matches[1]));
 
         $variants = array_filter(
-            array_map(trim(...), explode(',', $matches[1])),
+            array_map(trim(...), explode(',', $matches[1])), // @phpstan-ignore offsetAccess.notFound
             static fn (string $variant): bool => $variant !== '',
         );
         self::assertNotEmpty($variants);
@@ -270,12 +268,11 @@ class SourceSetViewHelperTest extends TestCase
 
         preg_match('/srcset="([^"]+)"/', $result, $matches);
         self::assertArrayHasKey(1, $matches);
-        assert(isset($matches[1]));
 
         $expectedRatio = 0.5;
 
         $variants = array_filter(
-            array_map(trim(...), explode(',', $matches[1])),
+            array_map(trim(...), explode(',', $matches[1])), // @phpstan-ignore offsetAccess.notFound
             static fn (string $variant): bool => $variant !== '',
         );
 
