@@ -53,16 +53,16 @@ final class SystemRequirementsService
         $ok       = version_compare($current, '8.2.0', '>=');
 
         $items   = [];
-        $items[] = $this->makeItem('PHP Version', $current, $required, $ok ? 'success' : 'error');
+        $items[] = $this->makeItem('sysreq.phpVersion', $current, $required, $ok ? 'success' : 'error');
 
         $extensions = [
-            'imagick'  => 'PHP Extension: imagick',
-            'gd'       => 'PHP Extension: gd',
-            'mbstring' => 'PHP Extension: mbstring',
-            'exif'     => 'PHP Extension: exif',
+            'imagick'  => 'imagick',
+            'gd'       => 'gd',
+            'mbstring' => 'mbstring',
+            'exif'     => 'exif',
         ];
 
-        foreach ($extensions as $ext => $label) {
+        foreach ($extensions as $ext => $extName) {
             $loaded = extension_loaded($ext);
             if ($ext === 'imagick' || $ext === 'gd') {
                 $status = $loaded ? 'success' : 'warning';
@@ -70,10 +70,18 @@ final class SystemRequirementsService
                 $status = $loaded ? 'success' : 'error';
             }
 
-            $items[] = $this->makeItem($label, $loaded ? 'Loaded' : 'Not loaded', null, $status);
+            $items[] = $this->makeItem(
+                'sysreq.phpExtension',
+                null,
+                null,
+                $status,
+                null,
+                [$extName],
+                $loaded ? 'sysreq.loaded' : 'sysreq.notLoaded',
+            );
         }
 
-        return $this->makeCategory('PHP Requirements', $items);
+        return $this->makeCategory('sysreq.phpRequirements', $items);
     }
 
     /**
@@ -88,29 +96,64 @@ final class SystemRequirementsService
 
         if ($hasImagick) {
             $imagickVersion = phpversion('imagick') !== false ? phpversion('imagick') : 'unknown';
-            $items[]        = $this->makeItem('Imagick Extension Version', $imagickVersion, null, 'success');
+            $items[]        = $this->makeItem('sysreq.imagickVersion', $imagickVersion, null, 'success');
 
             try {
                 $imInfo    = Imagick::getVersion();
                 $imVersion = $imInfo['versionString'];
-                $items[]   = $this->makeItem('ImageMagick Version', $imVersion, null, 'success');
+                $items[]   = $this->makeItem('sysreq.imageMagickVersion', $imVersion, null, 'success');
 
                 $formats = Imagick::queryFormats();
                 $avif    = in_array('AVIF', $formats, true);
                 $webp    = in_array('WEBP', $formats, true);
-                $items[] = $this->makeItem('WebP Support', $webp ? 'Yes' : 'No', 'Optional', $webp ? 'success' : 'warning');
-                $items[] = $this->makeItem('AVIF Support', $avif ? 'Yes' : 'No', 'Optional', $avif ? 'success' : 'warning');
+                $items[] = $this->makeItem(
+                    'sysreq.webpSupport',
+                    null,
+                    null,
+                    $webp ? 'success' : 'warning',
+                    null,
+                    [],
+                    $webp ? 'sysreq.yes' : 'sysreq.no',
+                    'sysreq.optional',
+                );
+                $items[] = $this->makeItem(
+                    'sysreq.avifSupport',
+                    null,
+                    null,
+                    $avif ? 'success' : 'warning',
+                    null,
+                    [],
+                    $avif ? 'sysreq.yes' : 'sysreq.no',
+                    'sysreq.optional',
+                );
 
                 $relevant = array_values(array_intersect($formats, ['AVIF', 'WEBP', 'JPEG', 'JPG', 'PNG', 'GIF', 'SVG']));
-                $items[]  = $this->makeItem('Supported Formats', implode(', ', $relevant), null, 'success');
+                $items[]  = $this->makeItem('sysreq.supportedFormats', implode(', ', $relevant), null, 'success');
             } catch (Throwable $e) {
-                $items[] = $this->makeItem('ImageMagick Version', 'unavailable', null, 'warning', $e->getMessage());
+                $items[] = $this->makeItem(
+                    'sysreq.imageMagickVersion',
+                    null,
+                    null,
+                    'warning',
+                    $e->getMessage(),
+                    [],
+                    'sysreq.unavailable',
+                );
             }
         } else {
-            $items[] = $this->makeItem('Imagick Extension', 'Not loaded', 'Recommended', 'warning');
+            $items[] = $this->makeItem(
+                'sysreq.imagickVersion',
+                null,
+                null,
+                'warning',
+                null,
+                [],
+                'sysreq.notLoaded',
+                'sysreq.recommended',
+            );
         }
 
-        return $this->makeCategory('ImageMagick (Primary Driver)', $items);
+        return $this->makeCategory('sysreq.imageMagickCategory', $items);
     }
 
     /**
@@ -124,17 +167,44 @@ final class SystemRequirementsService
 
         if (extension_loaded('gd')) {
             $info    = gd_info();
-            $items[] = $this->makeItem('GD Version', $info['GD Version'] ?? 'unknown', null, 'success');
+            $items[] = $this->makeItem('sysreq.gdVersion', $info['GD Version'] ?? 'unknown', null, 'success');
 
             $webp    = (bool) ($info['WebP Support'] ?? false);
             $avif    = (bool) ($info['AVIF Support'] ?? false);
-            $items[] = $this->makeItem('WebP Support', $webp ? 'Yes' : 'No', 'Optional', $webp ? 'success' : 'warning');
-            $items[] = $this->makeItem('AVIF Support', $avif ? 'Yes' : 'No', 'Optional', $avif ? 'success' : 'warning');
+            $items[] = $this->makeItem(
+                'sysreq.webpSupport',
+                null,
+                null,
+                $webp ? 'success' : 'warning',
+                null,
+                [],
+                $webp ? 'sysreq.yes' : 'sysreq.no',
+                'sysreq.optional',
+            );
+            $items[] = $this->makeItem(
+                'sysreq.avifSupport',
+                null,
+                null,
+                $avif ? 'success' : 'warning',
+                null,
+                [],
+                $avif ? 'sysreq.yes' : 'sysreq.no',
+                'sysreq.optional',
+            );
         } else {
-            $items[] = $this->makeItem('GD Extension', 'Not loaded', 'Fallback', 'warning');
+            $items[] = $this->makeItem(
+                'sysreq.gdVersion',
+                null,
+                null,
+                'warning',
+                null,
+                [],
+                'sysreq.notLoaded',
+                'sysreq.fallback',
+            );
         }
 
-        return $this->makeCategory('GD Library (Fallback Driver)', $items);
+        return $this->makeCategory('sysreq.gdCategory', $items);
     }
 
     /**
@@ -159,10 +229,20 @@ final class SystemRequirementsService
                 $installed = $version !== null;
             }
 
-            $items[] = $this->makeItem($label, $version ?? 'Not installed', null, $installed ? 'success' : 'error');
+            $items[] = $this->makeItem(
+                null,
+                $version,
+                null,
+                $installed ? 'success' : 'error',
+                null,
+                [],
+                $installed ? null : 'sysreq.notInstalled',
+                null,
+                $label,
+            );
         }
 
-        return $this->makeCategory('Composer Dependencies', $items);
+        return $this->makeCategory('sysreq.composerDeps', $items);
     }
 
     /**
@@ -175,9 +255,9 @@ final class SystemRequirementsService
         $typo3   = (new Typo3Version())->getVersion();
         $ok      = version_compare($typo3, '13.4.0', '>=');
         $items   = [];
-        $items[] = $this->makeItem('TYPO3 Version', $typo3, '>= 13.4', $ok ? 'success' : 'error');
+        $items[] = $this->makeItem('sysreq.typo3Version', $typo3, '>= 13.4', $ok ? 'success' : 'error');
 
-        return $this->makeCategory('TYPO3 Requirements', $items);
+        return $this->makeCategory('sysreq.typo3Requirements', $items);
     }
 
     /**
@@ -196,7 +276,16 @@ final class SystemRequirementsService
         $disabled    = array_map(trim(...), explode(',', $disableFunctions));
         $execAllowed = function_exists('exec') && !in_array('exec', $disabled, true);
 
-        $items[] = $this->makeItem('PHP exec() Availability', $execAllowed ? 'Enabled' : 'Disabled', 'Optional', $execAllowed ? 'success' : 'warning');
+        $items[] = $this->makeItem(
+            'sysreq.execAvailability',
+            null,
+            null,
+            $execAllowed ? 'success' : 'warning',
+            null,
+            [],
+            $execAllowed ? 'sysreq.enabled' : 'sysreq.disabled',
+            'sysreq.optional',
+        );
 
         $checkBin = static function (string $cmd) use ($execAllowed): array {
             if (!$execAllowed) {
@@ -226,10 +315,20 @@ final class SystemRequirementsService
         foreach ($cliTools as $cmd => $label) {
             $res     = $checkBin($cmd);
             $status  = $res['available'] === true ? 'success' : 'warning';
-            $items[] = $this->makeItem($label, ($res['available'] === true) ? 'Found' : 'Not found', 'Optional', $status, $res['version']);
+            $items[] = $this->makeItem(
+                null,
+                null,
+                null,
+                $status,
+                $res['version'],
+                [],
+                ($res['available'] === true) ? 'sysreq.found' : 'sysreq.notFound',
+                'sysreq.optional',
+                $label,
+            );
         }
 
-        return $this->makeCategory('CLI Tools (Optional)', $items);
+        return $this->makeCategory('sysreq.cliTools', $items);
     }
 
     /**
@@ -276,31 +375,49 @@ final class SystemRequirementsService
      *
      * @return array<string, mixed>
      */
-    private function makeCategory(string $label, array $items): array
+    private function makeCategory(string $labelKey, array $items): array
     {
-        return ['label' => $label, 'items' => $items];
+        return ['labelKey' => $labelKey, 'items' => $items];
     }
 
     /**
      * Create an item array for template rendering.
      *
+     * @param string|null        $labelKey       Translation key for the label
+     * @param string|null        $current        Current value (raw string, not translated)
+     * @param string|null        $required       Required value (raw string, not translated)
+     * @param string             $status         Status: 'success', 'warning', or 'error'
+     * @param string|null        $details        Tooltip details
+     * @param array<int, string> $labelArguments Arguments for the label translation key
+     * @param string|null        $currentKey     Translation key for the current value
+     * @param string|null        $requiredKey    Translation key for the required value
+     * @param string|null        $label          Raw label (used when no translation key applies)
+     *
      * @return array<string, mixed>
      */
     private function makeItem(
-        string $label,
+        ?string $labelKey,
         ?string $current,
         ?string $required,
         string $status,
         ?string $details = null,
+        array $labelArguments = [],
+        ?string $currentKey = null,
+        ?string $requiredKey = null,
+        ?string $label = null,
     ): array {
         return [
-            'label'      => $label,
-            'current'    => $current,
-            'required'   => $required,
-            'status'     => $status,
-            'details'    => $details,
-            'icon'       => $this->iconForStatus($status),
-            'badgeClass' => $this->badgeForStatus($status),
+            'labelKey'       => $labelKey ?? '',
+            'label'          => $label ?? '',
+            'labelArguments' => $labelArguments,
+            'current'        => $current,
+            'currentKey'     => $currentKey,
+            'required'       => $required,
+            'requiredKey'    => $requiredKey,
+            'status'         => $status,
+            'details'        => $details,
+            'icon'           => $this->iconForStatus($status),
+            'badgeClass'     => $this->badgeForStatus($status),
         ];
     }
 
