@@ -34,7 +34,9 @@ use function preg_match;
 use ReflectionMethod;
 
 use function rmdir;
+use function sys_get_temp_dir;
 
+use TYPO3\CMS\Core\Core\ApplicationContext;
 use TYPO3\CMS\Core\Core\Environment;
 
 use function uniqid;
@@ -48,6 +50,20 @@ class SourceSetViewHelperTest extends TestCase
     #[Before]
     protected function setUp(): void
     {
+        $tempDir = sys_get_temp_dir() . '/nr-image-optimize-test';
+
+        Environment::initialize(
+            new ApplicationContext('Testing'),
+            true,
+            true,
+            $tempDir,
+            $tempDir . '/public',
+            $tempDir . '/var',
+            $tempDir . '/config',
+            $tempDir . '/public/index.php',
+            'UNIX',
+        );
+
         $this->viewHelper = new SourceSetViewHelper();
         $this->viewHelper->initializeArguments();
     }
