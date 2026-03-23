@@ -1,6 +1,6 @@
 <?php
 
-/**
+/*
  * This file is part of the package netresearch/nr-image-optimize.
  *
  * For the full copyright and license information, please read the
@@ -91,13 +91,11 @@ final class SystemRequirementsService
             $items[]        = $this->makeItem('Imagick Extension Version', $imagickVersion, null, 'success');
 
             try {
-                $im = new Imagick();
-                // @phpstan-ignore-next-line staticMethod.dynamicCall
+                $im        = new Imagick();
                 $imInfo    = $im->getVersion();
                 $imVersion = $imInfo['versionString'];
                 $items[]   = $this->makeItem('ImageMagick Version', $imVersion, null, 'success');
 
-                // @phpstan-ignore-next-line staticMethod.dynamicCall
                 $formats = $im->queryFormats();
                 $avif    = in_array('AVIF', $formats, true);
                 $webp    = in_array('WEBP', $formats, true);

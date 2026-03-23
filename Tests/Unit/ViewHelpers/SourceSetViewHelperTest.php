@@ -1,6 +1,6 @@
 <?php
 
-/**
+/*
  * This file is part of the package netresearch/nr-image-optimize.
  *
  * For the full copyright and license information, please read the
@@ -11,14 +11,6 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Tests\Unit\ViewHelpers;
 
-use Netresearch\NrImageOptimize\ViewHelpers\SourceSetViewHelper;
-use PHPUnit\Framework\Attributes\Before;
-use PHPUnit\Framework\Attributes\CoversClass;
-use PHPUnit\Framework\Attributes\Test;
-use PHPUnit\Framework\TestCase;
-use ReflectionMethod;
-use TYPO3\CMS\Core\Core\Environment;
-
 use function array_filter;
 use function array_map;
 use function base64_decode;
@@ -27,9 +19,24 @@ use function file_put_contents;
 use function floor;
 use function is_dir;
 use function mkdir;
+
+use Netresearch\NrImageOptimize\ViewHelpers\SourceSetViewHelper;
+
 use function pathinfo;
+
+use PHPUnit\Framework\Attributes\Before;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\TestCase;
+
 use function preg_match;
+
+use ReflectionMethod;
+
 use function rmdir;
+
+use TYPO3\CMS\Core\Core\Environment;
+
 use function uniqid;
 use function unlink;
 
@@ -108,7 +115,7 @@ class SourceSetViewHelperTest extends TestCase
 
         $variants = array_filter(
             array_map(trim(...), explode(',', $matches[1])),
-            static fn (string $variant): bool => $variant !== ''
+            static fn (string $variant): bool => $variant !== '',
         );
         self::assertNotEmpty($variants);
 
@@ -269,7 +276,7 @@ class SourceSetViewHelperTest extends TestCase
 
         $variants = array_filter(
             array_map(trim(...), explode(',', $matches[1])),
-            static fn (string $variant): bool => $variant !== ''
+            static fn (string $variant): bool => $variant !== '',
         );
 
         foreach ($variants as $variant) {
@@ -317,12 +324,12 @@ class SourceSetViewHelperTest extends TestCase
         $absolutePath = $publicPath . $relativePath;
 
         if (!is_dir($directory)) {
-            mkdir($directory, 0777, true);
+            mkdir($directory, 0o777, true);
         }
 
         $imageBinary = base64_decode(
             'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/woAAgMBgBZ20G8AAAAASUVORK5CYII=',
-            true
+            true,
         );
         self::assertNotFalse($imageBinary);
         file_put_contents($absolutePath, $imageBinary);
@@ -337,7 +344,7 @@ class SourceSetViewHelperTest extends TestCase
             '/processed%s/%s.w1h1m0q92.%s',
             pathinfo($relativePath, PATHINFO_DIRNAME),
             pathinfo($relativePath, PATHINFO_FILENAME),
-            pathinfo($relativePath, PATHINFO_EXTENSION)
+            pathinfo($relativePath, PATHINFO_EXTENSION),
         );
 
         self::assertSame($expected, $result);
@@ -400,12 +407,12 @@ class SourceSetViewHelperTest extends TestCase
             [
                 'src' => '/processed/example.jpg',
                 'alt' => 'Example',
-            ]
+            ],
         );
 
         self::assertSame(
             '<img src="/processed/example.jpg" alt="Example" data-track="hero" aria-hidden="true" />' . PHP_EOL,
-            $result
+            $result,
         );
     }
 

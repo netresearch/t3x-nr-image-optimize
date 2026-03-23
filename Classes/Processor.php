@@ -1,6 +1,6 @@
 <?php
 
-/**
+/*
  * This file is part of the package netresearch/nr-image-optimize.
  *
  * For the full copyright and license information, please read the
@@ -11,12 +11,34 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize;
 
+use function array_search;
+use function dirname;
+use function file_exists;
+use function file_get_contents;
+
 use GuzzleHttp\Psr7\Query;
+
+use function header;
+
 use Intervention\Image\Drivers\Imagick\Driver;
 use Intervention\Image\ImageManager;
 use Intervention\Image\Interfaces\ImageInterface;
+
+use function is_dir;
+use function md5;
+use function mkdir;
+use function preg_match;
+use function preg_match_all;
+
 use Psr\Http\Message\RequestInterface;
+
+use function round;
+
 use RuntimeException;
+
+use function sprintf;
+use function strtolower;
+
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Locking\Exception\LockCreateException;
 use TYPO3\CMS\Core\Locking\LockFactory;
@@ -24,19 +46,6 @@ use TYPO3\CMS\Core\Locking\LockingStrategyInterface;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\HttpUtility;
 
-use function array_search;
-use function dirname;
-use function file_exists;
-use function file_get_contents;
-use function header;
-use function is_dir;
-use function md5;
-use function mkdir;
-use function preg_match;
-use function preg_match_all;
-use function round;
-use function sprintf;
-use function strtolower;
 use function urldecode;
 use function usleep;
 
@@ -53,7 +62,8 @@ use function usleep;
  * @author  Axel Seemann <axel.seemann@netresearch.de>
  * @author  Rico Sonntag <rico.sonntag@netresearch.de>
  * @license Netresearch https://www.netresearch.de
- * @link    https://www.netresearch.de
+ *
+ * @see    https://www.netresearch.de
  */
 class Processor
 {
@@ -127,7 +137,7 @@ class Processor
     public function __construct()
     {
         $this->imageManager = new ImageManager(
-            new Driver()
+            new Driver(),
         );
     }
 
@@ -154,7 +164,7 @@ class Processor
         preg_match(
             '/^(\/processed\/)(.*)\.([0-9whqm]+)\.([a-zA-Z0-9]{1,4})$/',
             $this->variantUrl,
-            $information
+            $information,
         );
 
         $basePath = Environment::getPublicPath();
@@ -383,14 +393,14 @@ class Processor
         $dir = dirname($this->pathVariant);
 
         if (!is_dir($dir)
-            && !mkdir($dir, 0775, true)
+            && !mkdir($dir, 0o775, true)
             && !is_dir($dir)
         ) {
             throw new RuntimeException(
                 sprintf(
                     'Directory "%s" was not created',
-                    $dir
-                )
+                    $dir,
+                ),
             );
         }
 

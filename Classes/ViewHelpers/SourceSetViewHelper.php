@@ -1,6 +1,6 @@
 <?php
 
-/**
+/*
  * This file is part of the package netresearch/nr-image-optimize.
  *
  * For the full copyright and license information, please read the
@@ -10,10 +10,6 @@
 declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\ViewHelpers;
-
-use TYPO3\CMS\Core\Core\Environment;
-use TYPO3\CMS\Core\Utility\PathUtility;
-use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper;
 
 use function array_filter;
 use function array_unique;
@@ -30,6 +26,10 @@ use function sprintf;
 use function str_contains;
 use function trim;
 
+use TYPO3\CMS\Core\Core\Environment;
+use TYPO3\CMS\Core\Utility\PathUtility;
+use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper;
+
 /**
  * Fluid ViewHelper that renders a responsive <picture> source set and <img> tag
  * for images processed by the on-the-fly processor. It generates URLs pointing
@@ -42,7 +42,8 @@ use function trim;
  * @author  Axel Seemann <axel.seemann@netresearch.de>
  * @author  Rico Sonntag <rico.sonntag@netresearch.de>
  * @license Netresearch https://www.netresearch.de
- * @link    https://www.netresearch.de
+ *
+ * @see    https://www.netresearch.de
  */
 class SourceSetViewHelper extends AbstractViewHelper
 {
@@ -163,8 +164,8 @@ class SourceSetViewHelper extends AbstractViewHelper
                     static fn (int|string|null $value, string|int $key): bool => $key === 'alt'
                         ? $value !== null
                         : ($value !== null) && ($value !== ''),
-                    ARRAY_FILTER_USE_BOTH
-                )
+                    ARRAY_FILTER_USE_BOTH,
+                ),
             );
     }
 
@@ -198,8 +199,8 @@ class SourceSetViewHelper extends AbstractViewHelper
                     static fn (int|string|null $value, string|int $key): bool => $key === 'alt'
                         ? $value !== null
                         : ($value !== null) && ($value !== ''),
-                    ARRAY_FILTER_USE_BOTH
-                )
+                    ARRAY_FILTER_USE_BOTH,
+                ),
             );
     }
 
@@ -306,7 +307,7 @@ class SourceSetViewHelper extends AbstractViewHelper
             $pathInfo['dirname'] ?? '',
             $pathInfo['filename'] ?? '',
             $generatorConfig,
-            $pathInfo['extension'] ?? ''
+            $pathInfo['extension'] ?? '',
         );
 
         $queryArgs = [
@@ -337,7 +338,7 @@ class SourceSetViewHelper extends AbstractViewHelper
             $srcSet         = sprintf(
                 '%s, %s x2',
                 $this->getResourcePath($this->getArgPath(), $dimensions['width'], $dimensions['height'] ?? 0),
-                $this->getResourcePath($this->getArgPath(), $dimensions['width'] * 2, ($dimensions['height'] ?? 0) * 2)
+                $this->getResourcePath($this->getArgPath(), $dimensions['width'] * 2, ($dimensions['height'] ?? 0) * 2),
             );
             $props['srcset']      = $srcSet;
             $props['data-srcset'] = $srcSet;

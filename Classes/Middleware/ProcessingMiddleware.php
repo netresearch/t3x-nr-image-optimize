@@ -1,6 +1,6 @@
 <?php
 
-/**
+/*
  * This file is part of the package netresearch/nr-image-optimize.
  *
  * For the full copyright and license information, please read the
@@ -29,7 +29,8 @@ use function str_starts_with;
  *
  * @author  Axel Seemann <axel.seemann@netresearch.de>
  * @license Netresearch https://www.netresearch.de
- * @link    https://www.netresearch.de
+ *
+ * @see    https://www.netresearch.de
  */
 readonly class ProcessingMiddleware implements MiddlewareInterface
 {

@@ -1,6 +1,6 @@
 <?php
 
-/**
+/*
  * This file is part of the package netresearch/nr-image-optimize.
  *
  * For the full copyright and license information, please read the
@@ -75,11 +75,11 @@ class ProcessorTest extends TestCase
 
         self::assertSame(
             $basePath . '/processed/path/to/image.w800h400q75m1.webp',
-            $this->getProperty($processor, 'pathVariant')
+            $this->getProperty($processor, 'pathVariant'),
         );
         self::assertSame(
             $basePath . '/path/to/image.webp',
-            $this->getProperty($processor, 'pathOriginal')
+            $this->getProperty($processor, 'pathOriginal'),
         );
         self::assertSame(800, $this->getProperty($processor, 'targetWidth'));
         self::assertSame(400, $this->getProperty($processor, 'targetHeight'));
