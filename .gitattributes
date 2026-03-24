@@ -8,4 +8,5 @@
 /Makefile         export-ignore
 /CHANGELOG.md     export-ignore
 /captainhook.json export-ignore
+/codecov.yml      export-ignore
 /renovate.json    export-ignore
