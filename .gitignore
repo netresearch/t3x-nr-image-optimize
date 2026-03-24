@@ -26,3 +26,8 @@ coverage/
 .php-cs-fixer.cache
 .phplint.cache
 .phpunit.result.cache
+
+# TYPO3 testing-framework bootstrap artifacts
+/index.php
+/typo3/
+/typo3conf/
