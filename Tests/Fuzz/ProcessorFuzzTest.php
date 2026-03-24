@@ -198,7 +198,7 @@ final class ProcessorFuzzTest extends TestCase
 
             // Verify resolved paths do not escape the public root
             if (isset($result['pathOriginal']) && $result['pathOriginal'] !== '') {
-                $resolvedDir = realpath(dirname($result['pathOriginal']));
+                $resolvedDir = realpath(dirname((string) $result['pathOriginal']));
                 $resolved    = $resolvedDir !== false ? $resolvedDir : $result['pathOriginal'];
                 $publicPath  = Environment::getPublicPath();
 
