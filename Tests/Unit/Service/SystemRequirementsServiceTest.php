@@ -205,9 +205,7 @@ class SystemRequirementsServiceTest extends TestCase
         self::assertSame('>= 8.2.0', $phpVersion['required']);
 
         // PHP 8.2+ should be success
-        if (version_compare(PHP_VERSION, '8.2.0', '>=')) {
-            self::assertSame('success', $phpVersion['status']);
-        }
+        self::assertSame('success', $phpVersion['status']);
 
         // Check that extension items are present (imagick, gd, mbstring, exif)
         self::assertGreaterThanOrEqual(5, count($result['items']));
