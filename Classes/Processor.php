@@ -203,7 +203,7 @@ class Processor
         $information = [];
 
         preg_match(
-            '/^(\/processed\/)(.*)\.([0-9whqm]+)\.([a-zA-Z0-9]{1,4})$/',
+            '/^(\/processed\/)((?:(?!\.\.).)*)\.([0-9whqm]+)\.([a-zA-Z0-9]{1,4})$/',
             $variantUrl,
             $information,
         );

@@ -20,7 +20,6 @@ use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\StreamFactoryInterface;
 use ReflectionMethod;
-use Throwable;
 use TYPO3\CMS\Core\Core\ApplicationContext;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Locking\LockFactory;
@@ -124,11 +123,12 @@ final class ProcessorFuzzTest extends TestCase
     private function randomModeString(): string
     {
         $chars  = 'wWhHqQmM0123456789-.';
+        $max    = strlen($chars) - 1;
         $length = random_int(0, 30);
         $result = '';
 
         for ($i = 0; $i < $length; ++$i) {
-            $result .= $chars[random_int(0, strlen($chars) - 1)];
+            $result .= $chars[random_int(0, $max)];
         }
 
         return $result;
@@ -142,16 +142,9 @@ final class ProcessorFuzzTest extends TestCase
         for ($i = 0; $i < 500; ++$i) {
             $url = $this->randomUrlPath();
 
-            try {
-                $result = $method->invoke($this->processor, $url);
-                // If it returns, it must be an array
-                self::assertIsArray($result, sprintf('Expected array for URL: %s', $url));
-            } catch (Throwable) {
-                // TypeError or ValueError from PHP internals are acceptable;
-                // segfaults / fatal errors would terminate the test runner
-                // and never reach this catch block.
-                self::addToAssertionCount(1);
-            }
+            $result = $method->invoke($this->processor, $url);
+            // If it returns, it must be an array
+            self::assertIsArray($result, sprintf('Expected array for URL: %s', $url));
         }
     }
 
@@ -165,18 +158,17 @@ final class ProcessorFuzzTest extends TestCase
             $identifier = $identifiers[array_rand($identifiers)];
             $mode       = $this->randomModeString();
 
-            try {
-                $result = $method->invoke($this->processor, $identifier, $mode);
-                // Must return int or null
-                self::assertTrue(
-                    $result === null || is_int($result),
-                    sprintf('Expected int|null for identifier=%s mode=%s, got %s', $identifier, $mode, get_debug_type($result)),
-                );
-            } catch (Throwable) {
-                // Exceptions are acceptable; fatal crashes would terminate
-                // the test runner and never reach this catch block.
-                self::addToAssertionCount(1);
-            }
+            $result = $method->invoke($this->processor, $identifier, $mode);
+            // Must return int or null
+            self::assertTrue(
+                $result === null || is_int($result),
+                sprintf(
+                    'Expected int|null for identifier=%s mode=%s, got %s',
+                    $identifier,
+                    $mode,
+                    get_debug_type($result),
+                ),
+            );
         }
     }
 
@@ -189,7 +181,7 @@ final class ProcessorFuzzTest extends TestCase
             '',
             '/',
             '//',
-            '/../../../etc/passwd',
+            '/processed/../../../etc/passwd.w100.jpg',
             '/processed/' . str_repeat('a', 1000) . '.w100.jpg',
             "/processed/image.w\x00100.jpg",
             '/processed/image.w999999999999.jpg',
@@ -201,11 +193,27 @@ final class ProcessorFuzzTest extends TestCase
         ];
 
         foreach ($edgeCases as $url) {
-            try {
-                $result = $method->invoke($this->processor, $url);
-                self::assertIsArray($result, sprintf('Expected array for edge case: %s', $url));
-            } catch (Throwable) {
-                // Exceptions are acceptable; crashes are not
+            $result = $method->invoke($this->processor, $url);
+            self::assertIsArray($result, sprintf('Expected array for edge case URL "%s"', $url));
+
+            // Verify resolved paths do not escape the public root
+            if (isset($result['pathOriginal']) && $result['pathOriginal'] !== '') {
+                $resolvedDir = realpath(dirname($result['pathOriginal']));
+                $resolved    = $resolvedDir !== false ? $resolvedDir : $result['pathOriginal'];
+                $publicPath  = Environment::getPublicPath();
+
+                if ($publicPath !== '') {
+                    self::assertStringStartsWith(
+                        $publicPath,
+                        $resolved,
+                        sprintf(
+                            'Path traversal detected for URL "%s": pathOriginal "%s" escapes public root "%s"',
+                            $url,
+                            $result['pathOriginal'],
+                            $publicPath,
+                        ),
+                    );
+                }
             }
         }
     }
