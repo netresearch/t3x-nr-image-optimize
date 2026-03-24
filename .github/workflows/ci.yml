@@ -32,6 +32,9 @@ jobs:
     uses: netresearch/typo3-ci-workflows/.github/workflows/fuzz.yml@main
     permissions:
       contents: read
+    with:
+      run-fuzz-tests: true
+      phpunit-config: 'Build/FuzzTests.xml'
 
   license-check:
     uses: netresearch/typo3-ci-workflows/.github/workflows/license-check.yml@main
