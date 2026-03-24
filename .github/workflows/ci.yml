@@ -34,7 +34,6 @@ jobs:
     permissions:
       contents: read
     with:
-      run-fuzz-tests: true
       phpunit-config: 'Build/FuzzTests.xml'
 
   license-check:
