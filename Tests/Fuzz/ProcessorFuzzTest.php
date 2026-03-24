@@ -177,43 +177,69 @@ final class ProcessorFuzzTest extends TestCase
     {
         $method = new ReflectionMethod($this->processor, 'gatherInformationBasedOnUrl');
 
-        $edgeCases = [
+        // Edge cases that should NOT match the regex (return defaults)
+        $nonMatchingCases = [
             '',
             '/',
             '//',
             '/processed/../../../etc/passwd.w100.jpg',
-            '/processed/' . str_repeat('a', 1000) . '.w100.jpg',
             "/processed/image.w\x00100.jpg",
-            '/processed/image.w999999999999.jpg',
-            '/processed/image.w-1h-1q-1m-1.jpg',
-            '/processed/image.w0h0q0m0.jpg',
             '/processed/image.jpg?foo=bar',
-            '/processed/image.w100h200.WEBP',
-            '/processed/image.w100h200.JpEg',
         ];
 
-        foreach ($edgeCases as $url) {
+        foreach ($nonMatchingCases as $url) {
             $result = $method->invoke($this->processor, $url);
             self::assertIsArray($result, sprintf('Expected array for edge case URL "%s"', $url));
+            self::assertNull($result['targetWidth'], sprintf('Expected null targetWidth for non-matching URL "%s"', $url));
+            self::assertNull($result['targetHeight'], sprintf('Expected null targetHeight for non-matching URL "%s"', $url));
+            self::assertSame(100, $result['targetQuality'], sprintf('Expected default targetQuality for non-matching URL "%s"', $url));
+            self::assertSame(0, $result['processingMode'], sprintf('Expected default processingMode for non-matching URL "%s"', $url));
+        }
+
+        // Edge cases that DO match the regex — verify all parsed components
+        $matchingCases = [
+            '/processed/' . str_repeat('a', 1000) . '.w100.jpg' => [
+                'targetWidth' => 100, 'targetHeight' => null, 'targetQuality' => 100, 'processingMode' => 0, 'extension' => 'jpg',
+            ],
+            '/processed/image.w0h0q0m0.jpg' => [
+                'targetWidth' => 0, 'targetHeight' => 0, 'targetQuality' => 0, 'processingMode' => 0, 'extension' => 'jpg',
+            ],
+            '/processed/image.w100h200.WEBP' => [
+                'targetWidth' => 100, 'targetHeight' => 200, 'targetQuality' => 100, 'processingMode' => 0, 'extension' => 'webp',
+            ],
+            '/processed/image.w100h200.JpEg' => [
+                'targetWidth' => 100, 'targetHeight' => 200, 'targetQuality' => 100, 'processingMode' => 0, 'extension' => 'jpg',
+            ],
+            '/processed/image.w50h80q75m1.png' => [
+                'targetWidth' => 50, 'targetHeight' => 80, 'targetQuality' => 75, 'processingMode' => 1, 'extension' => 'png',
+            ],
+        ];
+
+        foreach ($matchingCases as $url => $expected) {
+            $result = $method->invoke($this->processor, $url);
+            self::assertIsArray($result, sprintf('Expected array for edge case URL "%s"', $url));
+            self::assertSame($expected['targetWidth'], $result['targetWidth'], sprintf('Wrong targetWidth for "%s"', $url));
+            self::assertSame($expected['targetHeight'], $result['targetHeight'], sprintf('Wrong targetHeight for "%s"', $url));
+            self::assertSame($expected['targetQuality'], $result['targetQuality'], sprintf('Wrong targetQuality for "%s"', $url));
+            self::assertSame($expected['processingMode'], $result['processingMode'], sprintf('Wrong processingMode for "%s"', $url));
+            self::assertSame($expected['extension'], $result['extension'], sprintf('Wrong extension for "%s"', $url));
 
             // Verify resolved paths do not escape the public root
-            if (isset($result['pathOriginal']) && $result['pathOriginal'] !== '') {
-                $resolvedDir = realpath(dirname($result['pathOriginal']));
-                $resolved    = $resolvedDir !== false ? $resolvedDir : $result['pathOriginal'];
-                $publicPath  = Environment::getPublicPath();
+            $resolvedDir = realpath(dirname((string) $result['pathOriginal']));
+            $resolved    = $resolvedDir !== false ? $resolvedDir : $result['pathOriginal'];
+            $publicPath  = Environment::getPublicPath();
 
-                if ($publicPath !== '') {
-                    self::assertStringStartsWith(
+            if ($publicPath !== '') {
+                self::assertStringStartsWith(
+                    $publicPath,
+                    $resolved,
+                    sprintf(
+                        'Path traversal detected for URL "%s": pathOriginal "%s" escapes public root "%s"',
+                        $url,
+                        $result['pathOriginal'],
                         $publicPath,
-                        $resolved,
-                        sprintf(
-                            'Path traversal detected for URL "%s": pathOriginal "%s" escapes public root "%s"',
-                            $url,
-                            $result['pathOriginal'],
-                            $publicPath,
-                        ),
-                    );
-                }
+                    ),
+                );
             }
         }
     }
