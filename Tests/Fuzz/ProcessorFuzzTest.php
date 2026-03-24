@@ -20,6 +20,7 @@ use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\StreamFactoryInterface;
 use ReflectionMethod;
+use Throwable;
 use TYPO3\CMS\Core\Core\ApplicationContext;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Locking\LockFactory;
@@ -145,14 +146,11 @@ final class ProcessorFuzzTest extends TestCase
                 $result = $method->invoke($this->processor, $url);
                 // If it returns, it must be an array
                 self::assertIsArray($result, sprintf('Expected array for URL: %s', $url));
-            } catch (\Throwable $e) {
-                // TypeError or ValueError from PHP internals are acceptable
-                // but segfaults / fatal errors would terminate the test runner
-                self::assertInstanceOf(
-                    \Throwable::class,
-                    $e,
-                    sprintf('Unexpected crash for URL: %s — %s', $url, $e->getMessage()),
-                );
+            } catch (Throwable) {
+                // TypeError or ValueError from PHP internals are acceptable;
+                // segfaults / fatal errors would terminate the test runner
+                // and never reach this catch block.
+                self::addToAssertionCount(1);
             }
         }
     }
@@ -160,7 +158,7 @@ final class ProcessorFuzzTest extends TestCase
     #[Test]
     public function getValueFromModeDoesNotCrashWithRandomInput(): void
     {
-        $method     = new ReflectionMethod($this->processor, 'getValueFromMode');
+        $method      = new ReflectionMethod($this->processor, 'getValueFromMode');
         $identifiers = ['w', 'h', 'q', 'm', '', 'x', 'W', "\0"];
 
         for ($i = 0; $i < 500; ++$i) {
@@ -174,12 +172,10 @@ final class ProcessorFuzzTest extends TestCase
                     $result === null || is_int($result),
                     sprintf('Expected int|null for identifier=%s mode=%s, got %s', $identifier, $mode, get_debug_type($result)),
                 );
-            } catch (\Throwable $e) {
-                self::assertInstanceOf(
-                    \Throwable::class,
-                    $e,
-                    sprintf('Unexpected crash for identifier=%s mode=%s — %s', $identifier, $mode, $e->getMessage()),
-                );
+            } catch (Throwable) {
+                // Exceptions are acceptable; fatal crashes would terminate
+                // the test runner and never reach this catch block.
+                self::addToAssertionCount(1);
             }
         }
     }
@@ -208,7 +204,7 @@ final class ProcessorFuzzTest extends TestCase
             try {
                 $result = $method->invoke($this->processor, $url);
                 self::assertIsArray($result, sprintf('Expected array for edge case: %s', $url));
-            } catch (\Throwable) {
+            } catch (Throwable) {
                 // Exceptions are acceptable; crashes are not
             }
         }
