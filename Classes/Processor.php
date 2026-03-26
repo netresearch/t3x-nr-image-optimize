@@ -633,7 +633,7 @@ class Processor
             return;
         }
 
-        if (!mkdir($directory, self::DIRECTORY_PERMISSIONS, true) && !is_dir($directory)) {
+        if (!@mkdir($directory, self::DIRECTORY_PERMISSIONS, true) && !is_dir($directory)) {
             throw new RuntimeException(
                 sprintf(
                     'Directory "%s" was not created',

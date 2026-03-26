@@ -452,7 +452,7 @@ final class SystemRequirementsService
             return null;
         }
 
-        $raw = file_get_contents($installedJson);
+        $raw = @file_get_contents($installedJson);
 
         if ($raw === false) {
             return null;
@@ -494,7 +494,7 @@ final class SystemRequirementsService
             return null;
         }
 
-        $raw = file_get_contents($lock);
+        $raw = @file_get_contents($lock);
 
         if ($raw === false) {
             return null;
