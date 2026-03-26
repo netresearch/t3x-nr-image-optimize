@@ -594,6 +594,10 @@ class Processor
             usleep(self::LOCK_RETRY_INTERVAL_USEC);
         }
 
+        // Hardcoded English string is intentional: this is an HTTP API response in a
+        // middleware context where LocalizationUtility is not available. The translation
+        // key 'processor.error.imageBeingProcessed' exists in the XLF files but cannot
+        // be used here.
         return $this->responseFactory->createResponse(503)
             ->withBody($this->streamFactory->createStream(
                 'Image is currently being processed',
