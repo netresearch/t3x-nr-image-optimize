@@ -85,6 +85,14 @@ class SourceSetViewHelper extends AbstractViewHelper
     protected $escapeChildren = false;
 
     /**
+     * Cache for getimagesize() results to avoid repeated disk I/O for the same
+     * image file during a single request cycle.
+     *
+     * @var array<string, array{0: int, 1: int}|false>
+     */
+    private static array $imageSizeCache = [];
+
+    /**
      * Register and describe supported ViewHelper arguments.
      */
     public function initializeArguments(): void
@@ -135,6 +143,8 @@ class SourceSetViewHelper extends AbstractViewHelper
     private function renderResponsiveSrcset(int $width, int $height): string
     {
         $widthVariants = $this->getWidthVariants();
+        $path          = $this->getArgPath();
+        $jsLazy        = $this->useJsLazyLoad();
 
         $aspectRatio = ($width > 0 && $height > 0) ? $height / $width : 0.0;
 
@@ -142,19 +152,19 @@ class SourceSetViewHelper extends AbstractViewHelper
 
         foreach ($widthVariants as $variantWidth) {
             $variantHeight   = $this->calculateVariantHeight($variantWidth, $aspectRatio);
-            $url             = $this->getResourcePath($this->getArgPath(), $variantWidth, $variantHeight);
+            $url             = $this->getResourcePath($path, $variantWidth, $variantHeight);
             $srcsetEntries[] = $url . ' ' . $variantWidth . 'w';
         }
 
         $srcSet  = implode(', ', $srcsetEntries);
-        $srcPath = $this->getResourcePath($this->getArgPath(), $width, $height);
+        $srcPath = $this->getResourcePath($path, $width, $height);
 
         $sizesValue = $this->arguments['sizes'] ?? self::DEFAULT_SIZES;
 
-        $props          = $this->buildImageAttributes($srcPath, $srcSet, $width, $height);
+        $props          = $this->buildImageAttributes($srcPath, $srcSet, $width, $height, $jsLazy);
         $props['sizes'] = $sizesValue;
 
-        if ($this->useJsLazyLoad()) {
+        if ($jsLazy) {
             $props['data-src']    = $srcPath;
             $props['data-srcset'] = $srcSet;
         }
@@ -173,12 +183,15 @@ class SourceSetViewHelper extends AbstractViewHelper
      */
     private function renderLegacyDensitySrcset(int $width, int $height): string
     {
-        $srcSet  = $this->getResourcePath($this->getArgPath(), $width * self::RETINA_MULTIPLIER, $height * self::RETINA_MULTIPLIER) . ' x2';
-        $srcPath = $this->getResourcePath($this->getArgPath(), $width, $height);
+        $path   = $this->getArgPath();
+        $jsLazy = $this->useJsLazyLoad();
 
-        $props = $this->buildImageAttributes($srcPath, $srcSet, $width, $height);
+        $srcSet  = $this->getResourcePath($path, $width * self::RETINA_MULTIPLIER, $height * self::RETINA_MULTIPLIER) . ' x2';
+        $srcPath = $this->getResourcePath($path, $width, $height);
 
-        if ($this->useJsLazyLoad()) {
+        $props = $this->buildImageAttributes($srcPath, $srcSet, $width, $height, $jsLazy);
+
+        if ($jsLazy) {
             $props['data-src']    = $srcPath;
             $props['data-srcset'] = $srcSet;
         }
@@ -194,13 +207,14 @@ class SourceSetViewHelper extends AbstractViewHelper
      * @param string $srcSet  Srcset attribute value
      * @param int    $width   Image width in pixels
      * @param int    $height  Image height in pixels
+     * @param bool   $jsLazy  Whether JS-based lazy loading is active
      *
      * @return array<string, int|string> Attribute map
      */
-    private function buildImageAttributes(string $srcPath, string $srcSet, int $width, int $height): array
+    private function buildImageAttributes(string $srcPath, string $srcSet, int $width, int $height, bool $jsLazy): array
     {
         return [
-            'src'           => $this->useJsLazyLoad() ? self::LAZY_LOAD_PLACEHOLDER : $srcPath,
+            'src'           => $jsLazy ? self::LAZY_LOAD_PLACEHOLDER : $srcPath,
             'srcset'        => $srcSet,
             'width'         => $width,
             'height'        => $height,
@@ -290,6 +304,9 @@ class SourceSetViewHelper extends AbstractViewHelper
     /**
      * Build a processed image URL for the given path and parameters.
      *
+     * Uses a static cache for getimagesize() results to avoid repeated disk I/O
+     * when the same source image is used for multiple variants in a single page render.
+     *
      * @param string $path     Public path to the original image (e.g., /fileadmin/..)
      * @param int    $width    Target width (0 keeps original)
      * @param int    $height   Target height (0 keeps original)
@@ -313,7 +330,13 @@ class SourceSetViewHelper extends AbstractViewHelper
         }
 
         if ($width === 0 && $height === 0) {
-            $info = @getimagesize(Environment::getPublicPath() . $path);
+            // Use static cache to avoid repeated getimagesize() disk I/O
+            // for the same source image across multiple variant URLs.
+            if (!isset(self::$imageSizeCache[$path])) {
+                self::$imageSizeCache[$path] = @getimagesize(Environment::getPublicPath() . $path);
+            }
+
+            $info = self::$imageSizeCache[$path];
 
             if ($info !== false) {
                 $width  = $info[0];
@@ -327,12 +350,7 @@ class SourceSetViewHelper extends AbstractViewHelper
             return $path;
         }
 
-        $generatorConfig = implode('', [
-            'w' . $width,
-            'h' . $height,
-            'm' . $this->getArgMode(),
-            'q' . $quality,
-        ]);
+        $generatorConfig = 'w' . $width . 'h' . $height . 'm' . $this->getArgMode() . 'q' . $quality;
 
         $url = sprintf(
             '/processed%s/%s.%s.%s',
@@ -362,13 +380,15 @@ class SourceSetViewHelper extends AbstractViewHelper
     public function generateSrcSet(): string
     {
         $return = '';
+        $path   = $this->getArgPath();
+        $jsLazy = $this->useJsLazyLoad();
 
         foreach ($this->getArgSet() as $maxWidth => $dimensions) {
             $dimensionHeight = $dimensions['height'] ?? 0;
             $srcSet          = sprintf(
                 '%s, %s x2',
-                $this->getResourcePath($this->getArgPath(), $dimensions['width'], $dimensionHeight),
-                $this->getResourcePath($this->getArgPath(), $dimensions['width'] * self::RETINA_MULTIPLIER, $dimensionHeight * self::RETINA_MULTIPLIER),
+                $this->getResourcePath($path, $dimensions['width'], $dimensionHeight),
+                $this->getResourcePath($path, $dimensions['width'] * self::RETINA_MULTIPLIER, $dimensionHeight * self::RETINA_MULTIPLIER),
             );
 
             $sourceProps = [
@@ -376,7 +396,7 @@ class SourceSetViewHelper extends AbstractViewHelper
                 'srcset' => $srcSet,
             ];
 
-            if ($this->useJsLazyLoad()) {
+            if ($jsLazy) {
                 $sourceProps['data-srcset'] = $srcSet;
             }
 

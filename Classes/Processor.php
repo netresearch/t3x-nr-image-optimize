@@ -11,10 +11,12 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize;
 
-use function array_search;
 use function dirname;
 use function file_exists;
 use function file_get_contents;
+use function filemtime;
+use function filesize;
+use function gmdate;
 
 use Intervention\Image\ImageManager;
 use Intervention\Image\Interfaces\ImageInterface;
@@ -100,6 +102,40 @@ class Processor
     private const MAX_QUALITY = 100;
 
     /**
+     * Cache-Control max-age for processed images (1 year in seconds).
+     * Processed image URLs contain dimension/quality parameters, making them
+     * effectively content-addressed -- the URL changes whenever the variant changes.
+     */
+    private const CACHE_MAX_AGE = 31_536_000;
+
+    /**
+     * Maps file extensions to MIME types for processed image responses.
+     *
+     * @var array<string, string>
+     */
+    private const EXTENSION_MIME_MAP = [
+        'jpg'  => 'image/jpeg',
+        'jpeg' => 'image/jpeg',
+        'png'  => 'image/png',
+        'gif'  => 'image/gif',
+        'webp' => 'image/webp',
+        'avif' => 'image/avif',
+        'bmp'  => 'image/bmp',
+        'tiff' => 'image/tiff',
+        'tif'  => 'image/tiff',
+    ];
+
+    /**
+     * Regex pattern for parsing variant URLs.
+     */
+    private const URL_PATTERN = '/^(\/processed\/)((?:(?!\.\.).)*)\.([0-9whqm]+)\.([a-zA-Z0-9]{1,4})$/';
+
+    /**
+     * Regex pattern for extracting mode values (w, h, q, m) with their numeric values.
+     */
+    private const MODE_PATTERN = '/([hwqm])(\d+)/';
+
+    /**
      * Initialize the image processor with all required dependencies.
      *
      * @param ImageManager             $imageManager    Intervention Image manager used to read/encode images
@@ -117,10 +153,14 @@ class Processor
     /**
      * Entry point invoked by the middleware to handle a processed image request.
      *
-     * Parses the requested variant from the URI, validates that all derived paths
-     * remain within the TYPO3 public root, acquires a processing lock to avoid
-     * duplicate work, loads and resizes/crops the original image, writes the
-     * processed files (including optional WebP/AVIF variants), and returns a
+     * First checks whether the requested variant (or a preferred AVIF/WebP version)
+     * already exists on disk and serves it directly with full HTTP caching headers,
+     * avoiding all image processing overhead.
+     *
+     * If no cached file exists, parses the requested variant from the URI, validates
+     * that all derived paths remain within the TYPO3 public root, acquires a processing
+     * lock to avoid duplicate work, loads and resizes/crops the original image, writes
+     * the processed files (including optional WebP/AVIF variants), and returns a
      * PSR-7 response with the best available representation.
      *
      * Returns 400 if the URL does not match the expected pattern or path validation
@@ -149,6 +189,14 @@ class Processor
             return $this->responseFactory->createResponse(400);
         }
 
+        // Short-circuit: serve the already-processed file directly from disk,
+        // bypassing lock acquisition, image loading, and all processing.
+        $cachedResponse = $this->serveCachedVariant($urlInfo['pathVariant'], $urlInfo['extension']);
+
+        if ($cachedResponse instanceof ResponseInterface) {
+            return $cachedResponse;
+        }
+
         $locker = $this->getLocker($variantUrl . '-process');
 
         $lockResponse = $this->acquireLockWithRetry($locker);
@@ -158,12 +206,92 @@ class Processor
         }
 
         try {
+            // Re-check after acquiring lock: another process may have completed
+            // processing while we waited for the lock.
+            $cachedResponse = $this->serveCachedVariant($urlInfo['pathVariant'], $urlInfo['extension']);
+
+            if ($cachedResponse instanceof ResponseInterface) {
+                return $cachedResponse;
+            }
+
             return $this->processAndRespond($request, $urlInfo);
         } catch (Throwable) {
             return $this->responseFactory->createResponse(500);
         } finally {
             $locker->release();
         }
+    }
+
+    /**
+     * Attempt to serve an already-processed variant directly from disk.
+     *
+     * Checks for AVIF and WebP variants first (preferred formats), then falls
+     * back to the primary variant file. Returns null if no cached file exists.
+     *
+     * @param string $pathVariant Absolute path to the primary variant file
+     * @param string $extension   Lowercased extension of the original request
+     *
+     * @return ResponseInterface|null The cached response with HTTP caching headers, or null
+     */
+    private function serveCachedVariant(string $pathVariant, string $extension): ?ResponseInterface
+    {
+        // Prefer AVIF, then WebP, then the original format
+        if (!$this->isAvifImage($extension) && file_exists($pathVariant . '.avif')) {
+            return $this->buildFileResponse($pathVariant . '.avif', 'image/avif');
+        }
+
+        if (!$this->isWebpImage($extension) && file_exists($pathVariant . '.webp')) {
+            return $this->buildFileResponse($pathVariant . '.webp', 'image/webp');
+        }
+
+        if (file_exists($pathVariant)) {
+            $mimeType = self::EXTENSION_MIME_MAP[$extension] ?? 'application/octet-stream';
+
+            return $this->buildFileResponse($pathVariant, $mimeType);
+        }
+
+        return null;
+    }
+
+    /**
+     * Build a PSR-7 response that streams a file from disk with HTTP caching headers.
+     *
+     * Sets Cache-Control for long-term immutable caching (processed image URLs are
+     * content-addressed), ETag based on file path and modification time, and
+     * Last-Modified from the filesystem timestamp.
+     *
+     * @param string $filePath Absolute path to the file to serve
+     * @param string $mimeType MIME type for the Content-Type header
+     *
+     * @return ResponseInterface|null The response or null if the file cannot be read
+     */
+    private function buildFileResponse(string $filePath, string $mimeType): ?ResponseInterface
+    {
+        $contents = @file_get_contents($filePath);
+
+        if ($contents === false) {
+            return null;
+        }
+
+        $fileSize  = @filesize($filePath);
+        $fileMtime = @filemtime($filePath);
+
+        $response = $this->responseFactory->createResponse(200)
+            ->withHeader('Content-Type', $mimeType)
+            ->withHeader('Cache-Control', 'public, max-age=' . self::CACHE_MAX_AGE . ', immutable')
+            ->withBody($this->streamFactory->createStream($contents));
+
+        if ($fileSize !== false) {
+            $response = $response->withHeader('Content-Length', (string) $fileSize);
+        }
+
+        if ($fileMtime !== false) {
+            return $response
+                ->withHeader('Last-Modified', gmdate('D, d M Y H:i:s', $fileMtime) . ' GMT')
+                ->withHeader('ETag', '"' . md5($filePath . $fileMtime) . '"');
+        }
+
+        return $response;
     }
 
     /**
@@ -193,11 +321,7 @@ class Processor
             return $this->responseFactory->createResponse(404);
         }
 
-        $image = $this->loadOriginal($urlInfo['pathOriginal']);
-
-        if ($image instanceof ResponseInterface) {
-            return $image;
-        }
+        $image = $this->imageManager->read($urlInfo['pathOriginal']);
 
         $targetWidth  = $urlInfo['targetWidth'];
         $targetHeight = $urlInfo['targetHeight'];
@@ -224,15 +348,19 @@ class Processor
         $extension   = $urlInfo['extension'];
         $pathVariant = $urlInfo['pathVariant'];
 
-        if (!$this->isWebpImage($extension) && !$this->skipWebPCreation($request)) {
+        // Parse query parameters once for both skip checks instead of
+        // calling parse_str() separately for each flag.
+        $queryParams = $this->parseQueryParams($request);
+
+        if (!$this->isWebpImage($extension) && !$queryParams['skipWebP']) {
             $this->generateWebpVariant($image, $targetQuality, $pathVariant);
         }
 
-        if (!$this->isAvifImage($extension) && !$this->skipAvifCreation($request)) {
+        if (!$this->isAvifImage($extension) && !$queryParams['skipAvif']) {
             $this->generateAvifVariant($image, $targetQuality, $pathVariant);
         }
 
-        return $this->buildOutputResponse($image, $extension, $targetQuality, $pathVariant);
+        return $this->buildOutputResponse($extension, $pathVariant);
     }
 
     /**
@@ -242,9 +370,9 @@ class Processor
      * arbitrary path construction from malformed input.
      *
      * Computes original/variant file paths, normalizes the extension, and
-     * extracts width/height/quality/mode values from the encoded mode string.
-     * Dimension and quality values are clamped to safe ranges to prevent
-     * denial-of-service through excessive resource allocation.
+     * extracts width/height/quality/mode values from the encoded mode string
+     * in a single regex pass. Dimension and quality values are clamped to safe
+     * ranges to prevent denial-of-service through excessive resource allocation.
      *
      * @param string $variantUrl The decoded variant URL path
      *
@@ -263,7 +391,7 @@ class Processor
         $information = [];
 
         $matched = preg_match(
-            '/^(\/processed\/)((?:(?!\.\.).)*)\.([0-9whqm]+)\.([a-zA-Z0-9]{1,4})$/',
+            self::URL_PATTERN,
             $variantUrl,
             $information,
         );
@@ -283,12 +411,13 @@ class Processor
             $extension = 'jpg';
         }
 
+        // Parse the mode string once and extract all values in a single pass
+        $modeValues = $this->parseAllModeValues($modeString);
+
         // Clamp dimensions and quality to safe ranges to prevent DoS
-        $targetWidth   = $this->clampDimension($this->getValueFromMode('w', $modeString));
-        $targetHeight  = $this->clampDimension($this->getValueFromMode('h', $modeString));
-        $targetQuality = $this->clampQuality(
-            $this->getValueFromMode('q', $modeString) ?? self::MAX_QUALITY,
-        );
+        $targetWidth   = $this->clampDimension($modeValues['w'] ?? null);
+        $targetHeight  = $this->clampDimension($modeValues['h'] ?? null);
+        $targetQuality = $this->clampQuality($modeValues['q'] ?? self::MAX_QUALITY);
 
         return [
             'pathVariant'    => $basePath . $variantUrl,
@@ -297,8 +426,43 @@ class Processor
             'targetWidth'    => $targetWidth,
             'targetHeight'   => $targetHeight,
             'targetQuality'  => $targetQuality,
-            'processingMode' => $this->getValueFromMode('m', $modeString) ?? 0,
+            'processingMode' => $modeValues['m'] ?? 0,
         ];
+    }
+
+    /**
+     * Parse all mode values from the compact mode string in a single regex pass.
+     *
+     * Instead of calling preg_match_all once per identifier (w, h, q, m), this
+     * method extracts all key-value pairs in one pass and returns them as an
+     * associative array.
+     *
+     * @param string $mode The encoded mode string (e.g., "w800h400q80m1")
+     *
+     * @return array<string, int> Associative array of identifier => value pairs
+     */
+    private function parseAllModeValues(string $mode): array
+    {
+        $values = [];
+
+        if ($mode === '') {
+            return $values;
+        }
+
+        $matches = [];
+
+        if ((bool) preg_match_all(self::MODE_PATTERN, $mode, $matches)) {
+            $count = count($matches[1]);
+
+            for ($i = 0; $i < $count; ++$i) {
+                // First occurrence wins (matches original behavior of array_search)
+                if (!isset($values[$matches[1][$i]])) {
+                    $values[$matches[1][$i]] = (int) $matches[2][$i];
+                }
+            }
+        }
+
+        return $values;
     }
 
     /**
@@ -375,60 +539,23 @@ class Processor
     }
 
     /**
-     * Extract a numeric value from the compact mode string (e.g., h400w600q80m1).
+     * Parse query parameters from the request URI once.
      *
-     * @param string $what Identifier to look for: 'h', 'w', 'q', or 'm'
-     * @param string $mode The encoded mode string
+     * Avoids redundant parse_str() calls when checking multiple query flags.
      *
-     * @return int|null The integer value if present, otherwise null
+     * @param RequestInterface $request The incoming request
+     *
+     * @return array{skipWebP: bool, skipAvif: bool} Parsed query flags
      */
-    private function getValueFromMode(string $what, string $mode): ?int
+    private function parseQueryParams(RequestInterface $request): array
     {
-        if ($mode === '') {
-            return null;
-        }
+        $query = [];
+        parse_str($request->getUri()->getQuery(), $query);
 
-        $modeMatch = [];
-
-        if ((bool) preg_match_all('/([hwqm]{1})(\d+)/', $mode, $modeMatch)) {
-            $key = array_search($what, $modeMatch[1], true);
-
-            if ($key === false) {
-                return null;
-            }
-
-            return (int) $modeMatch[2][$key];
-        }
-
-        return null;
-    }
-
-    /**
-     * Load the original image from the disk under a read lock to avoid conflicts.
-     *
-     * Returns a 503 response if the lock cannot be acquired after several tries,
-     * or the loaded image on success. The read lock is always released, even if
-     * the image read throws an exception.
-     *
-     * @param string $pathOriginal Absolute filesystem path to the original image
-     *
-     * @return ImageInterface|ResponseInterface The loaded image or a 503 error response
-     */
-    private function loadOriginal(string $pathOriginal): ImageInterface|ResponseInterface
-    {
-        $locker = $this->getLocker($pathOriginal . '-read');
-
-        $lockResponse = $this->acquireLockWithRetry($locker);
-
-        if ($lockResponse instanceof ResponseInterface) {
-            return $lockResponse;
-        }
-
-        try {
-            return $this->imageManager->read($pathOriginal);
-        } finally {
-            $locker->release();
-        }
+        return [
+            'skipWebP' => is_string($query['skipWebP'] ?? null) && (bool) $query['skipWebP'],
+            'skipAvif' => is_string($query['skipAvif'] ?? null) && (bool) $query['skipAvif'],
+        ];
     }
 
     /**
@@ -548,49 +675,6 @@ class Processor
     }
 
     /**
-     * Fetch a scalar query parameter value from the incoming request URI.
-     *
-     * Array-valued parameters (e.g. `foo[]=bar`) are ignored and treated as absent.
-     *
-     * @param RequestInterface $request The incoming request
-     * @param string           $key     Parameter name
-     *
-     * @return string|null The raw query value or null if not present or not scalar
-     */
-    private function getQueryValue(RequestInterface $request, string $key): ?string
-    {
-        parse_str($request->getUri()->getQuery(), $query);
-
-        $value = $query[$key] ?? null;
-
-        return is_string($value) ? $value : null;
-    }
-
-    /**
-     * Check whether WebP generation should be skipped for this request.
-     *
-     * @param RequestInterface $request The incoming request
-     *
-     * @return bool True if WebP generation should be skipped
-     */
-    private function skipWebPCreation(RequestInterface $request): bool
-    {
-        return (bool) $this->getQueryValue($request, 'skipWebP');
-    }
-
-    /**
-     * Check whether AVIF generation should be skipped for this request.
-     *
-     * @param RequestInterface $request The incoming request
-     *
-     * @return bool True if AVIF generation should be skipped
-     */
-    private function skipAvifCreation(RequestInterface $request): bool
-    {
-        return (bool) $this->getQueryValue($request, 'skipAvif');
-    }
-
-    /**
      * Encode and persist the WebP variant of the current image.
      *
      * @param ImageInterface $image         The processed image
@@ -618,55 +702,43 @@ class Processor
      * Build the PSR-7 response with the best available image representation.
      *
      * Prefers AVIF, then WebP, falling back to the processed original format.
+     * All responses include HTTP caching headers (Cache-Control, ETag, Last-Modified)
+     * since processed image URLs are content-addressed.
      *
-     * @param ImageInterface $image         The processed image
-     * @param string         $extension     Lowercased extension of the variant
-     * @param int            $targetQuality Output quality (1-100)
-     * @param string         $pathVariant   Absolute path of the primary variant file
+     * @param string $extension   Lowercased extension of the variant
+     * @param string $pathVariant Absolute path of the primary variant file
      *
-     * @return ResponseInterface The image response with appropriate Content-Type
+     * @return ResponseInterface The image response with appropriate Content-Type and caching headers
      */
     private function buildOutputResponse(
-        ImageInterface $image,
         string $extension,
-        int $targetQuality,
         string $pathVariant,
     ): ResponseInterface {
         if ($this->hasVariantFor($pathVariant, 'avif')) {
-            $contents = file_get_contents($pathVariant . '.avif');
+            $response = $this->buildFileResponse($pathVariant . '.avif', 'image/avif');
 
-            if ($contents !== false) {
-                return $this->responseFactory->createResponse(200)
-                    ->withHeader('Content-Type', 'image/avif')
-                    ->withBody($this->streamFactory->createStream($contents));
+            if ($response instanceof ResponseInterface) {
+                return $response;
             }
         }
 
         if ($this->hasVariantFor($pathVariant, 'webp')) {
-            $contents = file_get_contents($pathVariant . '.webp');
+            $response = $this->buildFileResponse($pathVariant . '.webp', 'image/webp');
 
-            if ($contents !== false) {
-                return $this->responseFactory->createResponse(200)
-                    ->withHeader('Content-Type', 'image/webp')
-                    ->withBody($this->streamFactory->createStream($contents));
+            if ($response instanceof ResponseInterface) {
+                return $response;
             }
         }
 
-        // Fallback: read the already-saved variant from disk instead of re-encoding
-        $contents = file_get_contents($pathVariant);
+        $mimeType = self::EXTENSION_MIME_MAP[$extension] ?? 'application/octet-stream';
+        $response = $this->buildFileResponse($pathVariant, $mimeType);
 
-        if ($contents !== false) {
-            return $this->responseFactory->createResponse(200)
-                ->withHeader('Content-Type', $image->origin()->mimetype())
-                ->withBody($this->streamFactory->createStream($contents));
+        if ($response instanceof ResponseInterface) {
+            return $response;
         }
 
-        // Last resort: encode in memory
-        return $this->responseFactory->createResponse(200)
-            ->withHeader('Content-Type', $image->origin()->mimetype())
-            ->withBody($this->streamFactory->createStream(
-                $image->encodeByExtension($extension, $targetQuality)->toString(),
-            ));
+        // Last resort: return error if file operations failed
+        return $this->responseFactory->createResponse(500);
     }
 
     /**

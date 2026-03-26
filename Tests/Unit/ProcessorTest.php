@@ -11,9 +11,9 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Tests\Unit;
 
+use PHPUnit\Framework\MockObject\Stub;
 use Intervention\Image\Interfaces\EncodedImageInterface;
 use Intervention\Image\Interfaces\ImageInterface;
-use Intervention\Image\Origin;
 use Netresearch\NrImageOptimize\Processor;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -36,11 +36,11 @@ use TYPO3\CMS\Core\Locking\LockingStrategyInterface;
 #[CoversClass(Processor::class)]
 class ProcessorTest extends TestCase
 {
-    private LockFactory&MockObject $lockFactory;
+    private Stub $lockFactory;
 
-    private ResponseFactoryInterface&MockObject $responseFactory;
+    private MockObject $responseFactory;
 
-    private StreamFactoryInterface&MockObject $streamFactory;
+    private MockObject $streamFactory;
 
     private Processor $processor;
 
@@ -60,7 +60,7 @@ class ProcessorTest extends TestCase
             'UNIX',
         );
 
-        $this->lockFactory     = $this->createMock(LockFactory::class);
+        $this->lockFactory     = $this->createStub(LockFactory::class);
         $this->responseFactory = $this->createMock(ResponseFactoryInterface::class);
         $this->streamFactory   = $this->createMock(StreamFactoryInterface::class);
 
@@ -81,6 +81,31 @@ class ProcessorTest extends TestCase
         $reflection = new ReflectionClass($object);
         $prop       = $reflection->getProperty($property);
         $prop->setValue($object, $value);
+    }
+
+    /**
+     * Create a fresh Processor with specific dependencies injected via reflection.
+     *
+     * Required because constructor-promoted readonly properties cannot be reassigned,
+     * so tests needing specific mock expectations must build a new instance.
+     *
+     * @param object|null $lockFactory     Lock factory stub/mock
+     * @param object|null $responseFactory Response factory stub/mock
+     * @param object|null $streamFactory   Stream factory stub/mock
+     */
+    private function createProcessor(
+        ?object $lockFactory = null,
+        ?object $responseFactory = null,
+        ?object $streamFactory = null,
+    ): Processor {
+        $reflection = new ReflectionClass(Processor::class);
+        $instance   = $reflection->newInstanceWithoutConstructor();
+
+        $this->setProperty($instance, 'lockFactory', $lockFactory ?? $this->createStub(LockFactory::class));
+        $this->setProperty($instance, 'responseFactory', $responseFactory ?? $this->createStub(ResponseFactoryInterface::class));
+        $this->setProperty($instance, 'streamFactory', $streamFactory ?? $this->createStub(StreamFactoryInterface::class));
+
+        return $instance;
     }
 
     private function callMethod(object $object, string $method, mixed ...$arguments): mixed
@@ -133,70 +158,102 @@ class ProcessorTest extends TestCase
     }
 
     #[Test]
-    public function getValueFromModeParsesNumericFragments(): void
+    public function parseAllModeValuesExtractsAllParameters(): void
     {
-        self::assertSame(800, $this->callMethod($this->processor, 'getValueFromMode', 'w', 'w800h400q80m1'));
-        self::assertSame(400, $this->callMethod($this->processor, 'getValueFromMode', 'h', 'w800h400q80m1'));
-        self::assertSame(80, $this->callMethod($this->processor, 'getValueFromMode', 'q', 'w800h400q80m1'));
-        self::assertSame(1, $this->callMethod($this->processor, 'getValueFromMode', 'm', 'w800h400q80m1'));
+        /** @var array<string, int> $result */
+        $result = $this->callMethod($this->processor, 'parseAllModeValues', 'w800h400q80m1');
+
+        self::assertSame(800, $result['w']);
+        self::assertSame(400, $result['h']);
+        self::assertSame(80, $result['q']);
+        self::assertSame(1, $result['m']);
     }
 
     #[Test]
-    public function getValueFromModeReturnsNullIfIdentifierMissing(): void
+    public function parseAllModeValuesReturnsEmptyForEmptyString(): void
     {
-        self::assertNull($this->callMethod($this->processor, 'getValueFromMode', 'q', 'w200h300'));
-        self::assertNull($this->callMethod($this->processor, 'getValueFromMode', 'w', ''));
+        /** @var array<string, int> $result */
+        $result = $this->callMethod($this->processor, 'parseAllModeValues', '');
+
+        self::assertSame([], $result);
     }
 
     #[Test]
-    #[DataProvider('skipVariantQueryProvider')]
-    public function skipVariantCreationEvaluatesQueryFlag(string $method, string $query, bool $expected): void
+    public function parseAllModeValuesFirstOccurrenceWins(): void
+    {
+        /** @var array<string, int> $result */
+        $result = $this->callMethod($this->processor, 'parseAllModeValues', 'w100w200');
+
+        self::assertSame(100, $result['w']);
+    }
+
+    #[Test]
+    public function parseAllModeValuesHandlesPartialParameters(): void
+    {
+        /** @var array<string, int> $result */
+        $result = $this->callMethod($this->processor, 'parseAllModeValues', 'w200h300');
+
+        self::assertSame(200, $result['w']);
+        self::assertSame(300, $result['h']);
+        self::assertArrayNotHasKey('q', $result);
+        self::assertArrayNotHasKey('m', $result);
+    }
+
+    #[Test]
+    public function parseAllModeValuesHandlesLargeNumericValues(): void
+    {
+        /** @var array<string, int> $result */
+        $result = $this->callMethod($this->processor, 'parseAllModeValues', 'w99999');
+
+        self::assertSame(99999, $result['w']);
+    }
+
+    #[Test]
+    public function parseQueryParamsExtractsBothFlags(): void
     {
         $uri = $this->createMock(UriInterface::class);
-        $uri->method('getQuery')->willReturn($query);
+        $uri->method('getQuery')->willReturn('skipWebP=1&skipAvif=1');
 
         $request = $this->createMock(RequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
-        self::assertSame($expected, $this->callMethod($this->processor, $method, $request));
-    }
+        /** @var array{skipWebP: bool, skipAvif: bool} $result */
+        $result = $this->callMethod($this->processor, 'parseQueryParams', $request);
 
-    /**
-     * @return iterable<string, array{0: string, 1: string, 2: bool}>
-     */
-    public static function skipVariantQueryProvider(): iterable
-    {
-        yield 'webp flag enabled' => ['skipWebPCreation', 'skipWebP=1', true];
-        yield 'webp flag disabled via zero' => ['skipWebPCreation', 'skipWebP=0', false];
-        yield 'webp flag missing' => ['skipWebPCreation', '', false];
-        yield 'avif flag enabled' => ['skipAvifCreation', 'skipAvif=1', true];
-        yield 'avif flag disabled via zero' => ['skipAvifCreation', 'skipAvif=0', false];
-        yield 'avif flag missing' => ['skipAvifCreation', '', false];
+        self::assertTrue($result['skipWebP']);
+        self::assertTrue($result['skipAvif']);
     }
 
     #[Test]
-    public function getQueryValueReturnsRequestedParameter(): void
+    public function parseQueryParamsDefaultsToFalse(): void
     {
         $uri = $this->createMock(UriInterface::class);
-        $uri->method('getQuery')->willReturn('foo=bar&skipWebP=1');
+        $uri->method('getQuery')->willReturn('');
 
         $request = $this->createMock(RequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
-        self::assertSame('bar', $this->callMethod($this->processor, 'getQueryValue', $request, 'foo'));
-        self::assertSame('1', $this->callMethod($this->processor, 'getQueryValue', $request, 'skipWebP'));
+        /** @var array{skipWebP: bool, skipAvif: bool} $result */
+        $result = $this->callMethod($this->processor, 'parseQueryParams', $request);
+
+        self::assertFalse($result['skipWebP']);
+        self::assertFalse($result['skipAvif']);
     }
 
     #[Test]
-    public function getQueryValueReturnsNullForMissingParameter(): void
+    public function parseQueryParamsHandlesDisabledFlags(): void
     {
         $uri = $this->createMock(UriInterface::class);
-        $uri->method('getQuery')->willReturn('foo=bar');
+        $uri->method('getQuery')->willReturn('skipWebP=0&skipAvif=0');
 
         $request = $this->createMock(RequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
-        self::assertNull($this->callMethod($this->processor, 'getQueryValue', $request, 'baz'));
+        /** @var array{skipWebP: bool, skipAvif: bool} $result */
+        $result = $this->callMethod($this->processor, 'parseQueryParams', $request);
+
+        self::assertFalse($result['skipWebP']);
+        self::assertFalse($result['skipAvif']);
     }
 
     #[Test]
@@ -412,14 +469,17 @@ class ProcessorTest extends TestCase
     #[Test]
     public function getLockerCreatesPrefixedLockName(): void
     {
-        $locker = $this->createMock(LockingStrategyInterface::class);
+        $locker      = $this->createStub(LockingStrategyInterface::class);
+        $lockFactory = $this->createMock(LockFactory::class);
 
-        $this->lockFactory->expects(self::once())
+        $lockFactory->expects(self::once())
             ->method('createLocker')
             ->with('nr_image_optimize-' . md5('test-key'))
             ->willReturn($locker);
 
-        self::assertSame($locker, $this->callMethod($this->processor, 'getLocker', 'test-key'));
+        $processor = $this->createProcessor(lockFactory: $lockFactory);
+
+        self::assertSame($locker, $this->callMethod($processor, 'getLocker', 'test-key'));
     }
 
     #[Test]
@@ -429,16 +489,15 @@ class ProcessorTest extends TestCase
         file_put_contents($base . '.avif', 'fake-avif-data');
         file_put_contents($base . '.webp', 'fake-webp-data');
 
-        $image    = $this->createMock(ImageInterface::class);
-        $response = $this->createMock(ResponseInterface::class);
-        $stream   = $this->createMock(StreamInterface::class);
+        $response = $this->createStub(ResponseInterface::class);
+        $stream   = $this->createStub(StreamInterface::class);
 
-        $this->responseFactory->method('createResponse')->with(200)->willReturn($response);
-        $response->method('withHeader')->with('Content-Type', 'image/avif')->willReturn($response);
-        $this->streamFactory->method('createStream')->with('fake-avif-data')->willReturn($stream);
-        $response->method('withBody')->with($stream)->willReturn($response);
+        $this->responseFactory->method('createResponse')->willReturn($response);
+        $response->method('withHeader')->willReturn($response);
+        $this->streamFactory->method('createStream')->willReturn($stream);
+        $response->method('withBody')->willReturn($response);
 
-        $result = $this->callMethod($this->processor, 'buildOutputResponse', $image, 'jpg', 80, $base);
+        $result = $this->callMethod($this->processor, 'buildOutputResponse', 'jpg', $base);
 
         self::assertSame($response, $result);
 
@@ -452,16 +511,15 @@ class ProcessorTest extends TestCase
         $base = sys_get_temp_dir() . '/nr-image-optimize-response-' . uniqid('', true);
         file_put_contents($base . '.webp', 'fake-webp-data');
 
-        $image    = $this->createMock(ImageInterface::class);
-        $response = $this->createMock(ResponseInterface::class);
-        $stream   = $this->createMock(StreamInterface::class);
+        $response = $this->createStub(ResponseInterface::class);
+        $stream   = $this->createStub(StreamInterface::class);
 
-        $this->responseFactory->method('createResponse')->with(200)->willReturn($response);
-        $response->method('withHeader')->with('Content-Type', 'image/webp')->willReturn($response);
-        $this->streamFactory->method('createStream')->with('fake-webp-data')->willReturn($stream);
-        $response->method('withBody')->with($stream)->willReturn($response);
+        $this->responseFactory->method('createResponse')->willReturn($response);
+        $response->method('withHeader')->willReturn($response);
+        $this->streamFactory->method('createStream')->willReturn($stream);
+        $response->method('withBody')->willReturn($response);
 
-        $result = $this->callMethod($this->processor, 'buildOutputResponse', $image, 'jpg', 80, $base);
+        $result = $this->callMethod($this->processor, 'buildOutputResponse', 'jpg', $base);
 
         self::assertSame($response, $result);
 
@@ -474,25 +532,15 @@ class ProcessorTest extends TestCase
         $base = sys_get_temp_dir() . '/nr-image-optimize-response-' . uniqid('', true);
         file_put_contents($base, 'original-jpg-data');
 
-        $encodedImage = $this->createMock(EncodedImageInterface::class);
-        $encodedImage->method('toString')->willReturn('encoded-jpg-data');
+        $response = $this->createStub(ResponseInterface::class);
+        $stream   = $this->createStub(StreamInterface::class);
 
-        $origin = $this->createMock(Origin::class);
-        $origin->method('mimetype')->willReturn('image/jpeg');
+        $this->responseFactory->method('createResponse')->willReturn($response);
+        $response->method('withHeader')->willReturn($response);
+        $this->streamFactory->method('createStream')->willReturn($stream);
+        $response->method('withBody')->willReturn($response);
 
-        $image = $this->createMock(ImageInterface::class);
-        $image->method('origin')->willReturn($origin);
-        $image->method('encodeByExtension')->with('jpg', 80)->willReturn($encodedImage);
-
-        $response = $this->createMock(ResponseInterface::class);
-        $stream   = $this->createMock(StreamInterface::class);
-
-        $this->responseFactory->method('createResponse')->with(200)->willReturn($response);
-        $response->method('withHeader')->with('Content-Type', 'image/jpeg')->willReturn($response);
-        $this->streamFactory->method('createStream')->with('original-jpg-data')->willReturn($stream);
-        $response->method('withBody')->with($stream)->willReturn($response);
-
-        $result = $this->callMethod($this->processor, 'buildOutputResponse', $image, 'jpg', 80, $base);
+        $result = $this->callMethod($this->processor, 'buildOutputResponse', 'jpg', $base);
 
         self::assertSame($response, $result);
 
@@ -500,18 +548,75 @@ class ProcessorTest extends TestCase
     }
 
     #[Test]
-    public function getValueFromModeHandlesRepeatedIdentifiers(): void
+    public function buildFileResponseReturnsNullForMissingFile(): void
     {
-        // When the same identifier appears twice, array_search returns the first occurrence
-        $result = $this->callMethod($this->processor, 'getValueFromMode', 'w', 'w100w200');
+        $result = $this->callMethod(
+            $this->processor,
+            'buildFileResponse',
+            '/nonexistent/path/image.jpg',
+            'image/jpeg',
+        );
 
-        self::assertSame(100, $result);
+        self::assertNull($result);
     }
 
     #[Test]
-    public function getValueFromModeHandlesLargeNumericValues(): void
+    public function buildFileResponseReturnsResponseForExistingFile(): void
     {
-        self::assertSame(99999, $this->callMethod($this->processor, 'getValueFromMode', 'w', 'w99999'));
+        $base = sys_get_temp_dir() . '/nr-image-optimize-cache-' . uniqid('', true);
+        file_put_contents($base, 'test-content');
+
+        $response = $this->createStub(ResponseInterface::class);
+        $stream   = $this->createStub(StreamInterface::class);
+
+        $this->responseFactory->method('createResponse')->willReturn($response);
+        $response->method('withHeader')->willReturn($response);
+        $this->streamFactory->method('createStream')->willReturn($stream);
+        $response->method('withBody')->willReturn($response);
+
+        $result = $this->callMethod($this->processor, 'buildFileResponse', $base, 'image/jpeg');
+
+        self::assertNotNull($result);
+
+        unlink($base);
+    }
+
+    #[Test]
+    public function serveCachedVariantReturnsNullWhenNoFilesExist(): void
+    {
+        $result = $this->callMethod(
+            $this->processor,
+            'serveCachedVariant',
+            '/nonexistent/path/image.w800h400.jpg',
+            'jpg',
+        );
+
+        self::assertNull($result);
+    }
+
+    #[Test]
+    public function serveCachedVariantPrefersAvif(): void
+    {
+        $base = sys_get_temp_dir() . '/nr-image-optimize-cache-' . uniqid('', true);
+        file_put_contents($base . '.avif', 'avif-data');
+        file_put_contents($base . '.webp', 'webp-data');
+        file_put_contents($base, 'jpg-data');
+
+        $response = $this->createStub(ResponseInterface::class);
+        $stream   = $this->createStub(StreamInterface::class);
+
+        $this->responseFactory->method('createResponse')->willReturn($response);
+        $response->method('withHeader')->willReturn($response);
+        $this->streamFactory->method('createStream')->willReturn($stream);
+        $response->method('withBody')->willReturn($response);
+
+        $result = $this->callMethod($this->processor, 'serveCachedVariant', $base, 'jpg');
+
+        self::assertNotNull($result);
+
+        unlink($base . '.avif');
+        unlink($base . '.webp');
+        unlink($base);
     }
 
     #[Test]
@@ -530,18 +635,6 @@ class ProcessorTest extends TestCase
         $result = $this->callMethod($this->processor, 'gatherInformationBasedOnUrl', '/processed/image.jpg');
 
         self::assertNull($result);
-    }
-
-    #[Test]
-    public function getQueryValueReturnsNullForEmptyQueryString(): void
-    {
-        $uri = $this->createMock(UriInterface::class);
-        $uri->method('getQuery')->willReturn('');
-
-        $request = $this->createMock(RequestInterface::class);
-        $request->method('getUri')->willReturn($uri);
-
-        self::assertNull($this->callMethod($this->processor, 'getQueryValue', $request, 'anything'));
     }
 
     #[Test]
@@ -628,7 +721,7 @@ class ProcessorTest extends TestCase
     #[Test]
     public function calculateTargetDimensionsHandlesZeroHeight(): void
     {
-        $image = $this->createMock(ImageInterface::class);
+        $image = $this->createStub(ImageInterface::class);
         $image->method('width')->willReturn(800);
         $image->method('height')->willReturn(0);
 
@@ -643,7 +736,7 @@ class ProcessorTest extends TestCase
     #[Test]
     public function calculateTargetDimensionsHandlesZeroWidth(): void
     {
-        $image = $this->createMock(ImageInterface::class);
+        $image = $this->createStub(ImageInterface::class);
         $image->method('width')->willReturn(0);
         $image->method('height')->willReturn(400);
 
@@ -658,14 +751,14 @@ class ProcessorTest extends TestCase
     #[Test]
     public function generateAndSendReturns400ForNonMatchingUrl(): void
     {
-        $uri = $this->createMock(UriInterface::class);
+        $uri = $this->createStub(UriInterface::class);
         $uri->method('getPath')->willReturn('/not-processed/image.jpg');
 
-        $request = $this->createMock(RequestInterface::class);
+        $request = $this->createStub(RequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
-        $response = $this->createMock(ResponseInterface::class);
-        $this->responseFactory->method('createResponse')->with(400)->willReturn($response);
+        $response = $this->createStub(ResponseInterface::class);
+        $this->responseFactory->method('createResponse')->willReturn($response);
 
         $result = $this->processor->generateAndSend($request);
 

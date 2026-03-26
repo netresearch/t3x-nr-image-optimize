@@ -112,7 +112,7 @@ final class ProcessorFuzzTest extends TestCase
     }
 
     /**
-     * Generate a random mode string for getValueFromMode fuzzing.
+     * Generate a random mode string for parseAllModeValues fuzzing.
      */
     private function randomModeString(): string
     {
@@ -146,22 +146,19 @@ final class ProcessorFuzzTest extends TestCase
     }
 
     #[Test]
-    public function getValueFromModeDoesNotCrashWithRandomInput(): void
+    public function parseAllModeValuesDoesNotCrashWithRandomInput(): void
     {
-        $method      = new ReflectionMethod($this->processor, 'getValueFromMode');
-        $identifiers = ['w', 'h', 'q', 'm', '', 'x', 'W', "\0"];
+        $method = new ReflectionMethod($this->processor, 'parseAllModeValues');
 
         for ($i = 0; $i < 500; ++$i) {
-            $identifier = $identifiers[array_rand($identifiers)];
-            $mode       = $this->randomModeString();
+            $mode = $this->randomModeString();
 
-            $result = $method->invoke($this->processor, $identifier, $mode);
-            // Must return int or null
-            self::assertTrue(
-                $result === null || is_int($result),
+            $result = $method->invoke($this->processor, $mode);
+            // Must return an array
+            self::assertIsArray(
+                $result,
                 sprintf(
-                    'Expected int|null for identifier=%s mode=%s, got %s',
-                    $identifier,
+                    'Expected array for mode=%s, got %s',
                     $mode,
                     get_debug_type($result),
                 ),

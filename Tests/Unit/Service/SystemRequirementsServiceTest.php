@@ -70,14 +70,13 @@ class SystemRequirementsServiceTest extends TestCase
     }
 
     #[Test]
-    public function collectReturnsCategoriesWithCorrectStructure(): void
+    public function collectReturnsCategoriesWithNonEmptyLabelKeysAndItems(): void
     {
         $result = $this->service->collect();
 
-        foreach ($result as $category) {
-            self::assertArrayHasKey('labelKey', $category); // @phpstan-ignore staticMethod.alreadyNarrowedType
-            self::assertArrayHasKey('items', $category); // @phpstan-ignore staticMethod.alreadyNarrowedType
-            self::assertIsArray($category['items']); // @phpstan-ignore staticMethod.alreadyNarrowedType
+        foreach ($result as $key => $category) {
+            self::assertNotEmpty($category['labelKey'], sprintf('Category "%s" should have a non-empty labelKey', $key));
+            self::assertNotEmpty($category['items'], sprintf('Category "%s" should have at least one item', $key));
         }
     }
 
