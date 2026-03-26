@@ -11,6 +11,8 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Tests\Unit;
 
+use Intervention\Image\ImageManager;
+use Intervention\Image\Interfaces\DriverInterface;
 use Intervention\Image\Interfaces\EncodedImageInterface;
 use Intervention\Image\Interfaces\ImageInterface;
 use Netresearch\NrImageOptimize\Processor;
@@ -1544,4 +1546,343 @@ class ProcessorTest extends TestCase
         self::assertFalse($result['skipWebP']);
         self::assertTrue($result['skipAvif']);
     }
+
+    // =========================================================================
+    // generateAndSend: path validation failure (line 194)
+    // =========================================================================
+
+    #[Test]
+    public function generateAndSendReturns400WhenPathEscapesPublicRoot(): void
+    {
+        ['tempDir' => $tempDir, 'prop' => $prop] = $this->setUpRealEnvironment();
+
+        $response400     = $this->createMock(ResponseInterface::class);
+        $responseFactory = $this->createMock(ResponseFactoryInterface::class);
+        $responseFactory->method('createResponse')->with(400)->willReturn($response400);
+
+        $processor = $this->createProcessor(responseFactory: $responseFactory);
+
+        // URL that matches regex but pathOriginal resolves outside public root
+        // The regex requires /processed/ prefix and at least one mode letter
+        // With the double-dot block in regex, this should return null from gatherInformationBasedOnUrl
+        $uri = $this->createMock(UriInterface::class);
+        $uri->method('getPath')->willReturn('/processed/../../../etc/passwd.w100.jpg');
+        $request = $this->createMock(RequestInterface::class);
+        $request->method('getUri')->willReturn($uri);
+
+        $result = $processor->generateAndSend($request);
+        self::assertSame($response400, $result);
+
+        $this->tearDownRealEnvironment($tempDir, $prop);
+    }
+
+    // =========================================================================
+    // generateAndSend: LockCreateException → 503 (lines 206-208)
+    // =========================================================================
+
+    #[Test]
+    public function generateAndSendReturns503WhenLockCreationFails(): void
+    {
+        ['tempDir' => $tempDir, 'prop' => $prop] = $this->setUpRealEnvironment();
+
+        // Create original image so path validation succeeds
+        file_put_contents($tempDir . '/public/img.jpg', 'fake-image');
+
+        $response503     = $this->createMock(ResponseInterface::class);
+        $responseFactory = $this->createMock(ResponseFactoryInterface::class);
+        $responseFactory->method('createResponse')->with(503)->willReturn($response503);
+
+        $lockFactory = $this->createMock(LockFactory::class);
+        $lockFactory->method('createLocker')
+            ->willThrowException(new LockCreateException('Lock backend unavailable'));
+
+        $streamFactory = $this->createMock(StreamFactoryInterface::class);
+
+        $processor = $this->createProcessor(
+            lockFactory: $lockFactory,
+            responseFactory: $responseFactory,
+            streamFactory: $streamFactory,
+        );
+
+        $uri = $this->createMock(UriInterface::class);
+        $uri->method('getPath')->willReturn('/processed/img.w100h50m0q80.jpg');
+        $request = $this->createMock(RequestInterface::class);
+        $request->method('getUri')->willReturn($uri);
+
+        $result = $processor->generateAndSend($request);
+        self::assertSame($response503, $result);
+
+        $this->tearDownRealEnvironment($tempDir, $prop);
+    }
+
+    // =========================================================================
+    // generateAndSend: acquireLockWithRetry returns 503 (lines 211-214)
+    // =========================================================================
+
+    #[Test]
+    public function generateAndSendReturns503WhenLockAcquisitionTimesOut(): void
+    {
+        ['tempDir' => $tempDir, 'prop' => $prop] = $this->setUpRealEnvironment();
+
+        file_put_contents($tempDir . '/public/img.jpg', 'fake-image');
+
+        $response503 = $this->createMock(ResponseInterface::class);
+        $stream503   = $this->createMock(StreamInterface::class);
+
+        $responseFactory = $this->createMock(ResponseFactoryInterface::class);
+        $responseFactory->method('createResponse')->with(503)->willReturn($response503);
+        $response503->method('withBody')->willReturn($response503);
+
+        $streamFactory = $this->createMock(StreamFactoryInterface::class);
+        $streamFactory->method('createStream')->willReturn($stream503);
+
+        $locker = $this->createMock(LockingStrategyInterface::class);
+        $locker->method('acquire')->willReturn(false); // Always fails
+
+        $lockFactory = $this->createMock(LockFactory::class);
+        $lockFactory->method('createLocker')->willReturn($locker);
+
+        $processor = $this->createProcessor(
+            lockFactory: $lockFactory,
+            responseFactory: $responseFactory,
+            streamFactory: $streamFactory,
+        );
+
+        $uri = $this->createMock(UriInterface::class);
+        $uri->method('getPath')->willReturn('/processed/img.w100h50m0q80.jpg');
+        $request = $this->createMock(RequestInterface::class);
+        $request->method('getUri')->willReturn($uri);
+
+        $result = $processor->generateAndSend($request);
+        self::assertSame($response503, $result);
+
+        $this->tearDownRealEnvironment($tempDir, $prop);
+    }
+
+    // =========================================================================
+    // generateAndSend: processAndRespond throws → catch Throwable → 500 (lines 226-236)
+    // =========================================================================
+
+    #[Test]
+    public function generateAndSendReturns500WhenProcessingThrows(): void
+    {
+        ['tempDir' => $tempDir, 'prop' => $prop] = $this->setUpRealEnvironment();
+
+        file_put_contents($tempDir . '/public/img.jpg', 'fake-image');
+
+        $response500     = $this->createMock(ResponseInterface::class);
+        $responseFactory = $this->createMock(ResponseFactoryInterface::class);
+        $responseFactory->method('createResponse')->with(500)->willReturn($response500);
+
+        $locker = $this->createMock(LockingStrategyInterface::class);
+        $locker->method('acquire')->willReturn(true);
+
+        $lockFactory = $this->createMock(LockFactory::class);
+        $lockFactory->method('createLocker')->willReturn($locker);
+
+        $streamFactory = $this->createMock(StreamFactoryInterface::class);
+
+        // Processor without ImageManager — processAndRespond will throw
+        // TypeError "must not be accessed before initialization"
+        $processor = $this->createProcessor(
+            lockFactory: $lockFactory,
+            responseFactory: $responseFactory,
+            streamFactory: $streamFactory,
+        );
+
+        $uri = $this->createMock(UriInterface::class);
+        $uri->method('getPath')->willReturn('/processed/img.w100h50m0q80.jpg');
+        $uri->method('getQuery')->willReturn('');
+        $request = $this->createMock(RequestInterface::class);
+        $request->method('getUri')->willReturn($uri);
+
+        // Redirect error_log to prevent "unexpected output" risky test
+        $prevLog = ini_set('error_log', '/dev/null');
+        $result  = $processor->generateAndSend($request);
+        ini_set('error_log', $prevLog !== false ? $prevLog : '');
+        self::assertSame($response500, $result);
+
+        $this->tearDownRealEnvironment($tempDir, $prop);
+    }
+
+    // =========================================================================
+    // generateAndSend: cached variant served after lock (lines 220-223)
+    // =========================================================================
+
+    #[Test]
+    public function generateAndSendServesCachedVariantAfterLockAcquired(): void
+    {
+        ['tempDir' => $tempDir, 'prop' => $prop] = $this->setUpRealEnvironment();
+
+        // Create original AND variant (simulates another process finished while waiting)
+        file_put_contents($tempDir . '/public/img.jpg', 'fake-original');
+        file_put_contents($tempDir . '/public/processed/img.w100h50m0q80.jpg', 'cached-variant');
+
+        $response200 = $this->createMock(ResponseInterface::class);
+        $response200->method('withHeader')->willReturn($response200);
+        $response200->method('withBody')->willReturn($response200);
+
+        $responseFactory = $this->createMock(ResponseFactoryInterface::class);
+        $responseFactory->method('createResponse')->with(200)->willReturn($response200);
+
+        $locker = $this->createMock(LockingStrategyInterface::class);
+        $locker->method('acquire')->willReturn(true);
+
+        $lockFactory = $this->createMock(LockFactory::class);
+        $lockFactory->method('createLocker')->willReturn($locker);
+
+        $stream = $this->createMock(StreamInterface::class);
+        $stream->method('getSize')->willReturn(14);
+        $streamFactory = $this->createMock(StreamFactoryInterface::class);
+        $streamFactory->method('createStreamFromFile')->willReturn($stream);
+
+        $processor = $this->createProcessor(
+            lockFactory: $lockFactory,
+            responseFactory: $responseFactory,
+            streamFactory: $streamFactory,
+        );
+
+        $uri = $this->createMock(UriInterface::class);
+        $uri->method('getPath')->willReturn('/processed/img.w100h50m0q80.jpg');
+        $request = $this->createMock(RequestInterface::class);
+        $request->method('getUri')->willReturn($uri);
+
+        $result = $processor->generateAndSend($request);
+        self::assertSame($response200, $result);
+
+        $this->tearDownRealEnvironment($tempDir, $prop);
+    }
+
+    // =========================================================================
+    // generateAndSend: full processing path with real GD driver (lines 340-387)
+    // Covers processAndRespond, clampDimension re-clamp, variant generation,
+    // buildOutputResponse, and the complete happy path.
+    // =========================================================================
+
+    #[Test]
+    public function generateAndSendProcessesImageWithGdDriver(): void
+    {
+        if (!extension_loaded('gd')) {
+            self::markTestSkipped('GD extension not available');
+        }
+
+        ['tempDir' => $tempDir, 'prop' => $prop] = $this->setUpRealEnvironment();
+
+        // Create a real tiny PNG image (1x1 red pixel)
+        $img = imagecreatetruecolor(200, 100);
+        imagefill($img, 0, 0, (int) imagecolorallocate($img, 255, 0, 0));
+        imagepng($img, $tempDir . '/public/photo.png');
+        imagedestroy($img);
+
+        // Set up real response/stream factories via mocks
+        $stream = $this->createMock(StreamInterface::class);
+        $stream->method('getSize')->willReturn(100);
+
+        $response = $this->createMock(ResponseInterface::class);
+        $response->method('withHeader')->willReturn($response);
+        $response->method('withBody')->willReturn($response);
+
+        $responseFactory = $this->createMock(ResponseFactoryInterface::class);
+        $responseFactory->method('createResponse')->willReturn($response);
+
+        $streamFactory = $this->createMock(StreamFactoryInterface::class);
+        $streamFactory->method('createStreamFromFile')->willReturn($stream);
+
+        $locker = $this->createMock(LockingStrategyInterface::class);
+        $locker->method('acquire')->willReturn(true);
+
+        $lockFactory = $this->createMock(LockFactory::class);
+        $lockFactory->method('createLocker')->willReturn($locker);
+
+        // Create a real Processor with ImageManager(GD)
+        $processor = new Processor(
+            new ImageManager(new Driver()),
+            $lockFactory,
+            $responseFactory,
+            $streamFactory,
+        );
+
+        $uri = $this->createMock(UriInterface::class);
+        $uri->method('getPath')->willReturn('/processed/photo.w100h50m0q80.png');
+        $uri->method('getQuery')->willReturn('skipWebP=1&skipAvif=1');
+
+        $request = $this->createMock(RequestInterface::class);
+        $request->method('getUri')->willReturn($uri);
+
+        $result = $processor->generateAndSend($request);
+        self::assertSame($response, $result);
+
+        // Verify the variant file was created
+        self::assertFileExists($tempDir . '/public/processed/photo.w100h50m0q80.png');
+
+        $this->tearDownRealEnvironment($tempDir, $prop);
+    }
+
+    // =========================================================================
+    // generateAndSend: WebP/AVIF variant generation with GD (lines 371-383)
+    // =========================================================================
+
+    #[Test]
+    public function generateAndSendCreatesWebpVariantWithGd(): void
+    {
+        if (!extension_loaded('gd')) {
+            self::markTestSkipped('GD extension not available');
+        }
+
+        ['tempDir' => $tempDir, 'prop' => $prop] = $this->setUpRealEnvironment();
+
+        $img = imagecreatetruecolor(50, 50);
+        imagefill($img, 0, 0, (int) imagecolorallocate($img, 0, 255, 0));
+        imagejpeg($img, $tempDir . '/public/test.jpg');
+        imagedestroy($img);
+
+        $stream = $this->createMock(StreamInterface::class);
+        $stream->method('getSize')->willReturn(100);
+        $response = $this->createMock(ResponseInterface::class);
+        $response->method('withHeader')->willReturn($response);
+        $response->method('withBody')->willReturn($response);
+
+        $responseFactory = $this->createMock(ResponseFactoryInterface::class);
+        $responseFactory->method('createResponse')->willReturn($response);
+        $streamFactory = $this->createMock(StreamFactoryInterface::class);
+        $streamFactory->method('createStreamFromFile')->willReturn($stream);
+
+        $locker = $this->createMock(LockingStrategyInterface::class);
+        $locker->method('acquire')->willReturn(true);
+        $lockFactory = $this->createMock(LockFactory::class);
+        $lockFactory->method('createLocker')->willReturn($locker);
+
+        $processor = new Processor(
+            new ImageManager(new Driver()),
+            $lockFactory,
+            $responseFactory,
+            $streamFactory,
+        );
+
+        $uri = $this->createMock(UriInterface::class);
+        $uri->method('getPath')->willReturn('/processed/test.w25h25m0q80.jpg');
+        $uri->method('getQuery')->willReturn('skipAvif=1');
+
+        $request = $this->createMock(RequestInterface::class);
+        $request->method('getUri')->willReturn($uri);
+
+        $result = $processor->generateAndSend($request);
+        self::assertSame($response, $result);
+
+        // WebP variant should have been created
+        self::assertFileExists($tempDir . '/public/processed/test.w25h25m0q80.jpg.webp');
+
+        $this->tearDownRealEnvironment($tempDir, $prop);
+    }
+
+    // =========================================================================
+    // MaintenanceController: clearProcessedImagesAction (lines 119-155)
+    // Needs TYPO3 ActionController infrastructure — tested via functional tests.
+    // Coverage will be provided by CI's functional test suite.
+    // =========================================================================
+
+    // =========================================================================
+    // SystemRequirementsService: checkImagick/checkGd when loaded (lines 187-258)
+    // Covered by tests that skip when extension not available — CI has both.
+    // =========================================================================
 }
