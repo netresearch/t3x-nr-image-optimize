@@ -2827,4 +2827,54 @@ class ProcessorTest extends TestCase
 
         $this->tearDownRealEnvironment($tempDir, $prop);
     }
+
+    // =========================================================================
+    // Event dispatch catch: listener throws → warning logged, response still served
+    // Covers Processor.php lines 225-226 (VariantServedEvent catch in pre-lock path)
+    // =========================================================================
+
+    #[Test]
+    public function generateAndSendLogsCatchWhenEventListenerThrowsOnCachedVariant(): void
+    {
+        ['tempDir' => $tempDir, 'prop' => $prop] = $this->setUpRealEnvironment();
+
+        // Create cached variant so pre-lock cache-hit path is taken
+        file_put_contents($tempDir . '/public/img.jpg', 'original');
+        file_put_contents($tempDir . '/public/processed/img.w100h50m0q80.jpg', 'cached');
+
+        $response = $this->createMock(ResponseInterface::class);
+        $response->method('withHeader')->willReturn($response);
+        $response->method('withBody')->willReturn($response);
+        $response->method('getStatusCode')->willReturn(200);
+
+        $responseFactory = $this->createMock(ResponseFactoryInterface::class);
+        $responseFactory->method('createResponse')->with(200)->willReturn($response);
+
+        $stream = $this->createMock(StreamInterface::class);
+        $stream->method('getSize')->willReturn(6);
+        $streamFactory = $this->createMock(StreamFactoryInterface::class);
+        $streamFactory->method('createStreamFromFile')->willReturn($stream);
+
+        // Event dispatcher that throws on dispatch
+        $eventDispatcher = $this->createMock(EventDispatcherInterface::class);
+        $eventDispatcher->method('dispatch')
+            ->willThrowException(new RuntimeException('Listener bug'));
+
+        $processor = $this->createProcessor(
+            responseFactory: $responseFactory,
+            streamFactory: $streamFactory,
+            eventDispatcher: $eventDispatcher,
+        );
+
+        $uri = $this->createMock(UriInterface::class);
+        $uri->method('getPath')->willReturn('/processed/img.w100h50m0q80.jpg');
+        $request = $this->createMock(ServerRequestInterface::class);
+        $request->method('getUri')->willReturn($uri);
+
+        // Despite the listener throwing, the cached response is still returned
+        $result = $processor->generateAndSend($request);
+        self::assertSame($response, $result);
+
+        $this->tearDownRealEnvironment($tempDir, $prop);
+    }
 }

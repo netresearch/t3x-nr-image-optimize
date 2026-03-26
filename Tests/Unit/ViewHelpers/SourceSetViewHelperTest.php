@@ -957,4 +957,36 @@ class SourceSetViewHelperTest extends TestCase
         self::assertStringContainsString('data-srcset=', $result);
         self::assertStringContainsString('srcset=', $result);
     }
+
+    // =========================================================================
+    // getResourcePath: trigger_error when getimagesize fails (lines 380-383)
+    // =========================================================================
+
+    #[Test]
+    public function getResourcePathTriggersErrorWhenGetimagesizeFails(): void
+    {
+        // Use a path that doesn't exist on disk → getimagesize returns false
+        // The trigger_error(E_USER_NOTICE) should fire
+        set_error_handler(static function (int $errno, string $errstr): bool {
+            if ($errno === E_USER_NOTICE && str_contains($errstr, 'getimagesize() failed')) {
+                return true; // handled
+            }
+
+            return false;
+        });
+
+        try {
+            $result = $this->callMethod(
+                'getResourcePath',
+                '/nonexistent/image-that-does-not-exist.jpg',
+                0,
+                0,
+            );
+
+            // Should still return a processed URL (with w0h0) despite the error
+            self::assertStringContainsString('/processed/', $result);
+        } finally {
+            restore_error_handler();
+        }
+    }
 }
