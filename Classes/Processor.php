@@ -836,7 +836,7 @@ class Processor implements LoggerAwareInterface, ProcessorInterface
         string $extension,
         string $pathVariant,
     ): ResponseInterface {
-        if ($this->hasVariantFor($pathVariant, 'avif')) {
+        if (!$this->isAvifImage($extension) && $this->hasVariantFor($pathVariant, 'avif')) {
             $response = $this->buildFileResponse($pathVariant . '.avif', 'image/avif');
 
             if ($response instanceof ResponseInterface) {
@@ -844,7 +844,7 @@ class Processor implements LoggerAwareInterface, ProcessorInterface
             }
         }
 
-        if ($this->hasVariantFor($pathVariant, 'webp')) {
+        if (!$this->isWebpImage($extension) && $this->hasVariantFor($pathVariant, 'webp')) {
             $response = $this->buildFileResponse($pathVariant . '.webp', 'image/webp');
 
             if ($response instanceof ResponseInterface) {

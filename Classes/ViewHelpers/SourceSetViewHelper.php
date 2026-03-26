@@ -76,15 +76,12 @@ class SourceSetViewHelper extends AbstractViewHelper
     private const RETINA_MULTIPLIER = 2;
 
     /**
-     * Map of file extensions to MIME types for the <source> type attribute.
-     *
-     * @var array<string, string>
-     */
-    /**
      * MIME types for next-gen formats where the `type` attribute on `<source>`
      * provides genuine browser skip-signal value. Universally-supported formats
      * (JPEG, PNG, GIF) are omitted since every browser that supports `<picture>`
      * also supports those formats — adding `type` for them provides no benefit.
+     *
+     * @var array<string, string>
      */
     private const EXTENSION_MIME_MAP = [
         'webp' => 'image/webp',
@@ -334,7 +331,7 @@ class SourceSetViewHelper extends AbstractViewHelper
      *
      * @return bool True if 'lazyload' is present in the class attribute
      */
-    public function useJsLazyLoad(): bool
+    private function useJsLazyLoad(): bool
     {
         return str_contains($this->arguments['class'] ?? '', 'lazyload');
     }

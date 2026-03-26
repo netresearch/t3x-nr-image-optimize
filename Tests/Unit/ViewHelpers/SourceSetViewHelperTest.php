@@ -737,7 +737,7 @@ class SourceSetViewHelperTest extends TestCase
             'class' => 'image lazyload responsive',
         ]);
 
-        self::assertTrue($this->viewHelper->useJsLazyLoad());
+        self::assertTrue($this->callMethod('useJsLazyLoad'));
     }
 
     #[Test]
@@ -747,7 +747,7 @@ class SourceSetViewHelperTest extends TestCase
             'class' => 'image responsive',
         ]);
 
-        self::assertFalse($this->viewHelper->useJsLazyLoad());
+        self::assertFalse($this->callMethod('useJsLazyLoad'));
     }
 
     #[Test]
@@ -757,7 +757,7 @@ class SourceSetViewHelperTest extends TestCase
             'class' => '',
         ]);
 
-        self::assertFalse($this->viewHelper->useJsLazyLoad());
+        self::assertFalse($this->callMethod('useJsLazyLoad'));
     }
 
     #[Test]
