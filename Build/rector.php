@@ -63,11 +63,8 @@ return static function (RectorConfig $rectorConfig): void {
         RemoveUselessReturnTagRector::class,
         RemoveUselessVarTagRector::class,
         RemoveUnusedPrivateMethodParameterRector::class,
-        // PHPUnit 12 createMock-to-createStub conversions are now enabled.
-    ]);
-
-    // Explicitly register PHPUnit 12 mock-to-stub rules
-    $rectorConfig->rules([
+        // Skip createMock to createStub conversions: PHPStan does not yet
+        // understand Stub intersection types, causing false-positive errors.
         PropertyCreateMockToCreateStubRector::class,
         ExpressionCreateMockToCreateStubRector::class,
         CreateStubOverCreateMockArgRector::class,

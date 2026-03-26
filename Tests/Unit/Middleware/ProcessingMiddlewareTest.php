@@ -32,10 +32,10 @@ class ProcessingMiddlewareTest extends TestCase
         $processor->expects(self::never())->method('generateAndSend');
         $middleware = new ProcessingMiddleware($processor);
 
-        $uri = $this->createMock(UriInterface::class);
+        $uri = $this->createStub(UriInterface::class);
         $uri->method('getPath')->willReturn('/assets/image.jpg');
 
-        $request = $this->createMock(ServerRequestInterface::class);
+        $request = $this->createStub(ServerRequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
         $response = $this->createStub(ResponseInterface::class);
@@ -51,10 +51,10 @@ class ProcessingMiddlewareTest extends TestCase
     {
         $processor = $this->createMock(Processor::class);
 
-        $uri = $this->createMock(UriInterface::class);
+        $uri = $this->createStub(UriInterface::class);
         $uri->method('getPath')->willReturn('/processed/path/to/image.jpg');
 
-        $request = $this->createMock(ServerRequestInterface::class);
+        $request = $this->createStub(ServerRequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
         $response = $this->createStub(ResponseInterface::class);
@@ -80,10 +80,10 @@ class ProcessingMiddlewareTest extends TestCase
         $processor->expects(self::never())->method('generateAndSend');
         $middleware = new ProcessingMiddleware($processor);
 
-        $uri = $this->createMock(UriInterface::class);
+        $uri = $this->createStub(UriInterface::class);
         $uri->method('getPath')->willReturn($path);
 
-        $request = $this->createMock(ServerRequestInterface::class);
+        $request = $this->createStub(ServerRequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
         $response = $this->createStub(ResponseInterface::class);
@@ -114,10 +114,10 @@ class ProcessingMiddlewareTest extends TestCase
     {
         $processor = $this->createMock(Processor::class);
 
-        $uri = $this->createMock(UriInterface::class);
+        $uri = $this->createStub(UriInterface::class);
         $uri->method('getPath')->willReturn($path);
 
-        $request = $this->createMock(ServerRequestInterface::class);
+        $request = $this->createStub(ServerRequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
         $response = $this->createStub(ResponseInterface::class);
