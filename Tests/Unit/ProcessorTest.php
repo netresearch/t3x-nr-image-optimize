@@ -17,11 +17,11 @@ use Intervention\Image\Interfaces\EncodedImageInterface;
 use Intervention\Image\Interfaces\ImageInterface;
 use Netresearch\NrImageOptimize\Processor;
 use PHPUnit\Framework\Attributes\CoversClass;
-use Psr\EventDispatcher\EventDispatcherInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ResponseInterface;
@@ -1773,6 +1773,7 @@ class ProcessorTest extends TestCase
         ?object $lockFactory = null,
         ?object $responseFactory = null,
         ?object $streamFactory = null,
+        ?object $eventDispatcher = null,
     ): array {
         $image = $this->createMock(ImageInterface::class);
 
@@ -1788,6 +1789,7 @@ class ProcessorTest extends TestCase
         $this->setProperty($instance, 'lockFactory', $lockFactory ?? $this->createMock(LockFactory::class));
         $this->setProperty($instance, 'responseFactory', $responseFactory ?? $this->createMock(ResponseFactoryInterface::class));
         $this->setProperty($instance, 'streamFactory', $streamFactory ?? $this->createMock(StreamFactoryInterface::class));
+        $this->setProperty($instance, 'eventDispatcher', $eventDispatcher ?? $this->createMock(EventDispatcherInterface::class));
 
         return ['processor' => $instance, 'image' => $image];
     }

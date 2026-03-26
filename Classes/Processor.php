@@ -27,10 +27,15 @@ use function max;
 use function md5;
 use function min;
 use function mkdir;
+
+use Netresearch\NrImageOptimize\Event\ImageProcessedEvent;
+use Netresearch\NrImageOptimize\Event\VariantServedEvent;
+
 use function parse_str;
 use function preg_match;
 use function preg_match_all;
 
+use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ResponseInterface;
