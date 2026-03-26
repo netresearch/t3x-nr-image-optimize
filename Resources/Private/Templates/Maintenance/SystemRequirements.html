@@ -1,0 +1,141 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers"
+      xmlns:be="http://typo3.org/ns/TYPO3/CMS/Backend/ViewHelpers"
+      xmlns:core="http://typo3.org/ns/TYPO3/CMS/Core/ViewHelpers"
+      data-namespace-typo3-fluid="true">
+
+<f:layout name="Module"/>
+
+<f:section name="Content">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="mb-1"><f:translate key="module.systemRequirements" extensionName="NrImageOptimize" /></h1>
+            <p class="text-muted mb-0"><f:translate key="module.systemRequirements.description" extensionName="NrImageOptimize" /></p>
+        </div>
+        <div>
+            <f:link.action action="index" class="btn btn-secondary">
+                <core:icon identifier="actions-arrow-left" size="small"/>
+                <f:translate key="module.backToMaintenance" extensionName="NrImageOptimize" />
+            </f:link.action>
+        </div>
+    </div>
+
+    <f:for each="{requirements}" as="category">
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <h2 class="card-title mb-0 h5">
+                    <strong><f:translate key="{category.labelKey}" extensionName="NrImageOptimize" /></strong>
+                </h2>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-3 sysreq-col-component"><f:translate key="sysreq.component" extensionName="NrImageOptimize" /></th>
+                                <th class="sysreq-col-status"><f:translate key="sysreq.status" extensionName="NrImageOptimize" /></th>
+                                <th class="sysreq-col-current"><f:translate key="sysreq.current" extensionName="NrImageOptimize" /></th>
+                                <th class="sysreq-col-required"><f:translate key="sysreq.required" extensionName="NrImageOptimize" /></th>
+                                <th class="pe-3 sysreq-col-details"><f:translate key="sysreq.details" extensionName="NrImageOptimize" /></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <f:for each="{category.items}" as="item">
+                                <tr class="align-middle">
+                                    <td class="ps-3">
+                                        <f:if condition="{item.labelKey}">
+                                            <f:then>
+                                                <span class="fw-medium"><f:translate key="{item.labelKey}" arguments="{item.labelArguments}" extensionName="NrImageOptimize" /></span>
+                                            </f:then>
+                                            <f:else>
+                                                <span class="fw-medium">{item.label}</span>
+                                            </f:else>
+                                        </f:if>
+                                    </td>
+                                    <td>
+                                        <f:if condition="{item.status} == 'success'">
+                                            <f:then>
+                                                <span class="badge rounded-pill text-bg-success d-inline-flex align-items-center gap-1">
+                                                    <core:icon identifier="actions-check" size="small"/>
+                                                    <f:translate key="sysreq.status.available" extensionName="NrImageOptimize" />
+                                                </span>
+                                            </f:then>
+                                            <f:else>
+                                                <f:if condition="{item.status} == 'warning'">
+                                                    <f:then>
+                                                        <span class="badge rounded-pill bg-warning text-dark d-inline-flex align-items-center gap-1">
+                                                            <core:icon identifier="actions-exclamation" size="small"/>
+                                                            <f:translate key="sysreq.status.limited" extensionName="NrImageOptimize" />
+                                                        </span>
+                                                    </f:then>
+                                                    <f:else>
+                                                        <span class="badge rounded-pill bg-danger d-inline-flex align-items-center gap-1">
+                                                            <core:icon identifier="actions-close" size="small"/>
+                                                            <f:translate key="sysreq.status.missing" extensionName="NrImageOptimize" />
+                                                        </span>
+                                                    </f:else>
+                                                </f:if>
+                                            </f:else>
+                                        </f:if>
+                                    </td>
+                                    <td>
+                                        <f:if condition="{item.currentKey}">
+                                            <f:then>
+                                                <code class="text-dark bg-light px-2 py-1 rounded small"><f:translate key="{item.currentKey}" extensionName="NrImageOptimize" /></code>
+                                            </f:then>
+                                            <f:else>
+                                                <f:if condition="{item.current}">
+                                                    <code class="text-dark bg-light px-2 py-1 rounded small">{item.current}</code>
+                                                </f:if>
+                                            </f:else>
+                                        </f:if>
+                                    </td>
+                                    <td>
+                                        <f:if condition="{item.requiredKey}">
+                                            <f:then>
+                                                <span class="text-muted small"><f:translate key="{item.requiredKey}" extensionName="NrImageOptimize" /></span>
+                                            </f:then>
+                                            <f:else>
+                                                <f:if condition="{item.required}">
+                                                    <span class="text-muted small">{item.required}</span>
+                                                </f:if>
+                                            </f:else>
+                                        </f:if>
+                                    </td>
+                                    <td class="pe-3">
+                                        <f:if condition="{item.details}">
+                                            <button type="button"
+                                                    class="btn btn-link btn-sm p-0 text-decoration-none"
+                                                    data-bs-toggle="tooltip"
+                                                    data-bs-placement="left"
+                                                    title="{item.details -> f:format.htmlspecialchars()}">
+                                                <core:icon identifier="actions-info" size="small"/>
+                                            </button>
+                                        </f:if>
+                                    </td>
+                                </tr>
+                            </f:for>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </f:for>
+
+    <div class="alert alert-info d-flex align-items-start">
+        <div class="sysreq-legend-icon">
+            <core:icon identifier="actions-info-circle-alt" size="default"/>
+        </div>
+        <div>
+            <strong><f:translate key="sysreq.legend.title" extensionName="NrImageOptimize" /></strong>
+            <ul class="mb-0 mt-2 small">
+                <li><f:translate key="sysreq.legend.available" extensionName="NrImageOptimize" /></li>
+                <li><f:translate key="sysreq.legend.limited" extensionName="NrImageOptimize" /></li>
+                <li><f:translate key="sysreq.legend.missing" extensionName="NrImageOptimize" /></li>
+            </ul>
+        </div>
+    </div>
+
+    <f:be.pageRenderer includeJsFiles="{0: 'EXT:nr_image_optimize/Resources/Public/JavaScript/SystemRequirements.js'}" includeCssFiles="{0: 'EXT:nr_image_optimize/Resources/Public/Css/SystemRequirements.css'}" />
+</f:section>
+
+</html>
