@@ -47,7 +47,6 @@ use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Locking\Exception\LockCreateException;
 use TYPO3\CMS\Core\Locking\LockFactory;
 use TYPO3\CMS\Core\Locking\LockingStrategyInterface;
-use TYPO3\CMS\Extbase\Utility\LocalizationUtility;
 
 use function urldecode;
 use function usleep;
@@ -446,8 +445,7 @@ class Processor
             if ($retryCount === self::LOCK_MAX_RETRIES) {
                 return $this->responseFactory->createResponse(503)
                     ->withBody($this->streamFactory->createStream(
-                        LocalizationUtility::translate('processor.error.imageBeingProcessed', 'NrImageOptimize')
-                            ?? 'Image is currently being processed',
+                        'Image is currently being processed',
                     ));
             }
         }
