@@ -127,7 +127,7 @@ class Processor
     /**
      * Regex pattern for parsing variant URLs.
      */
-    private const URL_PATTERN = '/^(\/processed\/)((?:(?!\.\.).)*)\.([0-9whqm]+)\.([a-zA-Z0-9]{1,4})$/';
+    private const URL_PATTERN = '/^(\/processed\/)((?:(?!\.\.).)*)\.([0-9whqm]*[whqm][0-9whqm]*)\.([a-zA-Z0-9]{1,4})$/';
 
     /**
      * Regex pattern for extracting mode values (w, h, q, m) with their numeric values.
@@ -288,8 +288,8 @@ class Processor
             return null;
         }
 
-        $fileSize  = @filesize($filePath);
-        $fileMtime = @filemtime($filePath);
+        $fileSize  = filesize($filePath);
+        $fileMtime = filemtime($filePath);
 
         if ($fileSize === false) {
             return null;
