@@ -40,10 +40,12 @@ class ImageManagerFactoryTest extends TestCase
 
         $imageManager = $this->factory->create();
 
-        // Create a minimal 1x1 PNG to verify the manager can read images
-        $png     = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVQI12NgAAIABQABNjN9GQAAAAlwSFlzAAAWJQAAFiUBSVIk8AAAAA0lEQVQI12P4z8BQDwAEgAF/pooBPQAAAABJRU5ErkJggg==', true);
+        // Create a real PNG via GD to verify the manager can read images
         $tmpFile = sys_get_temp_dir() . '/nr-pio-factory-test-' . uniqid('', true) . '.png';
-        file_put_contents($tmpFile, $png);
+        $gd      = imagecreatetruecolor(1, 1);
+        self::assertNotFalse($gd);
+        imagepng($gd, $tmpFile);
+        imagedestroy($gd);
 
         try {
             $image = $imageManager->read($tmpFile);
