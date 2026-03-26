@@ -1,19 +1,26 @@
 ..  include:: /Includes.rst.txt
 
+..  _configuration:
+
 =============
 Configuration
 =============
 
-The extension works out of the box with sensible defaults. Images are
-automatically optimized when accessed via the ``/processed/`` path.
+The extension works out of the box with sensible defaults.
+Images are automatically optimized when accessed via the
+``/processed/`` path. All configuration happens through
+ViewHelper attributes in your Fluid templates.
+
+..  _configuration-viewhelper:
 
 SourceSetViewHelper
 ===================
 
-The ``SourceSetViewHelper`` generates responsive ``<img>`` tags with ``srcset``
-attributes.
+The ``SourceSetViewHelper`` generates responsive ``<img>`` tags
+with ``srcset`` attributes.
 
 ..  code-block:: html
+    :caption: Basic ViewHelper usage
 
     {namespace nr=Netresearch\NrImageOptimize\ViewHelpers}
 
@@ -24,113 +31,153 @@ attributes.
                   sizes="(max-width: 768px) 100vw, 50vw"
     />
 
+..  _configuration-parameters:
+
 Parameters
 ----------
 
-``file``
-   Image file resource.
+..  confval:: file
+    :name: confval-file
+    :type: object
+    :required: true
 
-``width``
-   Target width in pixels.
+    Image file resource (FAL file reference).
 
-``height``
-   Target height in pixels.
+..  confval:: width
+    :name: confval-width
+    :type: integer
 
-``quality``
-   JPEG/WebP quality (1--100).
+    Target width in pixels.
 
-``sizes``
-   Responsive ``sizes`` attribute.
+..  confval:: height
+    :name: confval-height
+    :type: integer
 
-``format``
-   Output format: ``auto``, ``webp``, ``avif``, ``jpg``, ``png``.
+    Target height in pixels.
 
-``mode``
-   Render mode: ``cover`` (default) or ``fit``.
+..  confval:: quality
+    :name: confval-quality
+    :type: integer
+    :Default: 100
 
-``responsiveSrcset``
-   Enable width-based responsive ``srcset`` instead of density-based ``2x``.
-   Default: ``false``.
+    JPEG/WebP quality (1--100).
 
-``widthVariants``
-   Width variants for responsive ``srcset`` (comma-separated string or array).
-   Default: ``480, 576, 640, 768, 992, 1200, 1800``.
+..  confval:: sizes
+    :name: confval-sizes
+    :type: string
 
-``fetchpriority``
-   Native HTML ``fetchpriority`` attribute (``high``, ``low``, ``auto``).
+    Responsive ``sizes`` attribute for the generated
+    ``<img>`` tag.
+
+..  confval:: format
+    :name: confval-format
+    :type: string
+    :Default: auto
+
+    Output format. Allowed values: ``auto``, ``webp``,
+    ``avif``, ``jpg``, ``png``.
+
+..  confval:: mode
+    :name: confval-mode
+    :type: string
+    :Default: cover
+
+    Render mode. ``cover`` resizes images to fully cover
+    the given dimensions. ``fit`` resizes images to fit
+    within the given dimensions.
+
+..  confval:: responsiveSrcset
+    :name: confval-responsive-srcset
+    :type: boolean
+    :Default: false
+
+    Enable width-based responsive ``srcset`` instead of
+    density-based ``2x`` srcset.
+
+..  confval:: widthVariants
+    :name: confval-width-variants
+    :type: string|array
+    :Default: 480, 576, 640, 768, 992, 1200, 1800
+
+    Width variants for responsive ``srcset``
+    (comma-separated string or array).
+
+..  confval:: fetchpriority
+    :name: confval-fetchpriority
+    :type: string
+
+    Native HTML ``fetchpriority`` attribute. Allowed
+    values: ``high``, ``low``, ``auto``. Omitted when
+    empty.
+
+..  _configuration-source-sets:
 
 Source set configuration
 ========================
 
-Define source sets per media breakpoint via the ``set`` attribute:
+Define source sets per media breakpoint via the ``set``
+attribute:
 
 ..  code-block:: html
+    :caption: Source set with breakpoint-specific dimensions
 
-    <nr:sourceSet path="{f:uri.image(image: image, width: '960', height: '690', cropVariant: 'default')}"
-                  set="{
-                      480:{width: 160, height: 90},
-                      800:{width: 400, height: 300}
-                  }"
+    <nr:sourceSet
+        path="{f:uri.image(
+            image: image,
+            width: '960',
+            height: '690',
+            cropVariant: 'default'
+        )}"
+        set="{
+            480:{width: 160, height: 90},
+            800:{width: 400, height: 300}
+        }"
     />
+
+..  _configuration-render-modes:
 
 Render modes
 ============
 
 ``cover``
-   Default. Resizes images to fully cover the provided width and height.
+    Default. Resizes images to fully cover the provided
+    width and height.
 
 ``fit``
-   Resizes images so they fit within the provided width and height.
+    Resizes images so they fit within the provided width
+    and height.
 
 ..  code-block:: html
+    :caption: Using fit mode
 
-    <nr:sourceSet path="{f:uri.image(image: image, width: '960', height: '690', cropVariant: 'default')}"
-                  width="960"
-                  height="690"
-                  mode="fit"
-    />
-
-Responsive width-based srcset
-==============================
-
-Enable width-based ``srcset`` generation with a ``sizes`` attribute for
-improved responsive image handling. This is opt-in per usage.
-
-..  code-block:: html
-
-    <nrio:sourceSet
-        path="{f:uri.image(image: image, maxWidth: size, cropVariant: 'default')}"
-        width="{size}"
-        height="{size * ratio}"
-        alt="{image.properties.alternative}"
-        lazyload="1"
+    <nr:sourceSet
+        path="{f:uri.image(
+            image: image,
+            width: '960',
+            height: '690',
+            cropVariant: 'default'
+        )}"
+        width="960"
+        height="690"
         mode="fit"
-        responsiveSrcset="1"
     />
 
-Custom width variants and sizes:
-
-..  code-block:: html
-
-    <nrio:sourceSet
-        path="{f:uri.image(image: image, maxWidth: size, cropVariant: 'default')}"
-        width="{size}"
-        height="{size * ratio}"
-        responsiveSrcset="1"
-        widthVariants="320,640,1024,1920,2560"
-        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 75vw, 50vw"
-    />
+..  _configuration-lazy-loading:
 
 Lazy loading
 ============
 
-Both modes support lazy loading via the native ``loading="lazy"`` attribute.
-When using JS-based lazy loading (``class="lazyload"``), the ``data-srcset``
+Both modes support lazy loading via the native
+``loading="lazy"`` attribute. When using JS-based lazy
+loading (``class="lazyload"``), the ``data-srcset``
 attribute is added automatically.
+
+..  _configuration-backward-compatibility:
 
 Backward compatibility
 ======================
 
-By default ``responsiveSrcset`` is ``false``, preserving the existing 2x
-density-based ``srcset`` behavior. All existing templates continue to work
+By default :confval:`responsiveSrcset <confval-responsive-srcset>`
+is ``false``, preserving the existing 2x density-based
+``srcset`` behavior. All existing templates continue to work
 without modifications.
