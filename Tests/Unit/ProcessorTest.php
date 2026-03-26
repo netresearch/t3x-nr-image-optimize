@@ -11,8 +11,8 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Tests\Unit;
 
+use Intervention\Image\Drivers\Gd\Driver as GdDriver;
 use Intervention\Image\ImageManager;
-use Intervention\Image\Interfaces\DriverInterface;
 use Intervention\Image\Interfaces\EncodedImageInterface;
 use Intervention\Image\Interfaces\ImageInterface;
 use Netresearch\NrImageOptimize\Processor;
@@ -1796,7 +1796,7 @@ class ProcessorTest extends TestCase
 
         // Create a real Processor with ImageManager(GD)
         $processor = new Processor(
-            new ImageManager(new Driver()),
+            new ImageManager(new GdDriver()),
             $lockFactory,
             $responseFactory,
             $streamFactory,
@@ -1853,7 +1853,7 @@ class ProcessorTest extends TestCase
         $lockFactory->method('createLocker')->willReturn($locker);
 
         $processor = new Processor(
-            new ImageManager(new Driver()),
+            new ImageManager(new GdDriver()),
             $lockFactory,
             $responseFactory,
             $streamFactory,
