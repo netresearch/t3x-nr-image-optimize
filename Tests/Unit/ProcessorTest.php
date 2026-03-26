@@ -354,7 +354,7 @@ class ProcessorTest extends TestCase
         $variantBase = sys_get_temp_dir() . '/nr-image-optimize-' . uniqid('variant', true);
 
         $image->expects(self::once())->method('toWebp')->with(90)->willReturn($encoded);
-        $image->expects(self::once())->method('save')->with($variantBase . '.webp')->willReturnSelf();
+        $encoded->expects(self::once())->method('save')->with($variantBase . '.webp')->willReturnSelf();
 
         $this->callMethod($this->processor, 'generateWebpVariant', $image, 90, $variantBase);
     }
@@ -368,7 +368,7 @@ class ProcessorTest extends TestCase
         $variantBase = sys_get_temp_dir() . '/nr-image-optimize-' . uniqid('variant', true);
 
         $image->expects(self::once())->method('toAvif')->with(75)->willReturn($encoded);
-        $image->expects(self::once())->method('save')->with($variantBase . '.avif')->willReturnSelf();
+        $encoded->expects(self::once())->method('save')->with($variantBase . '.avif')->willReturnSelf();
 
         $this->callMethod($this->processor, 'generateAvifVariant', $image, 75, $variantBase);
     }
@@ -419,7 +419,7 @@ class ProcessorTest extends TestCase
             ->with('nr_image_optimize-' . md5('test-key'))
             ->willReturn($locker);
 
-        self::assertSame($locker, $this->processor->getLocker('test-key'));
+        self::assertSame($locker, $this->callMethod($this->processor, 'getLocker', 'test-key'));
     }
 
     #[Test]
@@ -472,6 +472,7 @@ class ProcessorTest extends TestCase
     public function buildOutputResponseFallsToOriginalFormatWhenNoVariants(): void
     {
         $base = sys_get_temp_dir() . '/nr-image-optimize-response-' . uniqid('', true);
+        file_put_contents($base, 'original-jpg-data');
 
         $encodedImage = $this->createMock(EncodedImageInterface::class);
         $encodedImage->method('toString')->willReturn('encoded-jpg-data');
@@ -488,12 +489,14 @@ class ProcessorTest extends TestCase
 
         $this->responseFactory->method('createResponse')->with(200)->willReturn($response);
         $response->method('withHeader')->with('Content-Type', 'image/jpeg')->willReturn($response);
-        $this->streamFactory->method('createStream')->with('encoded-jpg-data')->willReturn($stream);
+        $this->streamFactory->method('createStream')->with('original-jpg-data')->willReturn($stream);
         $response->method('withBody')->with($stream)->willReturn($response);
 
         $result = $this->callMethod($this->processor, 'buildOutputResponse', $image, 'jpg', 80, $base);
 
         self::assertSame($response, $result);
+
+        unlink($base);
     }
 
     #[Test]

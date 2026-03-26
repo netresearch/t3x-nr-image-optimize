@@ -16,7 +16,6 @@ use function dirname;
 use function file_exists;
 use function file_get_contents;
 
-use GuzzleHttp\Psr7\Query;
 use Intervention\Image\ImageManager;
 use Intervention\Image\Interfaces\ImageInterface;
 
@@ -25,6 +24,7 @@ use function max;
 use function md5;
 use function min;
 use function mkdir;
+use function parse_str;
 use function preg_match;
 use function preg_match_all;
 
@@ -350,8 +350,10 @@ class Processor
         // For existing paths, use realpath to resolve symlinks
         $resolvedPath = realpath($path);
 
+        $publicPrefix = $publicPath . DIRECTORY_SEPARATOR;
+
         if ($resolvedPath !== false) {
-            return str_starts_with($resolvedPath, $publicPath);
+            return str_starts_with($resolvedPath, $publicPrefix) || $resolvedPath === $publicPath;
         }
 
         // For paths that do not yet exist (variant files), resolve the
@@ -362,7 +364,7 @@ class Processor
             $resolvedParent = realpath($parent);
 
             if ($resolvedParent !== false) {
-                return str_starts_with($resolvedParent, $publicPath);
+                return str_starts_with($resolvedParent, $publicPrefix) || $resolvedParent === $publicPath;
             }
         }
 
@@ -552,7 +554,7 @@ class Processor
      */
     private function getQueryValue(RequestInterface $request, string $key): mixed
     {
-        $query = Query::parse($request->getUri()->getQuery());
+        parse_str($request->getUri()->getQuery(), $query);
 
         return $query[$key] ?? null;
     }
@@ -586,12 +588,11 @@ class Processor
      *
      * @param ImageInterface $image         The processed image
      * @param int            $targetQuality Output quality (1-100)
-     * @param string         $pathVariant   Absolute path (without extension) for the variant
+     * @param string         $pathVariant   Absolute path of the primary variant file
      */
     private function generateWebpVariant(ImageInterface $image, int $targetQuality, string $pathVariant): void
     {
-        $image->toWebp($targetQuality);
-        $image->save($pathVariant . '.webp');
+        $image->toWebp($targetQuality)->save($pathVariant . '.webp');
     }
 
     /**
@@ -599,12 +600,11 @@ class Processor
      *
      * @param ImageInterface $image         The processed image
      * @param int            $targetQuality Output quality (1-100)
-     * @param string         $pathVariant   Absolute path (without extension) for the variant
+     * @param string         $pathVariant   Absolute path of the primary variant file
      */
     private function generateAvifVariant(ImageInterface $image, int $targetQuality, string $pathVariant): void
     {
-        $image->toAvif($targetQuality);
-        $image->save($pathVariant . '.avif');
+        $image->toAvif($targetQuality)->save($pathVariant . '.avif');
     }
 
     /**
@@ -615,7 +615,7 @@ class Processor
      * @param ImageInterface $image         The processed image
      * @param string         $extension     Lowercased extension of the variant
      * @param int            $targetQuality Output quality (1-100)
-     * @param string         $pathVariant   Absolute path (without extension) for the variant
+     * @param string         $pathVariant   Absolute path of the primary variant file
      *
      * @return ResponseInterface The image response with appropriate Content-Type
      */
@@ -626,21 +626,35 @@ class Processor
         string $pathVariant,
     ): ResponseInterface {
         if ($this->hasVariantFor($pathVariant, 'avif')) {
-            return $this->responseFactory->createResponse(200)
-                ->withHeader('Content-Type', 'image/avif')
-                ->withBody($this->streamFactory->createStream(
-                    (string) file_get_contents($pathVariant . '.avif'),
-                ));
+            $contents = file_get_contents($pathVariant . '.avif');
+
+            if ($contents !== false) {
+                return $this->responseFactory->createResponse(200)
+                    ->withHeader('Content-Type', 'image/avif')
+                    ->withBody($this->streamFactory->createStream($contents));
+            }
         }
 
         if ($this->hasVariantFor($pathVariant, 'webp')) {
-            return $this->responseFactory->createResponse(200)
-                ->withHeader('Content-Type', 'image/webp')
-                ->withBody($this->streamFactory->createStream(
-                    (string) file_get_contents($pathVariant . '.webp'),
-                ));
+            $contents = file_get_contents($pathVariant . '.webp');
+
+            if ($contents !== false) {
+                return $this->responseFactory->createResponse(200)
+                    ->withHeader('Content-Type', 'image/webp')
+                    ->withBody($this->streamFactory->createStream($contents));
+            }
         }
 
+        // Fallback: read the already-saved variant from disk instead of re-encoding
+        $contents = file_get_contents($pathVariant);
+
+        if ($contents !== false) {
+            return $this->responseFactory->createResponse(200)
+                ->withHeader('Content-Type', $image->origin()->mimetype())
+                ->withBody($this->streamFactory->createStream($contents));
+        }
+
+        // Last resort: encode in memory
         return $this->responseFactory->createResponse(200)
             ->withHeader('Content-Type', $image->origin()->mimetype())
             ->withBody($this->streamFactory->createStream(
@@ -673,12 +687,10 @@ class Processor
             return $image;
         }
 
-        match ($processingMode) {
+        return match ($processingMode) {
             1       => $image->scale($targetWidth, $targetHeight),
             default => $image->cover($targetWidth, $targetHeight),
         };
-
-        return $image;
     }
 
     /**
@@ -703,7 +715,7 @@ class Processor
      *
      * @throws LockCreateException If the lock cannot be created by the configured strategy
      */
-    public function getLocker(string $key): LockingStrategyInterface
+    private function getLocker(string $key): LockingStrategyInterface
     {
         return $this->lockFactory
             ->createLocker('nr_image_optimize-' . md5($key));

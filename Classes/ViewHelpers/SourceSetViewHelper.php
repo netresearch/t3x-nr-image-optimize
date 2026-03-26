@@ -17,7 +17,6 @@ use function array_unique;
 use function explode;
 use function floor;
 use function getimagesize;
-use function htmlentities;
 use function htmlspecialchars;
 use function http_build_query;
 use function implode;
@@ -179,9 +178,12 @@ class SourceSetViewHelper extends AbstractViewHelper
         $srcSet  = $this->getResourcePath($this->getArgPath(), $width * self::RETINA_MULTIPLIER, $height * self::RETINA_MULTIPLIER) . ' x2';
         $srcPath = $this->getResourcePath($this->getArgPath(), $width, $height);
 
-        $props                = $this->buildImageAttributes($srcPath, $srcSet, $width, $height);
-        $props['data-src']    = $srcPath;
-        $props['data-srcset'] = $srcSet;
+        $props = $this->buildImageAttributes($srcPath, $srcSet, $width, $height);
+
+        if ($this->useJsLazyLoad()) {
+            $props['data-src']    = $srcPath;
+            $props['data-srcset'] = $srcSet;
+        }
 
         return $this->generateSrcSet()
             . $this->tag('img', $this->filterEmptyAttributes($props));
@@ -204,8 +206,8 @@ class SourceSetViewHelper extends AbstractViewHelper
             'srcset'        => $srcSet,
             'width'         => $width,
             'height'        => $height,
-            'alt'           => trim(htmlentities($this->arguments['alt'] ?? '')),
-            'title'         => trim(htmlentities($this->arguments['title'] ?? '')),
+            'alt'           => trim($this->arguments['alt'] ?? ''),
+            'title'         => trim($this->arguments['title'] ?? ''),
             'class'         => trim($this->arguments['class'] ?? ''),
             'fetchpriority' => $this->getArgFetchpriority(),
         ];
@@ -307,6 +309,11 @@ class SourceSetViewHelper extends AbstractViewHelper
         bool $skipAvif = false,
         bool $skipWebP = false,
     ): string {
+        // Reject path traversal attempts
+        if (str_contains($path, '..')) {
+            return $path;
+        }
+
         if ($width === 0 && $height === 0) {
             $info = @getimagesize(Environment::getPublicPath() . $path);
 
@@ -318,7 +325,7 @@ class SourceSetViewHelper extends AbstractViewHelper
 
         $pathInfo = PathUtility::pathinfo($path);
 
-        if (isset($pathInfo['extension']) && $pathInfo['extension'] === 'svg') {
+        if (isset($pathInfo['extension']) && strtolower($pathInfo['extension']) === 'svg') {
             return $path;
         }
 
@@ -366,11 +373,16 @@ class SourceSetViewHelper extends AbstractViewHelper
                 $this->getResourcePath($this->getArgPath(), $dimensions['width'] * self::RETINA_MULTIPLIER, $dimensionHeight * self::RETINA_MULTIPLIER),
             );
 
-            $return .= $this->tag('source', [
-                'media'       => '(max-width: ' . $maxWidth . 'px)',
-                'srcset'      => $srcSet,
-                'data-srcset' => $srcSet,
-            ]);
+            $sourceProps = [
+                'media'  => '(max-width: ' . $maxWidth . 'px)',
+                'srcset' => $srcSet,
+            ];
+
+            if ($this->useJsLazyLoad()) {
+                $sourceProps['data-srcset'] = $srcSet;
+            }
+
+            $return .= $this->tag('source', $sourceProps);
         }
 
         return $return;
@@ -389,7 +401,8 @@ class SourceSetViewHelper extends AbstractViewHelper
         $tagString = '<' . $tag;
 
         foreach ($properties as $key => $value) {
-            $tagString .= ' ' . $key . '="' . $value . '"';
+            $tagString .= ' ' . htmlspecialchars($key, ENT_QUOTES | ENT_HTML5)
+                . '="' . htmlspecialchars((string) $value, ENT_QUOTES | ENT_HTML5) . '"';
         }
 
         foreach ($this->getAttributes() as $key => $value) {
@@ -397,7 +410,7 @@ class SourceSetViewHelper extends AbstractViewHelper
                 . '="' . htmlspecialchars((string) $value, ENT_QUOTES | ENT_HTML5) . '"';
         }
 
-        if ($this->useNativeLazyLoad()) {
+        if ($tag === 'img' && $this->useNativeLazyLoad()) {
             $tagString .= ' loading="lazy"';
         }
 

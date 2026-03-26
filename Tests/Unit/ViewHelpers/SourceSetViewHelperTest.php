@@ -453,8 +453,6 @@ class SourceSetViewHelperTest extends TestCase
 
         $expected = '<source media="(max-width: 480px)" '
             . 'srcset="/processed/images/picture.w200h120m0q100.jpg, '
-            . '/processed/images/picture.w400h240m0q100.jpg x2" '
-            . 'data-srcset="/processed/images/picture.w200h120m0q100.jpg, '
             . '/processed/images/picture.w400h240m0q100.jpg x2" />' . PHP_EOL;
 
         self::assertSame($expected, $result);
@@ -761,11 +759,12 @@ class SourceSetViewHelperTest extends TestCase
             'path'   => '/path/to/image.jpg',
             'width'  => 400,
             'height' => 300,
+            'class'  => 'lazyload',
         ]);
 
         $result = $this->viewHelper->render();
 
-        // Legacy mode always includes data-src and data-srcset
+        // Legacy mode with JS lazy-load includes data-src and data-srcset
         self::assertStringContainsString('data-src=', $result);
         self::assertStringContainsString('data-srcset=', $result);
     }

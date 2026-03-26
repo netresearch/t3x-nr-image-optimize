@@ -116,14 +116,20 @@ final class MaintenanceController extends ActionController
      */
     public function clearProcessedImagesAction(): ResponseInterface
     {
-        $processedPath = Environment::getPublicPath() . '/processed';
-        $expectedPath  = realpath(Environment::getPublicPath()) . '/processed';
+        $processedPath      = Environment::getPublicPath() . '/processed';
+        $resolvedPublicPath = realpath(Environment::getPublicPath());
+
+        if ($resolvedPublicPath === false) {
+            throw new RuntimeException('Security check failed: Public path could not be resolved');
+        }
+
+        $expectedPath = $resolvedPublicPath . '/processed';
 
         try {
             if (is_dir($processedPath)) {
                 $resolvedPath = realpath($processedPath);
 
-                if ($resolvedPath !== $expectedPath) {
+                if ($resolvedPath === false || $resolvedPath !== $expectedPath) {
                     throw new RuntimeException('Security check failed: Path mismatch');
                 }
 
@@ -157,8 +163,8 @@ final class MaintenanceController extends ActionController
      *     count: int,
      *     size: int,
      *     directories: int,
-     *     largestFiles: list<array{name: string, path: string, size: int, sizeHuman?: string}>,
-     *     fileTypes: array<string, array{count: int, size: int, sizeHuman?: string}>,
+     *     largestFiles: list<array{name: string, path: string, size: int, sizeHuman: string}>,
+     *     fileTypes: array<string, array{count: int, size: int, sizeHuman: string}>,
      *     oldestFile: array{name: string, mtime: int, date: string}|null,
      *     newestFile: array{name: string, mtime: int, date: string}|null,
      * }
@@ -229,6 +235,8 @@ final class MaintenanceController extends ActionController
             $typeData['sizeHuman'] = $this->formatBytes($typeData['size']);
         }
 
+        unset($typeData);
+
         return [
             'count'        => $count,
             'size'         => $size,
@@ -282,6 +290,8 @@ final class MaintenanceController extends ActionController
             $file['sizeHuman'] = $this->formatBytes($file['size']);
         }
 
+        unset($file);
+
         return $largestFiles;
     }
 
@@ -294,7 +304,7 @@ final class MaintenanceController extends ActionController
      */
     private function formatBytes(int $bytes): string
     {
-        $units = ['B', 'KB', 'MB', 'GB'];
+        $units = ['B', 'KB', 'MB', 'GB', 'TB'];
         $bytes = max($bytes, 0);
         $pow   = $bytes > 0 ? (int) floor(log($bytes, 1024)) : 0;
         $pow   = min($pow, count($units) - 1);

@@ -351,7 +351,7 @@ final class SystemRequirementsService
         }
 
         $disabled    = array_map(trim(...), explode(',', $disableFunctions));
-        $execAllowed = function_exists('exec') && !in_array('exec', $disabled, true);
+        $execAllowed = function_exists('shell_exec') && !in_array('shell_exec', $disabled, true);
 
         $items[] = $this->makeItem(
             'sysreq.execAvailability',
@@ -449,7 +449,13 @@ final class SystemRequirementsService
             return null;
         }
 
-        $data = json_decode((string) file_get_contents($installedJson), true);
+        $raw = file_get_contents($installedJson);
+
+        if ($raw === false) {
+            return null;
+        }
+
+        $data = json_decode($raw, true);
 
         if (!is_array($data)) {
             return null;
@@ -485,7 +491,13 @@ final class SystemRequirementsService
             return null;
         }
 
-        $data = json_decode((string) file_get_contents($lock), true);
+        $raw = file_get_contents($lock);
+
+        if ($raw === false) {
+            return null;
+        }
+
+        $data = json_decode($raw, true);
 
         if (!is_array($data)) {
             return null;
