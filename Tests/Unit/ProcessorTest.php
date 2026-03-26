@@ -11,17 +11,17 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Tests\Unit;
 
-use PHPUnit\Framework\Attributes\UsesClass;
-use Netresearch\NrImageOptimize\Event\ImageProcessedEvent;
-use Netresearch\NrImageOptimize\Event\VariantServedEvent;
 use Intervention\Image\ImageManager;
 use Intervention\Image\Interfaces\DriverInterface;
 use Intervention\Image\Interfaces\EncodedImageInterface;
 use Intervention\Image\Interfaces\ImageInterface;
+use Netresearch\NrImageOptimize\Event\ImageProcessedEvent;
+use Netresearch\NrImageOptimize\Event\VariantServedEvent;
 use Netresearch\NrImageOptimize\Processor;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\EventDispatcher\EventDispatcherInterface;
