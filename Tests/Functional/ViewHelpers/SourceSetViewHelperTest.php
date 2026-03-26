@@ -112,7 +112,8 @@ final class SourceSetViewHelperTest extends FunctionalTestCase
         self::assertStringContainsString('<source', $output);
         self::assertStringContainsString('(max-width: 768px)', $output);
         self::assertStringContainsString('(max-width: 1200px)', $output);
-        self::assertStringContainsString('type="image/png"', $output);
+        // type attribute is only emitted for next-gen formats (webp, avif)
+        self::assertStringNotContainsString('type=', $output);
     }
 
     #[Test]

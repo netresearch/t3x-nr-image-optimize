@@ -453,8 +453,7 @@ class SourceSetViewHelperTest extends TestCase
 
         $expected = '<source media="(max-width: 480px)" '
             . 'srcset="/processed/images/picture.w200h120m0q100.jpg, '
-            . '/processed/images/picture.w400h240m0q100.jpg 2x" '
-            . 'type="image/jpeg" />' . PHP_EOL;
+            . '/processed/images/picture.w400h240m0q100.jpg 2x" />' . PHP_EOL;
 
         self::assertSame($expected, $result);
     }
@@ -491,8 +490,8 @@ class SourceSetViewHelperTest extends TestCase
     }
 
     #[Test]
-    #[DataProvider('mimeTypeProvider')]
-    public function generateSrcSetIncludesCorrectTypeAttribute(string $extension, string $expectedType): void
+    #[DataProvider('nextGenMimeTypeProvider')]
+    public function generateSrcSetIncludesTypeForNextGenFormats(string $extension, string $expectedType): void
     {
         $this->viewHelper->setArguments([
             'path' => '/images/picture.' . $extension,
@@ -509,14 +508,37 @@ class SourceSetViewHelperTest extends TestCase
     /**
      * @return iterable<string, array{0: string, 1: string}>
      */
-    public static function mimeTypeProvider(): iterable
+    public static function nextGenMimeTypeProvider(): iterable
     {
-        yield 'jpg' => ['jpg', 'image/jpeg'];
-        yield 'jpeg' => ['jpeg', 'image/jpeg'];
-        yield 'png' => ['png', 'image/png'];
         yield 'webp' => ['webp', 'image/webp'];
         yield 'avif' => ['avif', 'image/avif'];
-        yield 'gif' => ['gif', 'image/gif'];
+    }
+
+    #[Test]
+    #[DataProvider('universalFormatProvider')]
+    public function generateSrcSetOmitsTypeForUniversalFormats(string $extension): void
+    {
+        $this->viewHelper->setArguments([
+            'path' => '/images/picture.' . $extension,
+            'set'  => [
+                480 => ['width' => 200, 'height' => 120],
+            ],
+        ]);
+
+        $result = $this->viewHelper->generateSrcSet();
+
+        self::assertStringNotContainsString('type=', $result);
+    }
+
+    /**
+     * @return iterable<string, array{0: string}>
+     */
+    public static function universalFormatProvider(): iterable
+    {
+        yield 'jpg' => ['jpg'];
+        yield 'jpeg' => ['jpeg'];
+        yield 'png' => ['png'];
+        yield 'gif' => ['gif'];
     }
 
     #[Test]

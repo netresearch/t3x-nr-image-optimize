@@ -79,13 +79,15 @@ class SourceSetViewHelper extends AbstractViewHelper
      *
      * @var array<string, string>
      */
+    /**
+     * MIME types for next-gen formats where the `type` attribute on `<source>`
+     * provides genuine browser skip-signal value. Universally-supported formats
+     * (JPEG, PNG, GIF) are omitted since every browser that supports `<picture>`
+     * also supports those formats — adding `type` for them provides no benefit.
+     */
     private const EXTENSION_MIME_MAP = [
-        'jpg'  => 'image/jpeg',
-        'jpeg' => 'image/jpeg',
-        'png'  => 'image/png',
         'webp' => 'image/webp',
         'avif' => 'image/avif',
-        'gif'  => 'image/gif',
     ];
 
     /**

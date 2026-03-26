@@ -444,17 +444,21 @@ class Processor implements LoggerAwareInterface, ProcessorInterface
             }
         }
 
-        $this->eventDispatcher->dispatch(new ImageProcessedEvent(
-            pathOriginal: $urlInfo['pathOriginal'],
-            pathVariant: $pathVariant,
-            extension: $extension,
-            targetWidth: $targetWidth,
-            targetHeight: $targetHeight,
-            targetQuality: $targetQuality,
-            processingMode: $processingMode,
-            webpGenerated: $webpGenerated,
-            avifGenerated: $avifGenerated,
-        ));
+        try {
+            $this->eventDispatcher->dispatch(new ImageProcessedEvent(
+                pathOriginal: $urlInfo['pathOriginal'],
+                pathVariant: $pathVariant,
+                extension: $extension,
+                targetWidth: $targetWidth,
+                targetHeight: $targetHeight,
+                targetQuality: $targetQuality,
+                processingMode: $processingMode,
+                webpGenerated: $webpGenerated,
+                avifGenerated: $avifGenerated,
+            ));
+        } catch (Throwable $e) {
+            $this->logger?->warning('ImageProcessedEvent listener failed', ['exception' => $e]);
+        }
 
         return $this->buildOutputResponse($extension, $pathVariant);
     }

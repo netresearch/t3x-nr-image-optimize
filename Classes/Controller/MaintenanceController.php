@@ -148,7 +148,7 @@ final class MaintenanceController extends ActionController implements LoggerAwar
                 ContextualFeedbackSeverity::OK,
             );
         } catch (Throwable $exception) {
-            $this->logger?->error('clearProcessedImages failed: ' . $exception->getMessage(), [
+            $this->logger?->error('clearProcessedImages failed', [
                 'exception' => $exception,
             ]);
 
