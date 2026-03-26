@@ -1804,7 +1804,7 @@ class ProcessorTest extends TestCase
         $responseFactory = $this->createMock(ResponseFactoryInterface::class);
         $responseFactory->method('createResponse')->willReturn($response200);
 
-        $stream = $this->createMock(StreamInterface::class);
+        $stream        = $this->createMock(StreamInterface::class);
         $streamFactory = $this->createMock(StreamFactoryInterface::class);
         $streamFactory->method('createStreamFromFile')->willReturn($stream);
 
@@ -1886,7 +1886,7 @@ class ProcessorTest extends TestCase
         $responseFactory = $this->createMock(ResponseFactoryInterface::class);
         $responseFactory->method('createResponse')->willReturn($response200);
 
-        $stream = $this->createMock(StreamInterface::class);
+        $stream        = $this->createMock(StreamInterface::class);
         $streamFactory = $this->createMock(StreamFactoryInterface::class);
         $streamFactory->method('createStreamFromFile')->willReturn($stream);
 
@@ -1968,7 +1968,7 @@ class ProcessorTest extends TestCase
         $responseFactory = $this->createMock(ResponseFactoryInterface::class);
         $responseFactory->method('createResponse')->willReturn($response200);
 
-        $stream = $this->createMock(StreamInterface::class);
+        $stream        = $this->createMock(StreamInterface::class);
         $streamFactory = $this->createMock(StreamFactoryInterface::class);
         $streamFactory->method('createStreamFromFile')->willReturn($stream);
 
@@ -2050,7 +2050,7 @@ class ProcessorTest extends TestCase
         $responseFactory = $this->createMock(ResponseFactoryInterface::class);
         $responseFactory->method('createResponse')->willReturn($response200);
 
-        $stream = $this->createMock(StreamInterface::class);
+        $stream        = $this->createMock(StreamInterface::class);
         $streamFactory = $this->createMock(StreamFactoryInterface::class);
         $streamFactory->method('createStreamFromFile')->willReturn($stream);
 
@@ -2120,7 +2120,7 @@ class ProcessorTest extends TestCase
         $responseFactory = $this->createMock(ResponseFactoryInterface::class);
         $responseFactory->method('createResponse')->willReturn($response200);
 
-        $stream = $this->createMock(StreamInterface::class);
+        $stream        = $this->createMock(StreamInterface::class);
         $streamFactory = $this->createMock(StreamFactoryInterface::class);
         $streamFactory->method('createStreamFromFile')->willReturn($stream);
 
@@ -2193,7 +2193,7 @@ class ProcessorTest extends TestCase
         $responseFactory = $this->createMock(ResponseFactoryInterface::class);
         $responseFactory->method('createResponse')->willReturn($response200);
 
-        $stream = $this->createMock(StreamInterface::class);
+        $stream        = $this->createMock(StreamInterface::class);
         $streamFactory = $this->createMock(StreamFactoryInterface::class);
         $streamFactory->method('createStreamFromFile')->willReturn($stream);
 
@@ -2278,7 +2278,7 @@ class ProcessorTest extends TestCase
         $lockFactory = $this->createMock(LockFactory::class);
         $lockFactory->method('createLocker')->willReturn($locker);
 
-        $stream = $this->createMock(StreamInterface::class);
+        $stream        = $this->createMock(StreamInterface::class);
         $streamFactory = $this->createMock(StreamFactoryInterface::class);
         $streamFactory->method('createStreamFromFile')->willReturn($stream);
 
@@ -2335,7 +2335,7 @@ class ProcessorTest extends TestCase
         // Create the original file at the symlink destination
         file_put_contents($tempDir . '/outside/photo.jpg', 'image-data');
 
-        $response400 = $this->createMock(ResponseInterface::class);
+        $response400     = $this->createMock(ResponseInterface::class);
         $responseFactory = $this->createMock(ResponseFactoryInterface::class);
         $responseFactory->method('createResponse')->with(400)->willReturn($response400);
 
