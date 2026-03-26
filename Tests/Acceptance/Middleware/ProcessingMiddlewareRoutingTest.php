@@ -30,6 +30,7 @@ use Psr\Http\Server\RequestHandlerInterface;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use ReflectionClass;
+use ReflectionMethod;
 
 use function rmdir;
 use function sys_get_temp_dir;
@@ -77,7 +78,7 @@ class ProcessingMiddlewareRoutingTest extends TestCase
         }
 
         // Create fileadmin and processed/fileadmin directories so that
-        // isPathWithinPublicRoot can resolve parent paths via realpath().
+        // Processor::isPathWithinPublicRoot can resolve paths via realpath().
         mkdir($this->publicPath . '/fileadmin', 0o777, true);
         mkdir($this->publicPath . '/processed/fileadmin', 0o777, true);
 
@@ -250,10 +251,21 @@ class ProcessingMiddlewareRoutingTest extends TestCase
     {
         $processor = $this->createProcessor();
 
-        $request  = $this->createRequestWithPath('/processed/fileadmin/nonexistent.w400h300m0q80.jpg');
-        $response = $processor->generateAndSend($request);
+        // Use processAndRespond via reflection to bypass isPathWithinPublicRoot,
+        // directly testing the 404 behavior when the original file does not exist.
+        $method = new ReflectionMethod(Processor::class, 'processAndRespond');
 
-        // 404 because the original image does not exist
+        $request  = $this->createRequestWithPath('/processed/fileadmin/nonexistent.w400h300m0q80.jpg');
+        $response = $method->invoke($processor, $request, [
+            'pathVariant'    => $this->publicPath . '/processed/fileadmin/nonexistent.w400h300m0q80.jpg',
+            'pathOriginal'   => $this->publicPath . '/fileadmin/nonexistent.jpg',
+            'extension'      => 'jpg',
+            'targetWidth'    => 400,
+            'targetHeight'   => 300,
+            'targetQuality'  => 80,
+            'processingMode' => 0,
+        ]);
+
         self::assertSame(404, $response->getStatusCode());
     }
 
@@ -264,16 +276,12 @@ class ProcessingMiddlewareRoutingTest extends TestCase
     #[Test]
     public function processorServesExistingVariantWithCacheHeaders(): void
     {
-        // Pre-create the variant file on disk to simulate a cached variant
-        $variantDir  = $this->publicPath . '/processed/fileadmin';
-        $variantFile = $variantDir . '/cached.w100h100m0q80.jpg';
+        $variantFile  = $this->publicPath . '/processed/fileadmin/cached.w100h100m0q80.jpg';
+        $originalFile = $this->publicPath . '/fileadmin/cached.jpg';
 
-        if (!is_dir($variantDir)) {
-            mkdir($variantDir, 0o777, true);
-        }
-
-        // Write a minimal JPEG-like content
+        // Create both the variant (cached) and original (for path validation)
         file_put_contents($variantFile, $this->createMinimalJpeg());
+        file_put_contents($originalFile, $this->createMinimalJpeg());
 
         $processor = $this->createProcessor();
         $request   = $this->createRequestWithPath('/processed/fileadmin/cached.w100h100m0q80.jpg');
@@ -300,19 +308,17 @@ class ProcessingMiddlewareRoutingTest extends TestCase
         self::assertNotEmpty($response->getHeaderLine('Content-Length'));
 
         unlink($variantFile);
+        unlink($originalFile);
     }
 
     #[Test]
     public function processorPrefersAvifVariantWhenAvailable(): void
     {
-        $variantDir  = $this->publicPath . '/processed/fileadmin';
-        $variantFile = $variantDir . '/multi.w100h100m0q80.jpg';
+        $variantFile  = $this->publicPath . '/processed/fileadmin/multi.w100h100m0q80.jpg';
+        $originalFile = $this->publicPath . '/fileadmin/multi.jpg';
 
-        if (!is_dir($variantDir)) {
-            mkdir($variantDir, 0o777, true);
-        }
-
-        // Create both the base variant and an AVIF variant
+        // Create original, variant, and AVIF variant
+        file_put_contents($originalFile, $this->createMinimalJpeg());
         file_put_contents($variantFile, $this->createMinimalJpeg());
         file_put_contents($variantFile . '.avif', 'fake-avif-data');
 
@@ -325,19 +331,17 @@ class ProcessingMiddlewareRoutingTest extends TestCase
 
         unlink($variantFile . '.avif');
         unlink($variantFile);
+        unlink($originalFile);
     }
 
     #[Test]
     public function processorPrefersWebpVariantWhenNoAvifAvailable(): void
     {
-        $variantDir  = $this->publicPath . '/processed/fileadmin';
-        $variantFile = $variantDir . '/webptest.w100h100m0q80.jpg';
+        $variantFile  = $this->publicPath . '/processed/fileadmin/webptest.w100h100m0q80.jpg';
+        $originalFile = $this->publicPath . '/fileadmin/webptest.jpg';
 
-        if (!is_dir($variantDir)) {
-            mkdir($variantDir, 0o777, true);
-        }
-
-        // Create both the base variant and a WebP variant (no AVIF)
+        // Create original, variant, and WebP variant (no AVIF)
+        file_put_contents($originalFile, $this->createMinimalJpeg());
         file_put_contents($variantFile, $this->createMinimalJpeg());
         file_put_contents($variantFile . '.webp', 'fake-webp-data');
 
@@ -350,6 +354,49 @@ class ProcessingMiddlewareRoutingTest extends TestCase
 
         unlink($variantFile . '.webp');
         unlink($variantFile);
+        unlink($originalFile);
+    }
+
+    // ──────────────────────────────────────────────────
+    // buildFileResponse header verification via reflection
+    // ──────────────────────────────────────────────────
+
+    #[Test]
+    public function buildFileResponseSetsEtagFromPathAndMtime(): void
+    {
+        $processor = $this->createProcessor();
+        $method    = new ReflectionMethod(Processor::class, 'buildFileResponse');
+
+        $testFile = $this->publicPath . '/fileadmin/etag-test.jpg';
+        file_put_contents($testFile, $this->createMinimalJpeg());
+
+        $response = $method->invoke($processor, $testFile, 'image/jpeg');
+
+        self::assertNotNull($response);
+
+        $etag = $response->getHeaderLine('ETag');
+        self::assertMatchesRegularExpression('/^"[a-f0-9]{32}"$/', $etag, 'ETag should be a quoted MD5 hash.');
+
+        unlink($testFile);
+    }
+
+    #[Test]
+    public function buildFileResponseSetsLastModifiedHeader(): void
+    {
+        $processor = $this->createProcessor();
+        $method    = new ReflectionMethod(Processor::class, 'buildFileResponse');
+
+        $testFile = $this->publicPath . '/fileadmin/lastmod-test.jpg';
+        file_put_contents($testFile, $this->createMinimalJpeg());
+
+        $response = $method->invoke($processor, $testFile, 'image/jpeg');
+
+        self::assertNotNull($response);
+
+        $lastModified = $response->getHeaderLine('Last-Modified');
+        self::assertStringContainsString('GMT', $lastModified);
+
+        unlink($testFile);
     }
 
     // ──────────────────────────────────────────────────

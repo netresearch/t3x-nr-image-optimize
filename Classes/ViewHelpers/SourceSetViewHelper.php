@@ -411,7 +411,7 @@ class SourceSetViewHelper extends AbstractViewHelper
     /**
      * Render a self-closing HTML tag with given attributes and global attributes/lazyload applied.
      *
-     * @param string                               $tag        Tag name (e.g., 'img' or 'source')
+     * @param string                                    $tag        Tag name (e.g., 'img' or 'source')
      * @param array<string, int|string|float|bool|null> $properties Attribute map to render into the tag
      *
      * @return string The HTML string ending with a newline
