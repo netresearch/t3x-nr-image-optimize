@@ -11,6 +11,9 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Tests\Unit;
 
+use PHPUnit\Framework\Attributes\UsesClass;
+use Netresearch\NrImageOptimize\Event\ImageProcessedEvent;
+use Netresearch\NrImageOptimize\Event\VariantServedEvent;
 use Intervention\Image\ImageManager;
 use Intervention\Image\Interfaces\DriverInterface;
 use Intervention\Image\Interfaces\EncodedImageInterface;
@@ -41,6 +44,8 @@ use TYPO3\CMS\Core\Locking\LockFactory;
 use TYPO3\CMS\Core\Locking\LockingStrategyInterface;
 
 #[CoversClass(Processor::class)]
+#[UsesClass(ImageProcessedEvent::class)]
+#[UsesClass(VariantServedEvent::class)]
 class ProcessorTest extends TestCase
 {
     private MockObject $lockFactory;
@@ -2368,5 +2373,423 @@ class ProcessorTest extends TestCase
             '/var/www/html/public/index.php',
             'UNIX',
         );
+    }
+
+    // =========================================================================
+    // Event dispatching: VariantServedEvent for cached variant
+    // =========================================================================
+
+    #[Test]
+    public function generateAndSendDispatchesVariantServedEventForCachedVariant(): void
+    {
+        ['tempDir' => $tempDir, 'prop' => $prop] = $this->setUpRealEnvironment();
+
+        $variantPath = $tempDir . '/public/processed/images/photo.w100h50m0q80.jpg';
+        file_put_contents($variantPath, 'cached-image-data');
+
+        $response = $this->createMock(ResponseInterface::class);
+        $stream   = $this->createMock(StreamInterface::class);
+
+        $responseFactory = $this->createMock(ResponseFactoryInterface::class);
+        $responseFactory->method('createResponse')->willReturn($response);
+
+        $streamFactory = $this->createMock(StreamFactoryInterface::class);
+        $streamFactory->method('createStreamFromFile')->willReturn($stream);
+
+        $response->method('withHeader')->willReturn($response);
+        $response->method('withBody')->willReturn($response);
+        $response->method('getStatusCode')->willReturn(200);
+
+        $lockFactory = $this->createMock(LockFactory::class);
+        $lockFactory->expects(self::never())->method('createLocker');
+
+        $eventDispatcher = $this->createMock(EventDispatcherInterface::class);
+        $eventDispatcher->expects(self::once())
+            ->method('dispatch')
+            ->with(self::callback(static function (object $event): bool {
+                if (!$event instanceof VariantServedEvent) {
+                    return false;
+                }
+
+                return $event->responseStatusCode === 200
+                    && $event->fromCache
+                    && $event->extension === 'jpg'
+                    && str_contains($event->pathVariant, 'photo.w100h50m0q80.jpg');
+            }));
+
+        $processor = $this->createProcessor(
+            lockFactory: $lockFactory,
+            responseFactory: $responseFactory,
+            streamFactory: $streamFactory,
+            eventDispatcher: $eventDispatcher,
+        );
+
+        $uri = $this->createMock(UriInterface::class);
+        $uri->method('getPath')->willReturn('/processed/images/photo.w100h50m0q80.jpg');
+
+        $request = $this->createMock(RequestInterface::class);
+        $request->method('getUri')->willReturn($uri);
+
+        $processor->generateAndSend($request);
+
+        $this->tearDownRealEnvironment($tempDir, $prop);
+    }
+
+    // =========================================================================
+    // Event dispatching: VariantServedEvent for freshly processed variant
+    // =========================================================================
+
+    #[Test]
+    public function generateAndSendDispatchesVariantServedEventForFreshlyProcessedVariant(): void
+    {
+        ['tempDir' => $tempDir, 'prop' => $prop] = $this->setUpRealEnvironment();
+
+        // Create original but NOT the variant
+        file_put_contents($tempDir . '/public/img.jpg', 'fake-original');
+
+        $response200 = $this->createMock(ResponseInterface::class);
+        $response200->method('withHeader')->willReturn($response200);
+        $response200->method('withBody')->willReturn($response200);
+        $response200->method('getStatusCode')->willReturn(200);
+
+        $responseFactory = $this->createMock(ResponseFactoryInterface::class);
+        $responseFactory->method('createResponse')->willReturn($response200);
+
+        $stream        = $this->createMock(StreamInterface::class);
+        $streamFactory = $this->createMock(StreamFactoryInterface::class);
+        $streamFactory->method('createStreamFromFile')->willReturn($stream);
+
+        $locker = $this->createMock(LockingStrategyInterface::class);
+        $locker->method('acquire')->willReturn(true);
+
+        $lockFactory = $this->createMock(LockFactory::class);
+        $lockFactory->method('createLocker')->willReturn($locker);
+
+        $encoded = $this->createMock(EncodedImageInterface::class);
+
+        $image = $this->createMock(ImageInterface::class);
+        $image->method('width')->willReturn(200);
+        $image->method('height')->willReturn(100);
+        $image->method('cover')->willReturn($image);
+        $image->method('save')->willReturnCallback(
+            static function (string $path) use ($image): ImageInterface {
+                file_put_contents($path, 'processed');
+
+                return $image;
+            },
+        );
+        $image->method('toWebp')->willReturn($encoded);
+        $image->method('toAvif')->willReturn($encoded);
+        $encoded->method('save')->willReturnCallback(
+            static function (string $path) use ($encoded): EncodedImageInterface {
+                file_put_contents($path, 'encoded');
+
+                return $encoded;
+            },
+        );
+
+        $driver = $this->createMock(DriverInterface::class);
+        $driver->method('handleInput')->willReturn($image);
+
+        $imageManager = new ImageManager($driver);
+
+        $dispatchedEvents = [];
+        $eventDispatcher  = $this->createMock(EventDispatcherInterface::class);
+        $eventDispatcher->expects(self::exactly(2))
+            ->method('dispatch')
+            ->willReturnCallback(static function (object $event) use (&$dispatchedEvents): object {
+                $dispatchedEvents[] = $event;
+
+                return $event;
+            });
+
+        $reflection = new ReflectionClass(Processor::class);
+        $instance   = $reflection->newInstanceWithoutConstructor();
+
+        $this->setProperty($instance, 'imageManager', $imageManager);
+        $this->setProperty($instance, 'lockFactory', $lockFactory);
+        $this->setProperty($instance, 'responseFactory', $responseFactory);
+        $this->setProperty($instance, 'streamFactory', $streamFactory);
+        $this->setProperty($instance, 'eventDispatcher', $eventDispatcher);
+
+        $uri = $this->createMock(UriInterface::class);
+        $uri->method('getPath')->willReturn('/processed/img.w100h50m0q80.jpg');
+        $uri->method('getQuery')->willReturn('');
+        $request = $this->createMock(RequestInterface::class);
+        $request->method('getUri')->willReturn($uri);
+
+        $instance->generateAndSend($request);
+
+        // First event: ImageProcessedEvent from processAndRespond
+        self::assertCount(2, $dispatchedEvents);
+        self::assertInstanceOf(ImageProcessedEvent::class, $dispatchedEvents[0]);
+        self::assertSame('jpg', $dispatchedEvents[0]->extension);
+        self::assertSame(100, $dispatchedEvents[0]->targetWidth);
+        self::assertSame(50, $dispatchedEvents[0]->targetHeight);
+        self::assertSame(80, $dispatchedEvents[0]->targetQuality);
+        self::assertSame(0, $dispatchedEvents[0]->processingMode);
+        self::assertTrue($dispatchedEvents[0]->webpGenerated);
+        self::assertTrue($dispatchedEvents[0]->avifGenerated);
+
+        // Second event: VariantServedEvent with fromCache=false
+        self::assertInstanceOf(VariantServedEvent::class, $dispatchedEvents[1]);
+        self::assertSame(200, $dispatchedEvents[1]->responseStatusCode);
+        self::assertFalse($dispatchedEvents[1]->fromCache);
+        self::assertSame('jpg', $dispatchedEvents[1]->extension);
+
+        $this->tearDownRealEnvironment($tempDir, $prop);
+    }
+
+    // =========================================================================
+    // Event dispatching: ImageProcessedEvent payload (processAndRespond)
+    // =========================================================================
+
+    #[Test]
+    public function processAndRespondDispatchesImageProcessedEventWithCorrectPayload(): void
+    {
+        $tempDir = sys_get_temp_dir() . '/nr-pio-evt-proc-' . uniqid('', true);
+        mkdir($tempDir . '/processed', 0o777, true);
+
+        $originalPath = $tempDir . '/original.jpg';
+        file_put_contents($originalPath, 'fake-jpeg-data');
+        $variantPath = $tempDir . '/processed/original.w400h200m0q80.jpg';
+
+        $response200 = $this->createMock(ResponseInterface::class);
+        $response200->method('withHeader')->willReturn($response200);
+        $response200->method('withBody')->willReturn($response200);
+
+        $responseFactory = $this->createMock(ResponseFactoryInterface::class);
+        $responseFactory->method('createResponse')->willReturn($response200);
+
+        $stream        = $this->createMock(StreamInterface::class);
+        $streamFactory = $this->createMock(StreamFactoryInterface::class);
+        $streamFactory->method('createStreamFromFile')->willReturn($stream);
+
+        $encoded = $this->createMock(EncodedImageInterface::class);
+
+        $eventDispatcher = $this->createMock(EventDispatcherInterface::class);
+        $eventDispatcher->expects(self::once())
+            ->method('dispatch')
+            ->with(self::callback(static function (object $event) use ($originalPath, $variantPath): bool {
+                if (!$event instanceof ImageProcessedEvent) {
+                    return false;
+                }
+
+                return $event->pathOriginal === $originalPath
+                    && $event->pathVariant === $variantPath
+                    && $event->extension === 'jpg'
+                    && $event->targetWidth === 400
+                    && $event->targetHeight === 200
+                    && $event->targetQuality === 80
+                    && $event->processingMode === 0
+                    && $event->webpGenerated
+                    && $event->avifGenerated;
+            }));
+
+        ['processor' => $processor, 'image' => $image] = $this->createProcessorWithImageManager(
+            responseFactory: $responseFactory,
+            streamFactory: $streamFactory,
+            eventDispatcher: $eventDispatcher,
+        );
+
+        $image->method('width')->willReturn(800);
+        $image->method('height')->willReturn(400);
+        $image->method('cover')->willReturn($image);
+        $image->method('save')->willReturnCallback(
+            static function (string $path) use ($image): ImageInterface {
+                file_put_contents($path, 'processed-image');
+
+                return $image;
+            },
+        );
+        $image->method('toWebp')->willReturn($encoded);
+        $image->method('toAvif')->willReturn($encoded);
+        $encoded->method('save')->willReturnCallback(
+            static function (string $path) use ($encoded): EncodedImageInterface {
+                file_put_contents($path, 'encoded-variant');
+
+                return $encoded;
+            },
+        );
+
+        $uri = $this->createMock(UriInterface::class);
+        $uri->method('getQuery')->willReturn('');
+        $request = $this->createMock(RequestInterface::class);
+        $request->method('getUri')->willReturn($uri);
+
+        $urlInfo = [
+            'pathVariant'    => $variantPath,
+            'pathOriginal'   => $originalPath,
+            'extension'      => 'jpg',
+            'targetWidth'    => 400,
+            'targetHeight'   => 200,
+            'targetQuality'  => 80,
+            'processingMode' => 0,
+        ];
+
+        $this->callMethod($processor, 'processAndRespond', $request, $urlInfo);
+
+        $files = glob($tempDir . '/processed/*');
+
+        if ($files !== false) {
+            foreach ($files as $f) {
+                unlink($f);
+            }
+        }
+
+        unlink($originalPath);
+        rmdir($tempDir . '/processed');
+        rmdir($tempDir);
+    }
+
+    // =========================================================================
+    // Event dispatching: ImageProcessedEvent with failed variant generation
+    // =========================================================================
+
+    #[Test]
+    public function processAndRespondDispatchesImageProcessedEventWithFalseFlags(): void
+    {
+        $tempDir = sys_get_temp_dir() . '/nr-pio-evt-fail-' . uniqid('', true);
+        mkdir($tempDir . '/processed', 0o777, true);
+
+        $originalPath = $tempDir . '/original.jpg';
+        file_put_contents($originalPath, 'fake-jpeg-data');
+        $variantPath = $tempDir . '/processed/original.w400h200m0q80.jpg';
+
+        $response200 = $this->createMock(ResponseInterface::class);
+        $response200->method('withHeader')->willReturn($response200);
+        $response200->method('withBody')->willReturn($response200);
+
+        $responseFactory = $this->createMock(ResponseFactoryInterface::class);
+        $responseFactory->method('createResponse')->willReturn($response200);
+
+        $stream        = $this->createMock(StreamInterface::class);
+        $streamFactory = $this->createMock(StreamFactoryInterface::class);
+        $streamFactory->method('createStreamFromFile')->willReturn($stream);
+
+        $eventDispatcher = $this->createMock(EventDispatcherInterface::class);
+        $eventDispatcher->expects(self::once())
+            ->method('dispatch')
+            ->with(self::callback(static function (object $event): bool {
+                if (!$event instanceof ImageProcessedEvent) {
+                    return false;
+                }
+
+                return $event->webpGenerated === false
+                    && $event->avifGenerated === false;
+            }));
+
+        ['processor' => $processor, 'image' => $image] = $this->createProcessorWithImageManager(
+            responseFactory: $responseFactory,
+            streamFactory: $streamFactory,
+            eventDispatcher: $eventDispatcher,
+        );
+
+        $image->method('width')->willReturn(800);
+        $image->method('height')->willReturn(400);
+        $image->method('cover')->willReturn($image);
+        $image->method('save')->willReturnCallback(
+            static function (string $path) use ($image): ImageInterface {
+                file_put_contents($path, 'processed-image');
+
+                return $image;
+            },
+        );
+        $image->method('toWebp')->willThrowException(new RuntimeException('WebP failed'));
+        $image->method('toAvif')->willThrowException(new RuntimeException('AVIF failed'));
+
+        $uri = $this->createMock(UriInterface::class);
+        $uri->method('getQuery')->willReturn('');
+        $request = $this->createMock(RequestInterface::class);
+        $request->method('getUri')->willReturn($uri);
+
+        $urlInfo = [
+            'pathVariant'    => $variantPath,
+            'pathOriginal'   => $originalPath,
+            'extension'      => 'jpg',
+            'targetWidth'    => 400,
+            'targetHeight'   => 200,
+            'targetQuality'  => 80,
+            'processingMode' => 0,
+        ];
+
+        $this->callMethod($processor, 'processAndRespond', $request, $urlInfo);
+
+        $files = glob($tempDir . '/processed/*');
+
+        if ($files !== false) {
+            foreach ($files as $f) {
+                unlink($f);
+            }
+        }
+
+        unlink($originalPath);
+        rmdir($tempDir . '/processed');
+        rmdir($tempDir);
+    }
+
+    // =========================================================================
+    // Event dispatching: VariantServedEvent after lock re-check (cached)
+    // =========================================================================
+
+    #[Test]
+    public function generateAndSendDispatchesVariantServedEventAfterLockRecheck(): void
+    {
+        ['tempDir' => $tempDir, 'prop' => $prop] = $this->setUpRealEnvironment();
+
+        file_put_contents($tempDir . '/public/img.jpg', 'fake-original');
+        $variantPath = $tempDir . '/public/processed/img.w100h50m0q80.jpg';
+
+        $response200 = $this->createMock(ResponseInterface::class);
+        $response200->method('withHeader')->willReturn($response200);
+        $response200->method('withBody')->willReturn($response200);
+        $response200->method('getStatusCode')->willReturn(200);
+
+        $responseFactory = $this->createMock(ResponseFactoryInterface::class);
+        $responseFactory->method('createResponse')->with(200)->willReturn($response200);
+
+        $locker = $this->createMock(LockingStrategyInterface::class);
+        $locker->method('acquire')->willReturnCallback(
+            static function () use ($variantPath): bool {
+                file_put_contents($variantPath, 'created-during-lock-wait');
+
+                return true;
+            },
+        );
+
+        $lockFactory = $this->createMock(LockFactory::class);
+        $lockFactory->method('createLocker')->willReturn($locker);
+
+        $stream        = $this->createMock(StreamInterface::class);
+        $streamFactory = $this->createMock(StreamFactoryInterface::class);
+        $streamFactory->method('createStreamFromFile')->willReturn($stream);
+
+        $eventDispatcher = $this->createMock(EventDispatcherInterface::class);
+        $eventDispatcher->expects(self::once())
+            ->method('dispatch')
+            ->with(self::callback(static function (object $event): bool {
+                if (!$event instanceof VariantServedEvent) {
+                    return false;
+                }
+
+                return $event->fromCache
+                    && $event->responseStatusCode === 200;
+            }));
+
+        $processor = $this->createProcessor(
+            lockFactory: $lockFactory,
+            responseFactory: $responseFactory,
+            streamFactory: $streamFactory,
+            eventDispatcher: $eventDispatcher,
+        );
+
+        $uri = $this->createMock(UriInterface::class);
+        $uri->method('getPath')->willReturn('/processed/img.w100h50m0q80.jpg');
+        $request = $this->createMock(RequestInterface::class);
+        $request->method('getUri')->willReturn($uri);
+
+        $processor->generateAndSend($request);
+
+        $this->tearDownRealEnvironment($tempDir, $prop);
     }
 }

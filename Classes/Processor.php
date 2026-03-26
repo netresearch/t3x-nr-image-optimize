@@ -223,7 +223,12 @@ class Processor implements LoggerAwareInterface, ProcessorInterface
 
         try {
             $locker = $this->getLocker($variantUrl . '-process');
-        } catch (LockCreateException) {
+        } catch (LockCreateException $exception) {
+            $this->logger?->error('Failed to create image processing lock for "{url}"', [
+                'url'       => $variantUrl,
+                'exception' => $exception,
+            ]);
+
             return $this->responseFactory->createResponse(503);
         }
 
@@ -408,7 +413,8 @@ class Processor implements LoggerAwareInterface, ProcessorInterface
                 $this->generateWebpVariant($image, $targetQuality, $pathVariant);
                 $webpGenerated = true;
             } catch (Throwable $e) {
-                $this->logger?->warning('WebP variant generation failed', [
+                $this->logger?->warning('WebP variant generation failed for "{path}"', [
+                    'path'      => $pathVariant,
                     'exception' => $e,
                 ]);
             }
@@ -419,7 +425,8 @@ class Processor implements LoggerAwareInterface, ProcessorInterface
                 $this->generateAvifVariant($image, $targetQuality, $pathVariant);
                 $avifGenerated = true;
             } catch (Throwable $e) {
-                $this->logger?->warning('AVIF variant generation failed', [
+                $this->logger?->warning('AVIF variant generation failed for "{path}"', [
+                    'path'      => $pathVariant,
                     'exception' => $e,
                 ]);
             }

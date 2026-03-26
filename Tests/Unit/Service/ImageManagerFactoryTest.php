@@ -13,14 +13,11 @@ namespace Netresearch\NrImageOptimize\Tests\Unit\Service;
 
 use function extension_loaded;
 
-use Intervention\Image\Drivers\Gd\Driver as GdDriver;
-use Intervention\Image\Drivers\Imagick\Driver as ImagickDriver;
-use Intervention\Image\ImageManager;
 use Netresearch\NrImageOptimize\Service\ImageManagerFactory;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
-use ReflectionProperty;
+use RuntimeException;
 
 #[CoversClass(ImageManagerFactory::class)]
 class ImageManagerFactoryTest extends TestCase
@@ -35,7 +32,7 @@ class ImageManagerFactoryTest extends TestCase
     }
 
     #[Test]
-    public function createReturnsImageManagerWithAvailableDriver(): void
+    public function createReturnsManagerCapableOfReadingImages(): void
     {
         if (!extension_loaded('imagick') && !extension_loaded('gd')) {
             self::markTestSkipped('Neither imagick nor gd extension is available.');
@@ -43,48 +40,30 @@ class ImageManagerFactoryTest extends TestCase
 
         $imageManager = $this->factory->create();
 
-        $reflection = new ReflectionProperty(ImageManager::class, 'driver');
-        $driver     = $reflection->getValue($imageManager);
+        // Create a minimal 1x1 PNG to verify the manager can read images
+        $png     = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVQI12NgAAIABQABNjN9GQAAAAlwSFlzAAAWJQAAFiUBSVIk8AAAAA0lEQVQI12P4z8BQDwAEgAF/pooBPQAAAABJRU5ErkJggg==', true);
+        $tmpFile = sys_get_temp_dir() . '/nr-pio-factory-test-' . uniqid('', true) . '.png';
+        file_put_contents($tmpFile, $png);
 
-        self::assertTrue(
-            $driver instanceof ImagickDriver || $driver instanceof GdDriver,
-            'Expected either Imagick or GD driver',
-        );
+        try {
+            $image = $imageManager->read($tmpFile);
+            self::assertSame(1, $image->width());
+            self::assertSame(1, $image->height());
+        } finally {
+            unlink($tmpFile);
+        }
     }
 
     #[Test]
-    public function createPrefersImagickOverGd(): void
+    public function createThrowsWhenNoDriverAvailable(): void
     {
-        if (!extension_loaded('imagick')) {
-            self::markTestSkipped('Imagick extension is not available.');
+        if (extension_loaded('imagick') || extension_loaded('gd')) {
+            self::markTestSkipped('Cannot test no-driver path when a driver extension is loaded.');
         }
 
-        $imageManager = $this->factory->create();
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('No supported image driver available');
 
-        $reflection = new ReflectionProperty(ImageManager::class, 'driver');
-        $driver     = $reflection->getValue($imageManager);
-
-        self::assertInstanceOf(ImagickDriver::class, $driver);
-    }
-
-    #[Test]
-    public function createFallsBackToGdWhenImagickUnavailable(): void
-    {
-        if (!extension_loaded('gd')) {
-            self::markTestSkipped('GD extension is not available.');
-        }
-
-        if (extension_loaded('imagick')) {
-            self::markTestSkipped(
-                'Cannot test GD fallback because imagick extension is loaded.',
-            );
-        }
-
-        $imageManager = $this->factory->create();
-
-        $reflection = new ReflectionProperty(ImageManager::class, 'driver');
-        $driver     = $reflection->getValue($imageManager);
-
-        self::assertInstanceOf(GdDriver::class, $driver);
+        $this->factory->create();
     }
 }

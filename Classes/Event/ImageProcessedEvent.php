@@ -25,8 +25,8 @@ final readonly class ImageProcessedEvent
      * @param string   $pathOriginal   Absolute path to the original source image
      * @param string   $pathVariant    Absolute path to the processed variant file
      * @param string   $extension      Lowercased file extension of the variant (e.g. 'jpg', 'png', 'webp')
-     * @param int|null $targetWidth    Target width in pixels (null if not specified)
-     * @param int|null $targetHeight   Target height in pixels (null if not specified)
+     * @param int|null $targetWidth    Final resolved and clamped width in pixels (null if unspecified in URL)
+     * @param int|null $targetHeight   Final resolved and clamped height in pixels (null if unspecified in URL)
      * @param int      $targetQuality  Output quality (1-100)
      * @param int      $processingMode Processing mode (0 = cover, 1 = scale)
      * @param bool     $webpGenerated  Whether a WebP variant was generated alongside
