@@ -17,6 +17,7 @@ use Intervention\Image\Interfaces\EncodedImageInterface;
 use Intervention\Image\Interfaces\ImageInterface;
 use Netresearch\NrImageOptimize\Processor;
 use PHPUnit\Framework\Attributes\CoversClass;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -48,6 +49,8 @@ class ProcessorTest extends TestCase
 
     private MockObject $streamFactory;
 
+    private MockObject $eventDispatcher;
+
     private Processor $processor;
 
     protected function setUp(): void
@@ -69,6 +72,7 @@ class ProcessorTest extends TestCase
         $this->lockFactory     = $this->createMock(LockFactory::class);
         $this->responseFactory = $this->createMock(ResponseFactoryInterface::class);
         $this->streamFactory   = $this->createMock(StreamFactoryInterface::class);
+        $this->eventDispatcher = $this->createMock(EventDispatcherInterface::class);
 
         // ImageManager is final and cannot be mocked. Use newInstanceWithoutConstructor
         // since tests only exercise private helper methods via reflection that do not
@@ -80,6 +84,7 @@ class ProcessorTest extends TestCase
         $this->setProperty($this->processor, 'lockFactory', $this->lockFactory);
         $this->setProperty($this->processor, 'responseFactory', $this->responseFactory);
         $this->setProperty($this->processor, 'streamFactory', $this->streamFactory);
+        $this->setProperty($this->processor, 'eventDispatcher', $this->eventDispatcher);
     }
 
     private function setProperty(object $object, string $property, mixed $value): void
@@ -98,11 +103,13 @@ class ProcessorTest extends TestCase
      * @param object|null $lockFactory     Lock factory stub/mock
      * @param object|null $responseFactory Response factory stub/mock
      * @param object|null $streamFactory   Stream factory stub/mock
+     * @param object|null $eventDispatcher Event dispatcher stub/mock
      */
     private function createProcessor(
         ?object $lockFactory = null,
         ?object $responseFactory = null,
         ?object $streamFactory = null,
+        ?object $eventDispatcher = null,
     ): Processor {
         $reflection = new ReflectionClass(Processor::class);
         $instance   = $reflection->newInstanceWithoutConstructor();
@@ -110,6 +117,7 @@ class ProcessorTest extends TestCase
         $this->setProperty($instance, 'lockFactory', $lockFactory ?? $this->createMock(LockFactory::class));
         $this->setProperty($instance, 'responseFactory', $responseFactory ?? $this->createMock(ResponseFactoryInterface::class));
         $this->setProperty($instance, 'streamFactory', $streamFactory ?? $this->createMock(StreamFactoryInterface::class));
+        $this->setProperty($instance, 'eventDispatcher', $eventDispatcher ?? $this->createMock(EventDispatcherInterface::class));
 
         return $instance;
     }
@@ -1696,10 +1704,7 @@ class ProcessorTest extends TestCase
         $request = $this->createMock(RequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
-        // Redirect error_log to prevent "unexpected output" risky test
-        $prevLog = ini_set('error_log', '/dev/null');
-        $result  = $processor->generateAndSend($request);
-        ini_set('error_log', $prevLog !== false ? $prevLog : '');
+        $result = $processor->generateAndSend($request);
         self::assertSame($response500, $result);
 
         $this->tearDownRealEnvironment($tempDir, $prop);
@@ -1850,9 +1855,7 @@ class ProcessorTest extends TestCase
             'processingMode' => 0,
         ];
 
-        $prevLog = ini_set('error_log', '/dev/null');
-        $result  = $this->callMethod($processor, 'processAndRespond', $request, $urlInfo);
-        ini_set('error_log', $prevLog !== false ? $prevLog : '');
+        $result = $this->callMethod($processor, 'processAndRespond', $request, $urlInfo);
 
         self::assertSame($response200, $result);
 
@@ -1932,9 +1935,7 @@ class ProcessorTest extends TestCase
             'processingMode' => 0,
         ];
 
-        $prevLog = ini_set('error_log', '/dev/null');
-        $result  = $this->callMethod($processor, 'processAndRespond', $request, $urlInfo);
-        ini_set('error_log', $prevLog !== false ? $prevLog : '');
+        $result = $this->callMethod($processor, 'processAndRespond', $request, $urlInfo);
 
         self::assertSame($response200, $result);
 
@@ -2014,9 +2015,7 @@ class ProcessorTest extends TestCase
             'processingMode' => 0,
         ];
 
-        $prevLog = ini_set('error_log', '/dev/null');
-        $result  = $this->callMethod($processor, 'processAndRespond', $request, $urlInfo);
-        ini_set('error_log', $prevLog !== false ? $prevLog : '');
+        $result = $this->callMethod($processor, 'processAndRespond', $request, $urlInfo);
 
         self::assertSame($response200, $result);
 
@@ -2157,9 +2156,7 @@ class ProcessorTest extends TestCase
             'processingMode' => 0,
         ];
 
-        $prevLog = ini_set('error_log', '/dev/null');
-        $result  = $this->callMethod($processor, 'processAndRespond', $request, $urlInfo);
-        ini_set('error_log', $prevLog !== false ? $prevLog : '');
+        $result = $this->callMethod($processor, 'processAndRespond', $request, $urlInfo);
 
         self::assertSame($response200, $result);
 

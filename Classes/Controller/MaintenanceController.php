@@ -22,6 +22,8 @@ use function min;
 
 use Netresearch\NrImageOptimize\Service\SystemRequirementsService;
 use Psr\Http\Message\ResponseInterface;
+use Psr\Log\LoggerAwareInterface;
+use Psr\Log\LoggerAwareTrait;
 
 use function realpath;
 
@@ -50,8 +52,10 @@ use function usort;
 /**
  * Backend module controller for clearing processed images and checking system requirements.
  */
-final class MaintenanceController extends ActionController
+final class MaintenanceController extends ActionController implements LoggerAwareInterface
 {
+    use LoggerAwareTrait;
+
     /**
      * Number of largest files to display in the directory stats overview.
      */
@@ -144,12 +148,9 @@ final class MaintenanceController extends ActionController
                 ContextualFeedbackSeverity::OK,
             );
         } catch (Throwable $exception) {
-            error_log(sprintf(
-                'nr_image_optimize: clearProcessedImages failed: %s in %s:%d',
-                $exception->getMessage(),
-                $exception->getFile(),
-                $exception->getLine(),
-            ));
+            $this->logger?->error('Clearing processed images failed', [
+                'exception' => $exception,
+            ]);
 
             $this->addFlashMessage(
                 $this->getLanguageService()->sL('LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:flash.clear.error'),
