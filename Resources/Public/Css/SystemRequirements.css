@@ -2,3 +2,28 @@
     max-width: 400px;
     text-align: left;
 }
+
+.sysreq-col-component {
+    width: 35%;
+}
+
+.sysreq-col-status {
+    width: 15%;
+}
+
+.sysreq-col-current {
+    width: 20%;
+}
+
+.sysreq-col-required {
+    width: 15%;
+}
+
+.sysreq-col-details {
+    width: 15%;
+}
+
+.sysreq-legend-icon {
+    margin-right: 0.5rem;
+    margin-top: 0.25rem;
+}

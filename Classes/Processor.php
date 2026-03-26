@@ -13,8 +13,8 @@ namespace Netresearch\NrImageOptimize;
 
 use function dirname;
 use function file_exists;
-use function file_get_contents;
 use function filemtime;
+use function filesize;
 use function gmdate;
 
 use Intervention\Image\ImageManager;
@@ -133,6 +133,12 @@ class Processor
      * Regex pattern for extracting mode values (w, h, q, m) with their numeric values.
      */
     private const MODE_PATTERN = '/([hwqm])(\d+)/';
+
+    /**
+     * Cached result of realpath(Environment::getPublicPath()) to avoid repeated
+     * filesystem calls in isPathWithinPublicRoot().
+     */
+    private static string|false|null $resolvedPublicPath = null;
 
     /**
      * Initialize the image processor with all required dependencies.
@@ -278,19 +284,22 @@ class Processor
      */
     private function buildFileResponse(string $filePath, string $mimeType): ?ResponseInterface
     {
-        $contents = @file_get_contents($filePath);
-
-        if ($contents === false) {
+        if (!file_exists($filePath)) {
             return null;
         }
 
+        $fileSize  = @filesize($filePath);
         $fileMtime = @filemtime($filePath);
+
+        if ($fileSize === false) {
+            return null;
+        }
 
         $response = $this->responseFactory->createResponse(200)
             ->withHeader('Content-Type', $mimeType)
             ->withHeader('Cache-Control', 'public, max-age=' . self::CACHE_MAX_AGE . ', immutable')
-            ->withHeader('Content-Length', (string) strlen($contents))
-            ->withBody($this->streamFactory->createStream($contents));
+            ->withHeader('Content-Length', (string) $fileSize)
+            ->withBody($this->streamFactory->createStreamFromFile($filePath));
 
         if ($fileMtime !== false) {
             return $response
@@ -523,7 +532,11 @@ class Processor
      */
     private function isPathWithinPublicRoot(string $path): bool
     {
-        $publicPath = realpath(Environment::getPublicPath());
+        if (self::$resolvedPublicPath === null) {
+            self::$resolvedPublicPath = realpath(Environment::getPublicPath());
+        }
+
+        $publicPath = self::$resolvedPublicPath;
 
         if ($publicPath === false) {
             return false;

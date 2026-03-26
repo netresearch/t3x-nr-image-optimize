@@ -169,8 +169,10 @@ class SourceSetViewHelper extends AbstractViewHelper
             $props['data-srcset'] = $srcSet;
         }
 
-        return $this->generateSrcSet()
-            . $this->tag('img', $this->filterEmptyAttributes($props));
+        $sources = $this->generateSrcSet();
+        $imgTag  = $this->tag('img', $this->filterEmptyAttributes($props));
+
+        return $this->wrapInPicture($sources . $imgTag);
     }
 
     /**
@@ -196,8 +198,10 @@ class SourceSetViewHelper extends AbstractViewHelper
             $props['data-srcset'] = $srcSet;
         }
 
-        return $this->generateSrcSet()
-            . $this->tag('img', $this->filterEmptyAttributes($props));
+        $sources = $this->generateSrcSet();
+        $imgTag  = $this->tag('img', $this->filterEmptyAttributes($props));
+
+        return $this->wrapInPicture($sources . $imgTag);
     }
 
     /**
@@ -243,6 +247,21 @@ class SourceSetViewHelper extends AbstractViewHelper
             },
             ARRAY_FILTER_USE_BOTH,
         );
+    }
+
+    /**
+     * Wrap the given HTML content in a <picture> element.
+     *
+     * Per HTML spec, <source> elements are only valid inside <picture>, <audio>,
+     * or <video>. This ensures valid markup when <source> tags are present.
+     *
+     * @param string $content Inner HTML (source elements + img tag)
+     *
+     * @return string HTML wrapped in <picture>...</picture>
+     */
+    private function wrapInPicture(string $content): string
+    {
+        return '<picture>' . PHP_EOL . $content . '</picture>' . PHP_EOL;
     }
 
     /**

@@ -495,7 +495,7 @@ class ProcessorTest extends TestCase
 
         $this->responseFactory->method('createResponse')->willReturn($response);
         $response->method('withHeader')->willReturn($response);
-        $this->streamFactory->method('createStream')->willReturn($stream);
+        $this->streamFactory->method('createStreamFromFile')->willReturn($stream);
         $response->method('withBody')->willReturn($response);
 
         $result = $this->callMethod($this->processor, 'buildOutputResponse', 'jpg', $base);
@@ -517,7 +517,7 @@ class ProcessorTest extends TestCase
 
         $this->responseFactory->method('createResponse')->willReturn($response);
         $response->method('withHeader')->willReturn($response);
-        $this->streamFactory->method('createStream')->willReturn($stream);
+        $this->streamFactory->method('createStreamFromFile')->willReturn($stream);
         $response->method('withBody')->willReturn($response);
 
         $result = $this->callMethod($this->processor, 'buildOutputResponse', 'jpg', $base);
@@ -538,7 +538,7 @@ class ProcessorTest extends TestCase
 
         $this->responseFactory->method('createResponse')->willReturn($response);
         $response->method('withHeader')->willReturn($response);
-        $this->streamFactory->method('createStream')->willReturn($stream);
+        $this->streamFactory->method('createStreamFromFile')->willReturn($stream);
         $response->method('withBody')->willReturn($response);
 
         $result = $this->callMethod($this->processor, 'buildOutputResponse', 'jpg', $base);
@@ -572,7 +572,7 @@ class ProcessorTest extends TestCase
 
         $this->responseFactory->method('createResponse')->willReturn($response);
         $response->method('withHeader')->willReturn($response);
-        $this->streamFactory->method('createStream')->willReturn($stream);
+        $this->streamFactory->method('createStreamFromFile')->willReturn($stream);
         $response->method('withBody')->willReturn($response);
 
         $result = $this->callMethod($this->processor, 'buildFileResponse', $base, 'image/jpeg');
@@ -608,7 +608,7 @@ class ProcessorTest extends TestCase
 
         $this->responseFactory->method('createResponse')->willReturn($response);
         $response->method('withHeader')->willReturn($response);
-        $this->streamFactory->method('createStream')->willReturn($stream);
+        $this->streamFactory->method('createStreamFromFile')->willReturn($stream);
         $response->method('withBody')->willReturn($response);
 
         $result = $this->callMethod($this->processor, 'serveCachedVariant', $base, 'jpg');
@@ -784,7 +784,7 @@ class ProcessorTest extends TestCase
             ->willReturn($response);
 
         $response->method('withHeader')->willReturn($response);
-        $this->streamFactory->method('createStream')->willReturn($stream);
+        $this->streamFactory->method('createStreamFromFile')->willReturn($stream);
         $response->method('withBody')->willReturn($response);
 
         $result = $this->callMethod($this->processor, 'buildFileResponse', $base, 'image/jpeg');
@@ -824,7 +824,7 @@ class ProcessorTest extends TestCase
 
         $this->responseFactory->method('createResponse')->willReturn($response);
         $response->method('withHeader')->willReturn($response);
-        $this->streamFactory->method('createStream')->willReturn($stream);
+        $this->streamFactory->method('createStreamFromFile')->willReturn($stream);
         $response->method('withBody')->willReturn($response);
 
         // When extension is 'avif', the avif check is skipped, webp check is skipped (not webp ext), falls to primary
@@ -847,7 +847,7 @@ class ProcessorTest extends TestCase
 
         $this->responseFactory->method('createResponse')->willReturn($response);
         $response->method('withHeader')->willReturn($response);
-        $this->streamFactory->method('createStream')->willReturn($stream);
+        $this->streamFactory->method('createStreamFromFile')->willReturn($stream);
         $response->method('withBody')->willReturn($response);
 
         // When extension is 'webp', both avif and webp upgrade checks are skipped, falls to primary
