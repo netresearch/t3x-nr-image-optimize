@@ -26,7 +26,7 @@ return static function (RectorConfig $rectorConfig): void {
         __DIR__ . '/../Configuration',
         __DIR__ . '/../Resources',
         __DIR__ . '/../Tests',
-        '../ext_*',
+        __DIR__ . '/../ext_*',
     ]);
 
     $rectorConfig->phpstanConfig('Build/phpstan.neon');
@@ -51,8 +51,8 @@ return static function (RectorConfig $rectorConfig): void {
 
     // Skip paths and rules
     $rectorConfig->skip([
-        '../ext_emconf.php',
-        '../ext_*.sql',
+        __DIR__ . '/../ext_emconf.php',
+        __DIR__ . '/../ext_*.sql',
         CatchExceptionNameMatchingTypeRector::class,
         ClassPropertyAssignToConstructorPromotionRector::class,
         RemoveUselessParamTagRector::class,

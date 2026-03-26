@@ -10,4 +10,5 @@
 /SECURITY.md      export-ignore
 /CHANGELOG.md     export-ignore
 /codecov.yml      export-ignore
+/infection.json5  export-ignore
 /renovate.json    export-ignore

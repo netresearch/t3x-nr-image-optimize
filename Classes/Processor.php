@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize;
 
+use function count;
 use function dirname;
 use function file_exists;
 use function filemtime;
