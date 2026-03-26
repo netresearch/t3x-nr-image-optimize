@@ -18,6 +18,7 @@ use function mkdir;
 
 use Netresearch\NrImageOptimize\Middleware\ProcessingMiddleware;
 use Netresearch\NrImageOptimize\Processor;
+use Netresearch\NrImageOptimize\ProcessorInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -112,7 +113,7 @@ class ProcessingMiddlewareRoutingTest extends TestCase
     #[Test]
     public function middlewareRoutesProcessedUrlToProcessor(): void
     {
-        $processor = $this->createMock(Processor::class);
+        $processor = $this->createMock(ProcessorInterface::class);
 
         $expectedResponse = $this->responseFactory->createResponse(200)
             ->withBody($this->streamFactory->createStream('image-data'));
@@ -136,7 +137,7 @@ class ProcessingMiddlewareRoutingTest extends TestCase
     #[Test]
     public function middlewareDelegatesNonProcessedUrlToNextHandler(): void
     {
-        $processor = $this->createMock(Processor::class);
+        $processor = $this->createMock(ProcessorInterface::class);
         $processor->expects(self::never())->method('generateAndSend');
 
         $middleware = new ProcessingMiddleware($processor);
@@ -158,7 +159,7 @@ class ProcessingMiddlewareRoutingTest extends TestCase
     #[Test]
     public function middlewareDoesNotInterceptRootPath(): void
     {
-        $processor = $this->createMock(Processor::class);
+        $processor = $this->createMock(ProcessorInterface::class);
         $processor->expects(self::never())->method('generateAndSend');
 
         $middleware = new ProcessingMiddleware($processor);
@@ -177,7 +178,7 @@ class ProcessingMiddlewareRoutingTest extends TestCase
     #[Test]
     public function middlewareDoesNotInterceptPartialMatch(): void
     {
-        $processor = $this->createMock(Processor::class);
+        $processor = $this->createMock(ProcessorInterface::class);
         $processor->expects(self::never())->method('generateAndSend');
 
         $middleware = new ProcessingMiddleware($processor);

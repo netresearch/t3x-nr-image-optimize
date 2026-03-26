@@ -35,6 +35,8 @@ use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamFactoryInterface;
+use Psr\Log\LoggerAwareInterface;
+use Psr\Log\LoggerAwareTrait;
 
 use function realpath;
 use function round;
@@ -68,8 +70,10 @@ use function usleep;
  * @author  Rico Sonntag <rico.sonntag@netresearch.de>
  * @license Netresearch https://www.netresearch.de
  */
-class Processor
+class Processor implements LoggerAwareInterface, ProcessorInterface
 {
+    use LoggerAwareTrait;
+
     /**
      * Maximum number of attempts to acquire a lock before returning a 503 response.
      */
@@ -148,12 +152,14 @@ class Processor
      * @param LockFactory              $lockFactory     TYPO3 lock factory for concurrent processing coordination
      * @param ResponseFactoryInterface $responseFactory PSR-17 response factory
      * @param StreamFactoryInterface   $streamFactory   PSR-17 stream factory
+     * @param EventDispatcherInterface $eventDispatcher PSR-14 event dispatcher for post-processing hooks
      */
     public function __construct(
         private readonly ImageManager $imageManager,
         private readonly LockFactory $lockFactory,
         private readonly ResponseFactoryInterface $responseFactory,
         private readonly StreamFactoryInterface $streamFactory,
+        private readonly EventDispatcherInterface $eventDispatcher,
     ) {}
 
     /**
@@ -200,6 +206,13 @@ class Processor
         $cachedResponse = $this->serveCachedVariant($urlInfo['pathVariant'], $urlInfo['extension']);
 
         if ($cachedResponse instanceof ResponseInterface) {
+            $this->eventDispatcher->dispatch(new VariantServedEvent(
+                pathVariant: $urlInfo['pathVariant'],
+                extension: $urlInfo['extension'],
+                responseStatusCode: $cachedResponse->getStatusCode(),
+                fromCache: true,
+            ));
+
             return $cachedResponse;
         }
 
@@ -221,18 +234,31 @@ class Processor
             $cachedResponse = $this->serveCachedVariant($urlInfo['pathVariant'], $urlInfo['extension']);
 
             if ($cachedResponse instanceof ResponseInterface) {
+                $this->eventDispatcher->dispatch(new VariantServedEvent(
+                    pathVariant: $urlInfo['pathVariant'],
+                    extension: $urlInfo['extension'],
+                    responseStatusCode: $cachedResponse->getStatusCode(),
+                    fromCache: true,
+                ));
+
                 return $cachedResponse;
             }
 
-            return $this->processAndRespond($request, $urlInfo);
-        } catch (Throwable $exception) {
-            error_log(sprintf(
-                'nr_image_optimize: Processing failed for "%s": %s in %s:%d',
-                $variantUrl,
-                $exception->getMessage(),
-                $exception->getFile(),
-                $exception->getLine(),
+            $response = $this->processAndRespond($request, $urlInfo);
+
+            $this->eventDispatcher->dispatch(new VariantServedEvent(
+                pathVariant: $urlInfo['pathVariant'],
+                extension: $urlInfo['extension'],
+                responseStatusCode: $response->getStatusCode(),
+                fromCache: false,
             ));
+
+            return $response;
+        } catch (Throwable $exception) {
+            $this->logger?->error('Processing failed for "{url}"', [
+                'url'       => $variantUrl,
+                'exception' => $exception,
+            ]);
 
             return $this->responseFactory->createResponse(500);
         } finally {
@@ -369,21 +395,42 @@ class Processor
         // calling parse_str() separately for each flag.
         $queryParams = $this->parseQueryParams($request);
 
+        $webpGenerated = false;
+        $avifGenerated = false;
+
         if (!$this->isWebpImage($extension) && !$queryParams['skipWebP']) {
             try {
                 $this->generateWebpVariant($image, $targetQuality, $pathVariant);
+                $webpGenerated = true;
             } catch (Throwable $e) {
-                error_log('nr_image_optimize: WebP variant failed: ' . $e->getMessage());
+                $this->logger?->warning('WebP variant generation failed', [
+                    'exception' => $e,
+                ]);
             }
         }
 
         if (!$this->isAvifImage($extension) && !$queryParams['skipAvif']) {
             try {
                 $this->generateAvifVariant($image, $targetQuality, $pathVariant);
+                $avifGenerated = true;
             } catch (Throwable $e) {
-                error_log('nr_image_optimize: AVIF variant failed: ' . $e->getMessage());
+                $this->logger?->warning('AVIF variant generation failed', [
+                    'exception' => $e,
+                ]);
             }
         }
+
+        $this->eventDispatcher->dispatch(new ImageProcessedEvent(
+            pathOriginal: $urlInfo['pathOriginal'],
+            pathVariant: $pathVariant,
+            extension: $extension,
+            targetWidth: $targetWidth,
+            targetHeight: $targetHeight,
+            targetQuality: $targetQuality,
+            processingMode: $processingMode,
+            webpGenerated: $webpGenerated,
+            avifGenerated: $avifGenerated,
+        ));
 
         return $this->buildOutputResponse($extension, $pathVariant);
     }

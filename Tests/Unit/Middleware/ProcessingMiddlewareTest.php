@@ -12,7 +12,7 @@ declare(strict_types=1);
 namespace Netresearch\NrImageOptimize\Tests\Unit\Middleware;
 
 use Netresearch\NrImageOptimize\Middleware\ProcessingMiddleware;
-use Netresearch\NrImageOptimize\Processor;
+use Netresearch\NrImageOptimize\ProcessorInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
@@ -28,7 +28,7 @@ class ProcessingMiddlewareTest extends TestCase
     #[Test]
     public function processDelegatesToNextHandlerForNonProcessedPaths(): void
     {
-        $processor = $this->createMock(Processor::class);
+        $processor = $this->createMock(ProcessorInterface::class);
         $processor->expects(self::never())->method('generateAndSend');
         $middleware = new ProcessingMiddleware($processor);
 
@@ -49,7 +49,7 @@ class ProcessingMiddlewareTest extends TestCase
     #[Test]
     public function processTriggersProcessorForProcessedRequests(): void
     {
-        $processor = $this->createMock(Processor::class);
+        $processor = $this->createMock(ProcessorInterface::class);
 
         $uri = $this->createMock(UriInterface::class);
         $uri->method('getPath')->willReturn('/processed/path/to/image.jpg');
@@ -76,7 +76,7 @@ class ProcessingMiddlewareTest extends TestCase
     #[DataProvider('nonProcessedPathsProvider')]
     public function processDelegatesToNextHandlerForVariousNonProcessedPaths(string $path): void
     {
-        $processor = $this->createMock(Processor::class);
+        $processor = $this->createMock(ProcessorInterface::class);
         $processor->expects(self::never())->method('generateAndSend');
         $middleware = new ProcessingMiddleware($processor);
 
@@ -112,7 +112,7 @@ class ProcessingMiddlewareTest extends TestCase
     #[DataProvider('processedPathsProvider')]
     public function processTriggersProcessorForVariousProcessedPaths(string $path): void
     {
-        $processor = $this->createMock(Processor::class);
+        $processor = $this->createMock(ProcessorInterface::class);
 
         $uri = $this->createMock(UriInterface::class);
         $uri->method('getPath')->willReturn($path);

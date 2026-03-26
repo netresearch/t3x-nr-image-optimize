@@ -259,6 +259,46 @@ class SourceSetViewHelperHtmlOutputTest extends TestCase
         self::assertStringContainsString('/processed/fileadmin/product.w600h400m0q100.jpg 2x', $srcset);
     }
 
+    #[Test]
+    public function sourceElementHasCorrectTypeAttribute(): void
+    {
+        $this->viewHelper->setArguments([
+            'path'   => '/fileadmin/product.jpg',
+            'width'  => 600,
+            'height' => 400,
+            'set'    => [
+                480 => ['width' => 300, 'height' => 200],
+            ],
+        ]);
+
+        $html = $this->viewHelper->render();
+        $doc  = $this->parseHtml($html);
+
+        $source = $this->getFirstElement($doc, 'source');
+        self::assertNotNull($source);
+        self::assertSame('image/jpeg', $source->getAttribute('type'));
+    }
+
+    #[Test]
+    public function sourceElementHasCorrectTypeForPng(): void
+    {
+        $this->viewHelper->setArguments([
+            'path'   => '/fileadmin/product.png',
+            'width'  => 600,
+            'height' => 400,
+            'set'    => [
+                480 => ['width' => 300, 'height' => 200],
+            ],
+        ]);
+
+        $html = $this->viewHelper->render();
+        $doc  = $this->parseHtml($html);
+
+        $source = $this->getFirstElement($doc, 'source');
+        self::assertNotNull($source);
+        self::assertSame('image/png', $source->getAttribute('type'));
+    }
+
     // ──────────────────────────────────────────────────
     // Lazy loading attribute tests
     // ──────────────────────────────────────────────────

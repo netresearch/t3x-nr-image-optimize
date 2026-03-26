@@ -453,7 +453,8 @@ class SourceSetViewHelperTest extends TestCase
 
         $expected = '<source media="(max-width: 480px)" '
             . 'srcset="/processed/images/picture.w200h120m0q100.jpg, '
-            . '/processed/images/picture.w400h240m0q100.jpg 2x" />' . PHP_EOL;
+            . '/processed/images/picture.w400h240m0q100.jpg 2x" '
+            . 'type="image/jpeg" />' . PHP_EOL;
 
         self::assertSame($expected, $result);
     }
@@ -487,6 +488,50 @@ class SourceSetViewHelperTest extends TestCase
         self::assertStringContainsString('(max-width: 480px)', $result);
         self::assertStringContainsString('(max-width: 768px)', $result);
         self::assertSame(2, substr_count($result, '<source'));
+    }
+
+    #[Test]
+    #[DataProvider('mimeTypeProvider')]
+    public function generateSrcSetIncludesCorrectTypeAttribute(string $extension, string $expectedType): void
+    {
+        $this->viewHelper->setArguments([
+            'path' => '/images/picture.' . $extension,
+            'set'  => [
+                480 => ['width' => 200, 'height' => 120],
+            ],
+        ]);
+
+        $result = $this->viewHelper->generateSrcSet();
+
+        self::assertStringContainsString('type="' . $expectedType . '"', $result);
+    }
+
+    /**
+     * @return iterable<string, array{0: string, 1: string}>
+     */
+    public static function mimeTypeProvider(): iterable
+    {
+        yield 'jpg' => ['jpg', 'image/jpeg'];
+        yield 'jpeg' => ['jpeg', 'image/jpeg'];
+        yield 'png' => ['png', 'image/png'];
+        yield 'webp' => ['webp', 'image/webp'];
+        yield 'avif' => ['avif', 'image/avif'];
+        yield 'gif' => ['gif', 'image/gif'];
+    }
+
+    #[Test]
+    public function generateSrcSetOmitsTypeForUnknownExtension(): void
+    {
+        $this->viewHelper->setArguments([
+            'path' => '/images/picture.bmp',
+            'set'  => [
+                480 => ['width' => 200, 'height' => 120],
+            ],
+        ]);
+
+        $result = $this->viewHelper->generateSrcSet();
+
+        self::assertStringNotContainsString('type=', $result);
     }
 
     #[Test]

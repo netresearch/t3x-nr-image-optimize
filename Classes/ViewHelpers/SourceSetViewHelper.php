@@ -75,6 +75,20 @@ class SourceSetViewHelper extends AbstractViewHelper
     private const RETINA_MULTIPLIER = 2;
 
     /**
+     * Map of file extensions to MIME types for the <source> type attribute.
+     *
+     * @var array<string, string>
+     */
+    private const EXTENSION_MIME_MAP = [
+        'jpg'  => 'image/jpeg',
+        'jpeg' => 'image/jpeg',
+        'png'  => 'image/png',
+        'webp' => 'image/webp',
+        'avif' => 'image/avif',
+        'gif'  => 'image/gif',
+    ];
+
+    /**
      * Fluid internal: disable automatic output escaping as we output HTML tags.
      */
     protected $escapeOutput = false;
@@ -400,9 +414,10 @@ class SourceSetViewHelper extends AbstractViewHelper
      */
     public function generateSrcSet(): string
     {
-        $return = '';
-        $path   = $this->getArgPath();
-        $jsLazy = $this->useJsLazyLoad();
+        $return   = '';
+        $path     = $this->getArgPath();
+        $jsLazy   = $this->useJsLazyLoad();
+        $mimeType = $this->getMimeTypeForPath($path);
 
         foreach ($this->getArgSet() as $maxWidth => $dimensions) {
             $dimensionHeight = $dimensions['height'] ?? 0;
@@ -416,6 +431,10 @@ class SourceSetViewHelper extends AbstractViewHelper
                 'media'  => '(max-width: ' . $maxWidth . 'px)',
                 'srcset' => $srcSet,
             ];
+
+            if ($mimeType !== '') {
+                $sourceProps['type'] = $mimeType;
+            }
 
             if ($jsLazy) {
                 $sourceProps['data-srcset'] = $srcSet;
@@ -560,5 +579,20 @@ class SourceSetViewHelper extends AbstractViewHelper
             'high', 'low', 'auto' => $value,
             default => '',
         };
+    }
+
+    /**
+     * Resolve the MIME type for a given image path based on its file extension.
+     *
+     * @param string $path Public path to the source image
+     *
+     * @return string MIME type string (e.g. 'image/jpeg') or empty string if unknown
+     */
+    private function getMimeTypeForPath(string $path): string
+    {
+        $pathInfo  = PathUtility::pathinfo($path);
+        $extension = strtolower($pathInfo['extension'] ?? '');
+
+        return self::EXTENSION_MIME_MAP[$extension] ?? '';
     }
 }
