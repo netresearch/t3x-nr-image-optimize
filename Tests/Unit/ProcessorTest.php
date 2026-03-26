@@ -1112,7 +1112,7 @@ class ProcessorTest extends TestCase
     }
 
     #[Test]
-    public function generateAndSendReturns503WhenLockCreateFails(): void
+    public function generateAndSendServesCachedVariantEvenWhenLockFactoryWouldFail(): void
     {
         ['tempDir' => $tempDir, 'prop' => $prop] = $this->setUpRealEnvironment();
 
