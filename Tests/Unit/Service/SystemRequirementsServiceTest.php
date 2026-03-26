@@ -15,6 +15,8 @@ use Netresearch\NrImageOptimize\Service\SystemRequirementsService;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
 use ReflectionMethod;
 use TYPO3\CMS\Core\Core\ApplicationContext;
 use TYPO3\CMS\Core\Core\Environment;
@@ -24,29 +26,63 @@ class SystemRequirementsServiceTest extends TestCase
 {
     private SystemRequirementsService $service;
 
+    private string $tempDir;
+
     protected function setUp(): void
     {
         parent::setUp();
 
-        $tempDir = sys_get_temp_dir() . '/nr-image-optimize-sysreq-test-' . uniqid('', true);
-        mkdir($tempDir, 0o777, true);
-        mkdir($tempDir . '/public', 0o777, true);
-        mkdir($tempDir . '/var', 0o777, true);
-        mkdir($tempDir . '/config', 0o777, true);
+        $this->tempDir = sys_get_temp_dir() . '/nr-image-optimize-sysreq-test-' . uniqid('', true);
+        mkdir($this->tempDir, 0o777, true);
+        mkdir($this->tempDir . '/public', 0o777, true);
+        mkdir($this->tempDir . '/var', 0o777, true);
+        mkdir($this->tempDir . '/config', 0o777, true);
 
         Environment::initialize(
             new ApplicationContext('Testing'),
             true,
             true,
-            $tempDir,
-            $tempDir . '/public',
-            $tempDir . '/var',
-            $tempDir . '/config',
-            $tempDir . '/public/index.php',
+            $this->tempDir,
+            $this->tempDir . '/public',
+            $this->tempDir . '/var',
+            $this->tempDir . '/config',
+            $this->tempDir . '/public/index.php',
             'UNIX',
         );
 
         $this->service = new SystemRequirementsService();
+    }
+
+    protected function tearDown(): void
+    {
+        $this->removeDirectory($this->tempDir);
+        parent::tearDown();
+    }
+
+    private function removeDirectory(string $dir): void
+    {
+        if (!is_dir($dir)) {
+            return;
+        }
+
+        $items = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($dir, RecursiveDirectoryIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::CHILD_FIRST,
+        );
+
+        foreach ($items as $item) {
+            if ($item->isDir()) {
+                rmdir($item->getPathname());
+            } else {
+                if (!is_writable($item->getPathname())) {
+                    chmod($item->getPathname(), 0o644);
+                }
+
+                unlink($item->getPathname());
+            }
+        }
+
+        rmdir($dir);
     }
 
     private function callMethod(string $method, mixed ...$arguments): mixed
@@ -693,6 +729,10 @@ class SystemRequirementsServiceTest extends TestCase
     #[Test]
     public function findVersionFromInstalledJsonReturnsNullWhenFileNotReadable(): void
     {
+        if (function_exists('posix_geteuid') && posix_geteuid() === 0) {
+            self::markTestSkipped('Cannot test file permission restrictions as root');
+        }
+
         $projectPath = Environment::getProjectPath();
         $vendorDir   = $projectPath . '/vendor/composer';
         mkdir($vendorDir, 0o777, true);
@@ -752,6 +792,10 @@ class SystemRequirementsServiceTest extends TestCase
     #[Test]
     public function findVersionFromComposerLockReturnsNullWhenFileNotReadable(): void
     {
+        if (function_exists('posix_geteuid') && posix_geteuid() === 0) {
+            self::markTestSkipped('Cannot test file permission restrictions as root');
+        }
+
         $projectPath = Environment::getProjectPath();
         $file        = $projectPath . '/composer.lock';
 

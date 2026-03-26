@@ -490,6 +490,73 @@ class SourceSetViewHelperTest extends TestCase
     }
 
     #[Test]
+    #[DataProvider('nextGenMimeTypeProvider')]
+    public function generateSrcSetIncludesTypeForNextGenFormats(string $extension, string $expectedType): void
+    {
+        $this->viewHelper->setArguments([
+            'path' => '/images/picture.' . $extension,
+            'set'  => [
+                480 => ['width' => 200, 'height' => 120],
+            ],
+        ]);
+
+        $result = $this->viewHelper->generateSrcSet();
+
+        self::assertStringContainsString('type="' . $expectedType . '"', $result);
+    }
+
+    /**
+     * @return iterable<string, array{0: string, 1: string}>
+     */
+    public static function nextGenMimeTypeProvider(): iterable
+    {
+        yield 'webp' => ['webp', 'image/webp'];
+        yield 'avif' => ['avif', 'image/avif'];
+    }
+
+    #[Test]
+    #[DataProvider('universalFormatProvider')]
+    public function generateSrcSetOmitsTypeForUniversalFormats(string $extension): void
+    {
+        $this->viewHelper->setArguments([
+            'path' => '/images/picture.' . $extension,
+            'set'  => [
+                480 => ['width' => 200, 'height' => 120],
+            ],
+        ]);
+
+        $result = $this->viewHelper->generateSrcSet();
+
+        self::assertStringNotContainsString('type=', $result);
+    }
+
+    /**
+     * @return iterable<string, array{0: string}>
+     */
+    public static function universalFormatProvider(): iterable
+    {
+        yield 'jpg' => ['jpg'];
+        yield 'jpeg' => ['jpeg'];
+        yield 'png' => ['png'];
+        yield 'gif' => ['gif'];
+    }
+
+    #[Test]
+    public function generateSrcSetOmitsTypeForUnknownExtension(): void
+    {
+        $this->viewHelper->setArguments([
+            'path' => '/images/picture.bmp',
+            'set'  => [
+                480 => ['width' => 200, 'height' => 120],
+            ],
+        ]);
+
+        $result = $this->viewHelper->generateSrcSet();
+
+        self::assertStringNotContainsString('type=', $result);
+    }
+
+    #[Test]
     public function tagMergesAdditionalAttributes(): void
     {
         $this->viewHelper->setArguments([
@@ -670,7 +737,7 @@ class SourceSetViewHelperTest extends TestCase
             'class' => 'image lazyload responsive',
         ]);
 
-        self::assertTrue($this->viewHelper->useJsLazyLoad());
+        self::assertTrue($this->callMethod('useJsLazyLoad'));
     }
 
     #[Test]
@@ -680,7 +747,7 @@ class SourceSetViewHelperTest extends TestCase
             'class' => 'image responsive',
         ]);
 
-        self::assertFalse($this->viewHelper->useJsLazyLoad());
+        self::assertFalse($this->callMethod('useJsLazyLoad'));
     }
 
     #[Test]
@@ -690,7 +757,7 @@ class SourceSetViewHelperTest extends TestCase
             'class' => '',
         ]);
 
-        self::assertFalse($this->viewHelper->useJsLazyLoad());
+        self::assertFalse($this->callMethod('useJsLazyLoad'));
     }
 
     #[Test]
@@ -889,5 +956,37 @@ class SourceSetViewHelperTest extends TestCase
 
         self::assertStringContainsString('data-srcset=', $result);
         self::assertStringContainsString('srcset=', $result);
+    }
+
+    // =========================================================================
+    // getResourcePath: trigger_error when getimagesize fails (lines 380-383)
+    // =========================================================================
+
+    #[Test]
+    public function getResourcePathTriggersErrorWhenGetimagesizeFails(): void
+    {
+        // Use a path that doesn't exist on disk → getimagesize returns false
+        // The trigger_error(E_USER_NOTICE) should fire
+        set_error_handler(static function (int $errno, string $errstr): bool {
+            if ($errno === E_USER_NOTICE && str_contains($errstr, 'getimagesize() failed')) {
+                return true; // handled
+            }
+
+            return false;
+        });
+
+        try {
+            $result = $this->callMethod(
+                'getResourcePath',
+                '/nonexistent/image-that-does-not-exist.jpg',
+                0,
+                0,
+            );
+
+            // Should still return a processed URL (with w0h0) despite the error
+            self::assertStringContainsString('/processed/', $result);
+        } finally {
+            restore_error_handler();
+        }
     }
 }

@@ -22,6 +22,10 @@ use function min;
 
 use Netresearch\NrImageOptimize\Service\SystemRequirementsService;
 use Psr\Http\Message\ResponseInterface;
+use Psr\Log\LoggerAwareInterface;
+use Psr\Log\LoggerAwareTrait;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 
 use function realpath;
 
@@ -50,8 +54,10 @@ use function usort;
 /**
  * Backend module controller for clearing processed images and checking system requirements.
  */
-final class MaintenanceController extends ActionController
+final class MaintenanceController extends ActionController implements LoggerAwareInterface
 {
+    use LoggerAwareTrait;
+
     /**
      * Number of largest files to display in the directory stats overview.
      */
@@ -71,7 +77,9 @@ final class MaintenanceController extends ActionController
         private readonly ModuleTemplateFactory $moduleTemplateFactory,
         private readonly SystemRequirementsService $systemRequirementsService,
         private readonly LanguageServiceFactory $languageServiceFactory,
-    ) {}
+    ) {
+        $this->logger = new NullLogger();
+    }
 
     /**
      * Display the maintenance overview with directory statistics for processed images.
@@ -144,12 +152,9 @@ final class MaintenanceController extends ActionController
                 ContextualFeedbackSeverity::OK,
             );
         } catch (Throwable $exception) {
-            error_log(sprintf(
-                'nr_image_optimize: clearProcessedImages failed: %s in %s:%d',
-                $exception->getMessage(),
-                $exception->getFile(),
-                $exception->getLine(),
-            ));
+            $this->getLogger()->error('clearProcessedImages failed', [
+                'exception' => $exception,
+            ]);
 
             $this->addFlashMessage(
                 $this->getLanguageService()->sL('LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:flash.clear.error'),
@@ -327,5 +332,19 @@ final class MaintenanceController extends ActionController
     private function getLanguageService(): LanguageService
     {
         return $this->languageServiceFactory->createFromUserPreferences($GLOBALS['BE_USER'] ?? null);
+    }
+
+    /**
+     * Return a guaranteed non-null logger.
+     *
+     * The constructor initializes $this->logger to a NullLogger, and
+     * LoggerAwareTrait::setLogger() always sets a real logger -- so the
+     * property is effectively never null at runtime.  Because the trait
+     * declares the property as nullable, PHPStan cannot infer this;
+     * the helper narrows the type for static analysis.
+     */
+    private function getLogger(): LoggerInterface
+    {
+        return $this->logger ?? new NullLogger();
     }
 }

@@ -27,14 +27,23 @@ use function max;
 use function md5;
 use function min;
 use function mkdir;
+
+use Netresearch\NrImageOptimize\Event\ImageProcessedEvent;
+use Netresearch\NrImageOptimize\Event\VariantServedEvent;
+
 use function parse_str;
 use function preg_match;
 use function preg_match_all;
 
-use Psr\Http\Message\RequestInterface;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\StreamFactoryInterface;
+use Psr\Log\LoggerAwareInterface;
+use Psr\Log\LoggerAwareTrait;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 
 use function realpath;
 use function round;
@@ -68,8 +77,10 @@ use function usleep;
  * @author  Rico Sonntag <rico.sonntag@netresearch.de>
  * @license Netresearch https://www.netresearch.de
  */
-class Processor
+class Processor implements LoggerAwareInterface, ProcessorInterface
 {
+    use LoggerAwareTrait;
+
     /**
      * Maximum number of attempts to acquire a lock before returning a 503 response.
      */
@@ -148,13 +159,17 @@ class Processor
      * @param LockFactory              $lockFactory     TYPO3 lock factory for concurrent processing coordination
      * @param ResponseFactoryInterface $responseFactory PSR-17 response factory
      * @param StreamFactoryInterface   $streamFactory   PSR-17 stream factory
+     * @param EventDispatcherInterface $eventDispatcher PSR-14 event dispatcher for post-processing hooks
      */
     public function __construct(
         private readonly ImageManager $imageManager,
         private readonly LockFactory $lockFactory,
         private readonly ResponseFactoryInterface $responseFactory,
         private readonly StreamFactoryInterface $streamFactory,
-    ) {}
+        private readonly EventDispatcherInterface $eventDispatcher,
+    ) {
+        $this->logger = new NullLogger();
+    }
 
     /**
      * Entry point invoked by the middleware to handle a processed image request.
@@ -173,11 +188,11 @@ class Processor
      * fails, 404 if the original image is missing, 500 on processing errors, and
      * 503 if a lock cannot be acquired in time.
      *
-     * @param RequestInterface $request Incoming request containing the processed URL and query params
+     * @param ServerRequestInterface $request Incoming request containing the processed URL and query params
      *
      * @return ResponseInterface The image response or an error response
      */
-    public function generateAndSend(RequestInterface $request): ResponseInterface
+    public function generateAndSend(ServerRequestInterface $request): ResponseInterface
     {
         $variantUrl = urldecode($request->getUri()->getPath());
 
@@ -200,12 +215,28 @@ class Processor
         $cachedResponse = $this->serveCachedVariant($urlInfo['pathVariant'], $urlInfo['extension']);
 
         if ($cachedResponse instanceof ResponseInterface) {
+            try {
+                $this->eventDispatcher->dispatch(new VariantServedEvent(
+                    pathVariant: $urlInfo['pathVariant'],
+                    extension: $urlInfo['extension'],
+                    responseStatusCode: $cachedResponse->getStatusCode(),
+                    fromCache: true,
+                ));
+            } catch (Throwable $e) {
+                $this->getLogger()->warning('VariantServedEvent listener failed', ['exception' => $e]);
+            }
+
             return $cachedResponse;
         }
 
         try {
             $locker = $this->getLocker($variantUrl . '-process');
-        } catch (LockCreateException) {
+        } catch (LockCreateException $exception) {
+            $this->getLogger()->error('Failed to create image processing lock for "{url}"', [
+                'url'       => $variantUrl,
+                'exception' => $exception,
+            ]);
+
             return $this->responseFactory->createResponse(503);
         }
 
@@ -221,18 +252,39 @@ class Processor
             $cachedResponse = $this->serveCachedVariant($urlInfo['pathVariant'], $urlInfo['extension']);
 
             if ($cachedResponse instanceof ResponseInterface) {
+                try {
+                    $this->eventDispatcher->dispatch(new VariantServedEvent(
+                        pathVariant: $urlInfo['pathVariant'],
+                        extension: $urlInfo['extension'],
+                        responseStatusCode: $cachedResponse->getStatusCode(),
+                        fromCache: true,
+                    ));
+                } catch (Throwable $e) {
+                    $this->getLogger()->warning('VariantServedEvent listener failed', ['exception' => $e]);
+                }
+
                 return $cachedResponse;
             }
 
-            return $this->processAndRespond($request, $urlInfo);
+            $response = $this->processAndRespond($request, $urlInfo);
+
+            try {
+                $this->eventDispatcher->dispatch(new VariantServedEvent(
+                    pathVariant: $urlInfo['pathVariant'],
+                    extension: $urlInfo['extension'],
+                    responseStatusCode: $response->getStatusCode(),
+                    fromCache: false,
+                ));
+            } catch (Throwable $e) {
+                $this->getLogger()->warning('VariantServedEvent listener failed', ['exception' => $e]);
+            }
+
+            return $response;
         } catch (Throwable $exception) {
-            error_log(sprintf(
-                'nr_image_optimize: Processing failed for "%s": %s in %s:%d',
-                $variantUrl,
-                $exception->getMessage(),
-                $exception->getFile(),
-                $exception->getLine(),
-            ));
+            $this->getLogger()->error('Processing failed for "{url}"', [
+                'url'       => $variantUrl,
+                'exception' => $exception,
+            ]);
 
             return $this->responseFactory->createResponse(500);
         } finally {
@@ -317,7 +369,7 @@ class Processor
      * Extracted from generateAndSend to ensure the lock is always released
      * via the try/finally in the caller, even when exceptions occur.
      *
-     * @param RequestInterface $request Incoming request
+     * @param ServerRequestInterface $request Incoming request
      * @param array{
      *     pathVariant: string,
      *     pathOriginal: string,
@@ -331,7 +383,7 @@ class Processor
      * @return ResponseInterface The image response or an error response
      */
     private function processAndRespond(
-        RequestInterface $request,
+        ServerRequestInterface $request,
         array $urlInfo,
     ): ResponseInterface {
         if (!file_exists($urlInfo['pathOriginal'])) {
@@ -369,20 +421,47 @@ class Processor
         // calling parse_str() separately for each flag.
         $queryParams = $this->parseQueryParams($request);
 
+        $webpGenerated = false;
+        $avifGenerated = false;
+
         if (!$this->isWebpImage($extension) && !$queryParams['skipWebP']) {
             try {
                 $this->generateWebpVariant($image, $targetQuality, $pathVariant);
+                $webpGenerated = true;
             } catch (Throwable $e) {
-                error_log('nr_image_optimize: WebP variant failed: ' . $e->getMessage());
+                $this->getLogger()->warning('WebP variant generation failed for "{path}"', [
+                    'path'      => $pathVariant,
+                    'exception' => $e,
+                ]);
             }
         }
 
         if (!$this->isAvifImage($extension) && !$queryParams['skipAvif']) {
             try {
                 $this->generateAvifVariant($image, $targetQuality, $pathVariant);
+                $avifGenerated = true;
             } catch (Throwable $e) {
-                error_log('nr_image_optimize: AVIF variant failed: ' . $e->getMessage());
+                $this->getLogger()->warning('AVIF variant generation failed for "{path}"', [
+                    'path'      => $pathVariant,
+                    'exception' => $e,
+                ]);
             }
+        }
+
+        try {
+            $this->eventDispatcher->dispatch(new ImageProcessedEvent(
+                pathOriginal: $urlInfo['pathOriginal'],
+                pathVariant: $pathVariant,
+                extension: $extension,
+                targetWidth: $targetWidth,
+                targetHeight: $targetHeight,
+                targetQuality: $targetQuality,
+                processingMode: $processingMode,
+                webpGenerated: $webpGenerated,
+                avifGenerated: $avifGenerated,
+            ));
+        } catch (Throwable $e) {
+            $this->getLogger()->warning('ImageProcessedEvent listener failed', ['exception' => $e]);
         }
 
         return $this->buildOutputResponse($extension, $pathVariant);
@@ -575,11 +654,11 @@ class Processor
      *
      * Avoids redundant parse_str() calls when checking multiple query flags.
      *
-     * @param RequestInterface $request The incoming request
+     * @param ServerRequestInterface $request The incoming request
      *
      * @return array{skipWebP: bool, skipAvif: bool} Parsed query flags
      */
-    private function parseQueryParams(RequestInterface $request): array
+    private function parseQueryParams(ServerRequestInterface $request): array
     {
         $query = [];
         parse_str($request->getUri()->getQuery(), $query);
@@ -604,12 +683,19 @@ class Processor
                 if ($locker->acquire() !== false) {
                     return null;
                 }
-            } catch (Throwable) {
-                // Lock infrastructure failure — treat as lock-not-acquired
+            } catch (Throwable $lockException) {
+                $this->getLogger()->warning('Lock acquire attempt failed', [
+                    'attempt'   => $attempt + 1,
+                    'exception' => $lockException,
+                ]);
             }
 
             usleep(self::LOCK_RETRY_INTERVAL_USEC);
         }
+
+        $this->getLogger()->error('Lock acquisition exhausted after {retries} retries', [
+            'retries' => self::LOCK_MAX_RETRIES,
+        ]);
 
         // Hardcoded English string is intentional: this is an HTTP API response in a
         // middleware context where LocalizationUtility is not available. The translation
@@ -750,7 +836,7 @@ class Processor
         string $extension,
         string $pathVariant,
     ): ResponseInterface {
-        if ($this->hasVariantFor($pathVariant, 'avif')) {
+        if (!$this->isAvifImage($extension) && $this->hasVariantFor($pathVariant, 'avif')) {
             $response = $this->buildFileResponse($pathVariant . '.avif', 'image/avif');
 
             if ($response instanceof ResponseInterface) {
@@ -758,7 +844,7 @@ class Processor
             }
         }
 
-        if ($this->hasVariantFor($pathVariant, 'webp')) {
+        if (!$this->isWebpImage($extension) && $this->hasVariantFor($pathVariant, 'webp')) {
             $response = $this->buildFileResponse($pathVariant . '.webp', 'image/webp');
 
             if ($response instanceof ResponseInterface) {
@@ -774,6 +860,11 @@ class Processor
         }
 
         // Last resort: return error if file operations failed
+        $this->getLogger()->error('buildOutputResponse: all file response attempts failed for "{path}"', [
+            'path'      => $pathVariant,
+            'extension' => $extension,
+        ]);
+
         return $this->responseFactory->createResponse(500);
     }
 
@@ -834,5 +925,19 @@ class Processor
     {
         return $this->lockFactory
             ->createLocker('nr_image_optimize-' . md5($key));
+    }
+
+    /**
+     * Return a guaranteed non-null logger.
+     *
+     * The constructor initializes $this->logger to a NullLogger, and
+     * LoggerAwareTrait::setLogger() always sets a real logger -- so the
+     * property is effectively never null at runtime.  Because the trait
+     * declares the property as nullable, PHPStan cannot infer this;
+     * the helper narrows the type for static analysis.
+     */
+    private function getLogger(): LoggerInterface
+    {
+        return $this->logger ?? new NullLogger();
     }
 }

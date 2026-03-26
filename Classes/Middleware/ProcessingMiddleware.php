@@ -11,7 +11,7 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Middleware;
 
-use Netresearch\NrImageOptimize\Processor;
+use Netresearch\NrImageOptimize\ProcessorInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
@@ -35,10 +35,10 @@ readonly class ProcessingMiddleware implements MiddlewareInterface
     /**
      * Constructor.
      *
-     * @param Processor $processor Processor responsible for generating/sending processed images
+     * @param ProcessorInterface $processor Processor responsible for generating/sending processed images
      */
     public function __construct(
-        private Processor $processor,
+        private ProcessorInterface $processor,
     ) {}
 
     /**
