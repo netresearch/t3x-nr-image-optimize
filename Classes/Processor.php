@@ -211,12 +211,16 @@ class Processor implements LoggerAwareInterface, ProcessorInterface
         $cachedResponse = $this->serveCachedVariant($urlInfo['pathVariant'], $urlInfo['extension']);
 
         if ($cachedResponse instanceof ResponseInterface) {
-            $this->eventDispatcher->dispatch(new VariantServedEvent(
-                pathVariant: $urlInfo['pathVariant'],
-                extension: $urlInfo['extension'],
-                responseStatusCode: $cachedResponse->getStatusCode(),
-                fromCache: true,
-            ));
+            try {
+                $this->eventDispatcher->dispatch(new VariantServedEvent(
+                    pathVariant: $urlInfo['pathVariant'],
+                    extension: $urlInfo['extension'],
+                    responseStatusCode: $cachedResponse->getStatusCode(),
+                    fromCache: true,
+                ));
+            } catch (Throwable $e) {
+                $this->logger?->warning('VariantServedEvent listener failed', ['exception' => $e]);
+            }
 
             return $cachedResponse;
         }
@@ -244,24 +248,32 @@ class Processor implements LoggerAwareInterface, ProcessorInterface
             $cachedResponse = $this->serveCachedVariant($urlInfo['pathVariant'], $urlInfo['extension']);
 
             if ($cachedResponse instanceof ResponseInterface) {
-                $this->eventDispatcher->dispatch(new VariantServedEvent(
-                    pathVariant: $urlInfo['pathVariant'],
-                    extension: $urlInfo['extension'],
-                    responseStatusCode: $cachedResponse->getStatusCode(),
-                    fromCache: true,
-                ));
+                try {
+                    $this->eventDispatcher->dispatch(new VariantServedEvent(
+                        pathVariant: $urlInfo['pathVariant'],
+                        extension: $urlInfo['extension'],
+                        responseStatusCode: $cachedResponse->getStatusCode(),
+                        fromCache: true,
+                    ));
+                } catch (Throwable $e) {
+                    $this->logger?->warning('VariantServedEvent listener failed', ['exception' => $e]);
+                }
 
                 return $cachedResponse;
             }
 
             $response = $this->processAndRespond($request, $urlInfo);
 
-            $this->eventDispatcher->dispatch(new VariantServedEvent(
-                pathVariant: $urlInfo['pathVariant'],
-                extension: $urlInfo['extension'],
-                responseStatusCode: $response->getStatusCode(),
-                fromCache: false,
-            ));
+            try {
+                $this->eventDispatcher->dispatch(new VariantServedEvent(
+                    pathVariant: $urlInfo['pathVariant'],
+                    extension: $urlInfo['extension'],
+                    responseStatusCode: $response->getStatusCode(),
+                    fromCache: false,
+                ));
+            } catch (Throwable $e) {
+                $this->logger?->warning('VariantServedEvent listener failed', ['exception' => $e]);
+            }
 
             return $response;
         } catch (Throwable $exception) {
@@ -663,8 +675,11 @@ class Processor implements LoggerAwareInterface, ProcessorInterface
                 if ($locker->acquire() !== false) {
                     return null;
                 }
-            } catch (Throwable) {
-                // Lock infrastructure failure — treat as lock-not-acquired
+            } catch (Throwable $lockException) {
+                $this->logger?->warning('Lock acquire attempt failed', [
+                    'attempt'   => $attempt + 1,
+                    'exception' => $lockException,
+                ]);
             }
 
             usleep(self::LOCK_RETRY_INTERVAL_USEC);

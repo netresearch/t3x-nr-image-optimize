@@ -796,16 +796,25 @@ class ProcessorTest extends TestCase
         $response = $this->createMock(ResponseInterface::class);
         $stream   = $this->createMock(StreamInterface::class);
 
-        $this->responseFactory->expects(self::once())
+        $responseFactory = $this->createMock(ResponseFactoryInterface::class);
+        $responseFactory->expects(self::once())
             ->method('createResponse')
             ->with(200)
             ->willReturn($response);
 
         $response->method('withHeader')->willReturn($response);
-        $this->streamFactory->method('createStreamFromFile')->willReturn($stream);
+
+        $streamFactory = $this->createStub(StreamFactoryInterface::class);
+        $streamFactory->method('createStreamFromFile')->willReturn($stream);
+
         $response->method('withBody')->willReturn($response);
 
-        $result = $this->callMethod($this->processor, 'buildFileResponse', $base, 'image/jpeg');
+        $processor = $this->createProcessor(
+            responseFactory: $responseFactory,
+            streamFactory: $streamFactory,
+        );
+
+        $result = $this->callMethod($processor, 'buildFileResponse', $base, 'image/jpeg');
 
         self::assertNotNull($result);
 
