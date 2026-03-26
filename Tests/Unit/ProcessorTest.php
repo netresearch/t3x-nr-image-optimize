@@ -523,15 +523,10 @@ class ProcessorTest extends TestCase
     #[Test]
     public function gatherInformationBasedOnUrlHandlesUrlWithoutModeString(): void
     {
-        // This URL does not match the regex pattern (no mode digits)
-        /** @var array<string, mixed> $result */
+        // This URL does not match the regex pattern (no mode digits) so returns null
         $result = $this->callMethod($this->processor, 'gatherInformationBasedOnUrl', '/processed/image.jpg');
 
-        // When regex does not match, defaults should be applied
-        self::assertNull($result['targetWidth']);
-        self::assertNull($result['targetHeight']);
-        self::assertSame(100, $result['targetQuality']);
-        self::assertSame(0, $result['processingMode']);
+        self::assertNull($result);
     }
 
     #[Test]
@@ -561,5 +556,116 @@ class ProcessorTest extends TestCase
         self::assertSame(90, $result['targetQuality']);
         self::assertSame(0, $result['processingMode']);
         self::assertStringContainsString('deep/nested/path', $result['pathOriginal']);
+    }
+
+    #[Test]
+    public function gatherInformationBasedOnUrlReturnsNullForNonMatchingUrls(): void
+    {
+        // Path traversal attempt
+        self::assertNull($this->callMethod($this->processor, 'gatherInformationBasedOnUrl', '/processed/../../../etc/passwd.w100.jpg'));
+        // Empty string
+        self::assertNull($this->callMethod($this->processor, 'gatherInformationBasedOnUrl', ''));
+        // Root path
+        self::assertNull($this->callMethod($this->processor, 'gatherInformationBasedOnUrl', '/'));
+        // No processed prefix
+        self::assertNull($this->callMethod($this->processor, 'gatherInformationBasedOnUrl', '/fileadmin/image.w100.jpg'));
+    }
+
+    #[Test]
+    public function gatherInformationClampsDimensionsToMaximum(): void
+    {
+        /** @var array<string, mixed> $result */
+        $result = $this->callMethod($this->processor, 'gatherInformationBasedOnUrl', '/processed/image.w99999h99999q200m0.jpg');
+
+        // Dimensions should be clamped to MAX_DIMENSION (8192)
+        self::assertSame(8192, $result['targetWidth']);
+        self::assertSame(8192, $result['targetHeight']);
+        // Quality should be clamped to 100
+        self::assertSame(100, $result['targetQuality']);
+    }
+
+    #[Test]
+    public function gatherInformationClampsZeroDimensionToOne(): void
+    {
+        /** @var array<string, mixed> $result */
+        $result = $this->callMethod($this->processor, 'gatherInformationBasedOnUrl', '/processed/image.w0h0q0m0.jpg');
+
+        // Width and height of 0 should be clamped to 1
+        self::assertSame(1, $result['targetWidth']);
+        self::assertSame(1, $result['targetHeight']);
+        // Quality of 0 should be clamped to 1
+        self::assertSame(1, $result['targetQuality']);
+    }
+
+    #[Test]
+    public function clampDimensionReturnsNullForNull(): void
+    {
+        self::assertNull($this->callMethod($this->processor, 'clampDimension', null));
+    }
+
+    #[Test]
+    public function clampDimensionClampsToRange(): void
+    {
+        self::assertSame(1, $this->callMethod($this->processor, 'clampDimension', 0));
+        self::assertSame(1, $this->callMethod($this->processor, 'clampDimension', -5));
+        self::assertSame(100, $this->callMethod($this->processor, 'clampDimension', 100));
+        self::assertSame(8192, $this->callMethod($this->processor, 'clampDimension', 99999));
+    }
+
+    #[Test]
+    public function clampQualityClampsToRange(): void
+    {
+        self::assertSame(1, $this->callMethod($this->processor, 'clampQuality', 0));
+        self::assertSame(1, $this->callMethod($this->processor, 'clampQuality', -10));
+        self::assertSame(50, $this->callMethod($this->processor, 'clampQuality', 50));
+        self::assertSame(100, $this->callMethod($this->processor, 'clampQuality', 100));
+        self::assertSame(100, $this->callMethod($this->processor, 'clampQuality', 999));
+    }
+
+    #[Test]
+    public function calculateTargetDimensionsHandlesZeroHeight(): void
+    {
+        $image = $this->createMock(ImageInterface::class);
+        $image->method('width')->willReturn(800);
+        $image->method('height')->willReturn(0);
+
+        /** @var array{0: int|null, 1: int|null} $result */
+        $result = $this->callMethod($this->processor, 'calculateTargetDimensions', $image, 400, null);
+
+        // Should return original values without calculation to avoid division by zero
+        self::assertSame(400, $result[0]);
+        self::assertNull($result[1]);
+    }
+
+    #[Test]
+    public function calculateTargetDimensionsHandlesZeroWidth(): void
+    {
+        $image = $this->createMock(ImageInterface::class);
+        $image->method('width')->willReturn(0);
+        $image->method('height')->willReturn(400);
+
+        /** @var array{0: int|null, 1: int|null} $result */
+        $result = $this->callMethod($this->processor, 'calculateTargetDimensions', $image, null, 200);
+
+        // Should return original values without calculation to avoid division by zero
+        self::assertNull($result[0]);
+        self::assertSame(200, $result[1]);
+    }
+
+    #[Test]
+    public function generateAndSendReturns400ForNonMatchingUrl(): void
+    {
+        $uri = $this->createMock(UriInterface::class);
+        $uri->method('getPath')->willReturn('/not-processed/image.jpg');
+
+        $request = $this->createMock(RequestInterface::class);
+        $request->method('getUri')->willReturn($uri);
+
+        $response = $this->createMock(ResponseInterface::class);
+        $this->responseFactory->method('createResponse')->with(400)->willReturn($response);
+
+        $result = $this->processor->generateAndSend($request);
+
+        self::assertSame($response, $result);
     }
 }

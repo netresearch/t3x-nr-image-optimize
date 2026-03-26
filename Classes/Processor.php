@@ -21,7 +21,9 @@ use Intervention\Image\ImageManager;
 use Intervention\Image\Interfaces\ImageInterface;
 
 use function is_dir;
+use function max;
 use function md5;
+use function min;
 use function mkdir;
 use function preg_match;
 use function preg_match_all;
@@ -31,13 +33,16 @@ use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamFactoryInterface;
 
+use function realpath;
 use function round;
 
 use RuntimeException;
 
 use function sprintf;
+use function str_starts_with;
 use function strtolower;
 
+use Throwable;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Locking\Exception\LockCreateException;
 use TYPO3\CMS\Core\Locking\LockFactory;
@@ -66,6 +71,37 @@ use function usleep;
 class Processor
 {
     /**
+     * Maximum number of attempts to acquire a lock before returning a 503 response.
+     */
+    private const LOCK_MAX_RETRIES = 10;
+
+    /**
+     * Microseconds to wait between lock acquisition attempts (100 ms).
+     */
+    private const LOCK_RETRY_INTERVAL_USEC = 100_000;
+
+    /**
+     * Directory permissions used when creating variant output directories.
+     */
+    private const DIRECTORY_PERMISSIONS = 0o775;
+
+    /**
+     * Maximum allowed dimension (width or height) in pixels to prevent
+     * denial-of-service through excessive memory allocation.
+     */
+    private const MAX_DIMENSION = 8192;
+
+    /**
+     * Minimum allowed output quality (1-100).
+     */
+    private const MIN_QUALITY = 1;
+
+    /**
+     * Maximum allowed output quality (1-100).
+     */
+    private const MAX_QUALITY = 100;
+
+    /**
      * Initialize the image processor with all required dependencies.
      *
      * @param ImageManager             $imageManager    Intervention Image manager used to read/encode images
@@ -83,13 +119,15 @@ class Processor
     /**
      * Entry point invoked by the middleware to handle a processed image request.
      *
-     * Parses the requested variant from the URI, acquires a processing lock to
-     * avoid duplicate work, loads and resizes/crops the original image, writes
-     * the processed files (including optional WebP/AVIF variants), and returns
-     * a PSR-7 response with the best available representation.
+     * Parses the requested variant from the URI, validates that all derived paths
+     * remain within the TYPO3 public root, acquires a processing lock to avoid
+     * duplicate work, loads and resizes/crops the original image, writes the
+     * processed files (including optional WebP/AVIF variants), and returns a
+     * PSR-7 response with the best available representation.
      *
-     * Returns 404 if the original image is missing and 503 if a lock cannot be
-     * acquired in time.
+     * Returns 400 if the URL does not match the expected pattern or path validation
+     * fails, 404 if the original image is missing, 500 on processing errors, and
+     * 503 if a lock cannot be acquired in time.
      *
      * @param RequestInterface $request Incoming request containing the processed URL and query params
      *
@@ -99,36 +137,67 @@ class Processor
     {
         $variantUrl = urldecode($request->getUri()->getPath());
 
-        $locker    = $this->getLocker($variantUrl . '-process');
-        $lockCount = 0;
-
-        while ($locker->acquire() === false) {
-            usleep(100000);
-
-            ++$lockCount;
-
-            if ($lockCount === 10) {
-                return $this->responseFactory->createResponse(503)
-                    ->withBody($this->streamFactory->createStream(
-                        LocalizationUtility::translate('processor.error.imageBeingProcessed', 'NrImageOptimize')
-                            ?? 'Image is currently being processed',
-                    ));
-            }
-        }
-
         $urlInfo = $this->gatherInformationBasedOnUrl($variantUrl);
 
-        if (!file_exists($urlInfo['pathOriginal'])) {
-            $locker->release();
+        // Reject requests that did not match the expected URL pattern
+        if ($urlInfo === null) {
+            return $this->responseFactory->createResponse(400);
+        }
 
+        // Validate that both resolved paths stay within the public root
+        if (!$this->isPathWithinPublicRoot($urlInfo['pathOriginal'])
+            || !$this->isPathWithinPublicRoot($urlInfo['pathVariant'])
+        ) {
+            return $this->responseFactory->createResponse(400);
+        }
+
+        $locker = $this->getLocker($variantUrl . '-process');
+
+        $lockResponse = $this->acquireLockWithRetry($locker);
+
+        if ($lockResponse instanceof ResponseInterface) {
+            return $lockResponse;
+        }
+
+        try {
+            return $this->processAndRespond($request, $urlInfo);
+        } catch (Throwable) {
+            return $this->responseFactory->createResponse(500);
+        } finally {
+            $locker->release();
+        }
+    }
+
+    /**
+     * Perform the actual image processing and build the response.
+     *
+     * Extracted from generateAndSend to ensure the lock is always released
+     * via the try/finally in the caller, even when exceptions occur.
+     *
+     * @param RequestInterface $request Incoming request
+     * @param array{
+     *     pathVariant: string,
+     *     pathOriginal: string,
+     *     extension: string,
+     *     targetWidth: int|null,
+     *     targetHeight: int|null,
+     *     targetQuality: int,
+     *     processingMode: int,
+     * }                       $urlInfo Parsed URL information
+     *
+     * @return ResponseInterface The image response or an error response
+     */
+    private function processAndRespond(
+        RequestInterface $request,
+        array $urlInfo,
+    ): ResponseInterface {
+        if (!file_exists($urlInfo['pathOriginal'])) {
             return $this->responseFactory->createResponse(404);
         }
 
         $image = $this->loadOriginal($urlInfo['pathOriginal']);
 
         if ($image instanceof ResponseInterface) {
-            $locker->release();
-
             return $image;
         }
 
@@ -146,45 +215,34 @@ class Processor
 
         $image = $this->processImage($image, $targetWidth, $targetHeight, $processingMode);
 
-        $dir = dirname($urlInfo['pathVariant']);
-
-        if (!is_dir($dir)
-            && !mkdir($dir, 0o775, true)
-            && !is_dir($dir)
-        ) {
-            throw new RuntimeException(
-                sprintf(
-                    'Directory "%s" was not created',
-                    $dir,
-                ),
-            );
-        }
+        $this->ensureDirectoryExists(dirname($urlInfo['pathVariant']));
 
         $image->save($urlInfo['pathVariant'], $targetQuality);
 
         $extension   = $urlInfo['extension'];
         $pathVariant = $urlInfo['pathVariant'];
 
-        if ($this->isWebpImage($extension) === false && $this->skipWebPCreation($request) === false) {
+        if (!$this->isWebpImage($extension) && !$this->skipWebPCreation($request)) {
             $this->generateWebpVariant($image, $targetQuality, $pathVariant);
         }
 
-        if ($this->isAvifImage($extension) === false && $this->skipAvifCreation($request) === false) {
+        if (!$this->isAvifImage($extension) && !$this->skipAvifCreation($request)) {
             $this->generateAvifVariant($image, $targetQuality, $pathVariant);
         }
 
-        $response = $this->buildOutputResponse($image, $extension, $targetQuality, $pathVariant);
-
-        $locker->release();
-
-        return $response;
+        return $this->buildOutputResponse($image, $extension, $targetQuality, $pathVariant);
     }
 
     /**
      * Parse the requested variant URL and derive processing parameters.
      *
+     * Returns null if the URL does not match the expected pattern, preventing
+     * arbitrary path construction from malformed input.
+     *
      * Computes original/variant file paths, normalizes the extension, and
      * extracts width/height/quality/mode values from the encoded mode string.
+     * Dimension and quality values are clamped to safe ranges to prevent
+     * denial-of-service through excessive resource allocation.
      *
      * @param string $variantUrl The decoded variant URL path
      *
@@ -196,17 +254,21 @@ class Processor
      *     targetHeight: int|null,
      *     targetQuality: int,
      *     processingMode: int,
-     * }
+     * }|null Parsed parameters or null if the URL does not match
      */
-    private function gatherInformationBasedOnUrl(string $variantUrl): array
+    private function gatherInformationBasedOnUrl(string $variantUrl): ?array
     {
         $information = [];
 
-        preg_match(
+        $matched = preg_match(
             '/^(\/processed\/)((?:(?!\.\.).)*)\.([0-9whqm]+)\.([a-zA-Z0-9]{1,4})$/',
             $variantUrl,
             $information,
         );
+
+        if ($matched !== 1) {
+            return null;
+        }
 
         $basePath = Environment::getPublicPath();
 
@@ -216,15 +278,93 @@ class Processor
             $extension = 'jpg';
         }
 
+        // Clamp dimensions and quality to safe ranges to prevent DoS
+        $targetWidth   = $this->clampDimension($this->getValueFromMode('w', $information[3] ?? ''));
+        $targetHeight  = $this->clampDimension($this->getValueFromMode('h', $information[3] ?? ''));
+        $targetQuality = $this->clampQuality(
+            $this->getValueFromMode('q', $information[3] ?? '') ?? self::MAX_QUALITY,
+        );
+
         return [
             'pathVariant'    => $basePath . $variantUrl,
             'pathOriginal'   => $basePath . '/' . ($information[2] ?? '') . '.' . ($information[4] ?? ''),
             'extension'      => $extension,
-            'targetWidth'    => $this->getValueFromMode('w', $information[3] ?? ''),
-            'targetHeight'   => $this->getValueFromMode('h', $information[3] ?? ''),
-            'targetQuality'  => $this->getValueFromMode('q', $information[3] ?? '') ?? 100,
+            'targetWidth'    => $targetWidth,
+            'targetHeight'   => $targetHeight,
+            'targetQuality'  => $targetQuality,
             'processingMode' => $this->getValueFromMode('m', $information[3] ?? '') ?? 0,
         ];
+    }
+
+    /**
+     * Clamp a dimension value to the allowed range.
+     *
+     * Returns null if input is null (dimension not specified), otherwise
+     * restricts to 1..MAX_DIMENSION to prevent zero-pixel images and
+     * excessive memory allocation.
+     *
+     * @param int|null $value Raw dimension from URL
+     *
+     * @return int|null Clamped dimension or null
+     */
+    private function clampDimension(?int $value): ?int
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        return max(1, min($value, self::MAX_DIMENSION));
+    }
+
+    /**
+     * Clamp quality to the valid 1-100 range.
+     *
+     * @param int $value Raw quality from URL
+     *
+     * @return int Clamped quality value
+     */
+    private function clampQuality(int $value): int
+    {
+        return max(self::MIN_QUALITY, min($value, self::MAX_QUALITY));
+    }
+
+    /**
+     * Validate that a filesystem path resolves to a location within the TYPO3
+     * public directory. This prevents path-traversal attacks using encoded or
+     * otherwise crafted sequences that escape the web root.
+     *
+     * @param string $path Absolute filesystem path to validate
+     *
+     * @return bool True if the path is safely within the public root
+     */
+    private function isPathWithinPublicRoot(string $path): bool
+    {
+        $publicPath = realpath(Environment::getPublicPath());
+
+        if ($publicPath === false) {
+            return false;
+        }
+
+        // For existing paths, use realpath to resolve symlinks
+        $resolvedPath = realpath($path);
+
+        if ($resolvedPath !== false) {
+            return str_starts_with($resolvedPath, $publicPath);
+        }
+
+        // For paths that do not yet exist (variant files), resolve the
+        // deepest existing parent directory and validate it
+        $parent = $path;
+
+        while (($parent = dirname($parent)) !== $parent) {
+            $resolvedParent = realpath($parent);
+
+            if ($resolvedParent !== false) {
+                return str_starts_with($resolvedParent, $publicPath);
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -260,7 +400,8 @@ class Processor
      * Load the original image from the disk under a read lock to avoid conflicts.
      *
      * Returns a 503 response if the lock cannot be acquired after several tries,
-     * or the loaded image on success.
+     * or the loaded image on success. The read lock is always released, even if
+     * the image read throws an exception.
      *
      * @param string $pathOriginal Absolute filesystem path to the original image
      *
@@ -270,12 +411,36 @@ class Processor
     {
         $locker = $this->getLocker($pathOriginal . '-read');
 
-        $count = 0;
+        $lockResponse = $this->acquireLockWithRetry($locker);
+
+        if ($lockResponse instanceof ResponseInterface) {
+            return $lockResponse;
+        }
+
+        try {
+            return $this->imageManager->read($pathOriginal);
+        } finally {
+            $locker->release();
+        }
+    }
+
+    /**
+     * Attempt to acquire a lock with retries, returning a 503 response on failure.
+     *
+     * @param LockingStrategyInterface $locker The lock to acquire
+     *
+     * @return ResponseInterface|null Null on success, 503 response if lock could not be acquired
+     */
+    private function acquireLockWithRetry(LockingStrategyInterface $locker): ?ResponseInterface
+    {
+        $retryCount = 0;
 
         while ($locker->acquire() === false) {
-            usleep(100000);
-            ++$count;
-            if ($count === 10) {
+            usleep(self::LOCK_RETRY_INTERVAL_USEC);
+
+            ++$retryCount;
+
+            if ($retryCount === self::LOCK_MAX_RETRIES) {
                 return $this->responseFactory->createResponse(503)
                     ->withBody($this->streamFactory->createStream(
                         LocalizationUtility::translate('processor.error.imageBeingProcessed', 'NrImageOptimize')
@@ -284,16 +449,37 @@ class Processor
             }
         }
 
-        $image = $this->imageManager->read($pathOriginal);
-        $locker->release();
+        return null;
+    }
 
-        return $image;
+    /**
+     * Ensure a directory exists, creating it recursively if needed.
+     *
+     * @param string $directory Absolute path to the directory
+     *
+     * @throws RuntimeException If the directory cannot be created
+     */
+    private function ensureDirectoryExists(string $directory): void
+    {
+        if (is_dir($directory)) {
+            return;
+        }
+
+        if (!mkdir($directory, self::DIRECTORY_PERMISSIONS, true) && !is_dir($directory)) {
+            throw new RuntimeException(
+                sprintf(
+                    'Directory "%s" was not created',
+                    $directory,
+                ),
+            );
+        }
     }
 
     /**
      * Derive the missing target dimension while preserving the original aspect ratio.
      *
      * If only width or height is provided, the other is computed from the image's ratio.
+     * Handles zero-dimension images safely to avoid division by zero.
      *
      * @param ImageInterface $image        The loaded image
      * @param int|null       $targetWidth  Target width (may be null)
@@ -306,7 +492,15 @@ class Processor
         ?int $targetWidth,
         ?int $targetHeight,
     ): array {
-        $aspectRatio = $image->width() / $image->height();
+        $imageHeight = $image->height();
+        $imageWidth  = $image->width();
+
+        // Guard against division by zero for degenerate images
+        if ($imageHeight === 0 || $imageWidth === 0) {
+            return [$targetWidth, $targetHeight];
+        }
+
+        $aspectRatio = $imageWidth / $imageHeight;
 
         if (($targetHeight === null)
             && ($targetWidth !== null)
@@ -327,6 +521,8 @@ class Processor
      * Whether the given extension is WebP.
      *
      * @param string $extension Lowercased file extension
+     *
+     * @return bool True if the extension is 'webp'
      */
     private function isWebpImage(string $extension): bool
     {
@@ -337,6 +533,8 @@ class Processor
      * Whether the given extension is AVIF.
      *
      * @param string $extension Lowercased file extension
+     *
+     * @return bool True if the extension is 'avif'
      */
     private function isAvifImage(string $extension): bool
     {
@@ -362,6 +560,8 @@ class Processor
      * Check whether WebP generation should be skipped for this request.
      *
      * @param RequestInterface $request The incoming request
+     *
+     * @return bool True if WebP generation should be skipped
      */
     private function skipWebPCreation(RequestInterface $request): bool
     {
@@ -372,6 +572,8 @@ class Processor
      * Check whether AVIF generation should be skipped for this request.
      *
      * @param RequestInterface $request The incoming request
+     *
+     * @return bool True if AVIF generation should be skipped
      */
     private function skipAvifCreation(RequestInterface $request): bool
     {

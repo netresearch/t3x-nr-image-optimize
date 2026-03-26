@@ -137,8 +137,11 @@ final class ProcessorFuzzTest extends TestCase
             $url = $this->randomUrlPath();
 
             $result = $method->invoke($this->processor, $url);
-            // If it returns, it must be an array
-            self::assertIsArray($result, sprintf('Expected array for URL: %s', $url));
+            // Must be array or null (non-matching pattern)
+            self::assertTrue(
+                $result === null || is_array($result),
+                sprintf('Expected array|null for URL: %s, got %s', $url, get_debug_type($result)),
+            );
         }
     }
 
@@ -183,11 +186,7 @@ final class ProcessorFuzzTest extends TestCase
 
         foreach ($nonMatchingCases as $url) {
             $result = $method->invoke($this->processor, $url);
-            self::assertIsArray($result, sprintf('Expected array for edge case URL "%s"', $url));
-            self::assertNull($result['targetWidth'], sprintf('Expected null targetWidth for non-matching URL "%s"', $url));
-            self::assertNull($result['targetHeight'], sprintf('Expected null targetHeight for non-matching URL "%s"', $url));
-            self::assertSame(100, $result['targetQuality'], sprintf('Expected default targetQuality for non-matching URL "%s"', $url));
-            self::assertSame(0, $result['processingMode'], sprintf('Expected default processingMode for non-matching URL "%s"', $url));
+            self::assertNull($result, sprintf('Expected null for non-matching edge case URL "%s"', $url));
         }
 
         // Edge cases that DO match the regex -- verify all parsed components
@@ -196,7 +195,7 @@ final class ProcessorFuzzTest extends TestCase
                 'targetWidth' => 100, 'targetHeight' => null, 'targetQuality' => 100, 'processingMode' => 0, 'extension' => 'jpg',
             ],
             '/processed/image.w0h0q0m0.jpg' => [
-                'targetWidth' => 0, 'targetHeight' => 0, 'targetQuality' => 0, 'processingMode' => 0, 'extension' => 'jpg',
+                'targetWidth' => 1, 'targetHeight' => 1, 'targetQuality' => 1, 'processingMode' => 0, 'extension' => 'jpg',
             ],
             '/processed/image.w100h200.WEBP' => [
                 'targetWidth' => 100, 'targetHeight' => 200, 'targetQuality' => 100, 'processingMode' => 0, 'extension' => 'webp',
