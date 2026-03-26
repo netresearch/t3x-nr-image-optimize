@@ -3,5 +3,11 @@ parameters:
 		-
 			message: '#^Dynamic call to static method PHPUnit\\Framework\\TestCase\:\:createStub\(\)\.$#'
 			identifier: staticMethod.dynamicCall
-			count: 19
+			count: 4
+			path: ../Tests/Unit/Middleware/ProcessingMiddlewareTest.php
+
+		-
+			message: '#^Dynamic call to static method PHPUnit\\Framework\\TestCase\:\:createStub\(\)\.$#'
+			identifier: staticMethod.dynamicCall
+			count: 20
 			path: ../Tests/Unit/ProcessorTest.php

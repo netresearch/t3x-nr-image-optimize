@@ -38,9 +38,9 @@ class ProcessorTest extends TestCase
 {
     private Stub $lockFactory;
 
-    private MockObject $responseFactory;
+    private Stub $responseFactory;
 
-    private MockObject $streamFactory;
+    private Stub $streamFactory;
 
     private Processor $processor;
 
@@ -61,8 +61,8 @@ class ProcessorTest extends TestCase
         );
 
         $this->lockFactory     = $this->createStub(LockFactory::class);
-        $this->responseFactory = $this->createMock(ResponseFactoryInterface::class);
-        $this->streamFactory   = $this->createMock(StreamFactoryInterface::class);
+        $this->responseFactory = $this->createStub(ResponseFactoryInterface::class);
+        $this->streamFactory   = $this->createStub(StreamFactoryInterface::class);
 
         // ImageManager is final and cannot be mocked. Use newInstanceWithoutConstructor
         // since tests only exercise private helper methods via reflection that do not
@@ -211,10 +211,10 @@ class ProcessorTest extends TestCase
     #[Test]
     public function parseQueryParamsExtractsBothFlags(): void
     {
-        $uri = $this->createMock(UriInterface::class);
+        $uri = $this->createStub(UriInterface::class);
         $uri->method('getQuery')->willReturn('skipWebP=1&skipAvif=1');
 
-        $request = $this->createMock(RequestInterface::class);
+        $request = $this->createStub(RequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
         /** @var array{skipWebP: bool, skipAvif: bool} $result */
@@ -227,10 +227,10 @@ class ProcessorTest extends TestCase
     #[Test]
     public function parseQueryParamsDefaultsToFalse(): void
     {
-        $uri = $this->createMock(UriInterface::class);
+        $uri = $this->createStub(UriInterface::class);
         $uri->method('getQuery')->willReturn('');
 
-        $request = $this->createMock(RequestInterface::class);
+        $request = $this->createStub(RequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
         /** @var array{skipWebP: bool, skipAvif: bool} $result */
@@ -243,10 +243,10 @@ class ProcessorTest extends TestCase
     #[Test]
     public function parseQueryParamsHandlesDisabledFlags(): void
     {
-        $uri = $this->createMock(UriInterface::class);
+        $uri = $this->createStub(UriInterface::class);
         $uri->method('getQuery')->willReturn('skipWebP=0&skipAvif=0');
 
-        $request = $this->createMock(RequestInterface::class);
+        $request = $this->createStub(RequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
         /** @var array{skipWebP: bool, skipAvif: bool} $result */
@@ -259,7 +259,7 @@ class ProcessorTest extends TestCase
     #[Test]
     public function calculateTargetDimensionsDerivesMissingHeight(): void
     {
-        $image = $this->createMock(ImageInterface::class);
+        $image = $this->createStub(ImageInterface::class);
         $image->method('width')->willReturn(800);
         $image->method('height')->willReturn(400);
 
@@ -273,7 +273,7 @@ class ProcessorTest extends TestCase
     #[Test]
     public function calculateTargetDimensionsDerivesMissingWidth(): void
     {
-        $image = $this->createMock(ImageInterface::class);
+        $image = $this->createStub(ImageInterface::class);
         $image->method('width')->willReturn(800);
         $image->method('height')->willReturn(400);
 
@@ -287,7 +287,7 @@ class ProcessorTest extends TestCase
     #[Test]
     public function calculateTargetDimensionsReturnsBothWhenProvided(): void
     {
-        $image = $this->createMock(ImageInterface::class);
+        $image = $this->createStub(ImageInterface::class);
         $image->method('width')->willReturn(800);
         $image->method('height')->willReturn(400);
 
@@ -301,7 +301,7 @@ class ProcessorTest extends TestCase
     #[Test]
     public function calculateTargetDimensionsReturnsNullsWhenBothMissing(): void
     {
-        $image = $this->createMock(ImageInterface::class);
+        $image = $this->createStub(ImageInterface::class);
         $image->method('width')->willReturn(800);
         $image->method('height')->willReturn(400);
 
@@ -381,7 +381,7 @@ class ProcessorTest extends TestCase
     #[Test]
     public function processImageReturnsTheImageInstance(): void
     {
-        $image = $this->createMock(ImageInterface::class);
+        $image = $this->createStub(ImageInterface::class);
         $image->method('cover')->willReturn($image);
 
         $result = $this->callMethod($this->processor, 'processImage', $image, 400, 200, 0);
