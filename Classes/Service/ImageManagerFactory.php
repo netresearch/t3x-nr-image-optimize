@@ -15,6 +15,7 @@ use function extension_loaded;
 
 use Intervention\Image\Drivers\Gd\Driver as GdDriver;
 use Intervention\Image\Drivers\Imagick\Driver as ImagickDriver;
+use Intervention\Image\Exceptions\DriverException;
 use Intervention\Image\ImageManager;
 use RuntimeException;
 
@@ -35,8 +36,8 @@ final class ImageManagerFactory
      *
      * @return ImageManager Configured image manager
      *
-     * @throws RuntimeException         If neither imagick nor gd extension is loaded
-     * @throws \Intervention\Image\Exceptions\DriverException If the selected driver fails to initialize
+     * @throws RuntimeException If neither imagick nor gd extension is loaded
+     * @throws DriverException  If the selected driver fails to initialize
      */
     public function create(): ImageManager
     {
