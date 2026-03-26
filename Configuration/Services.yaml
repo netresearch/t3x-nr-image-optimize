@@ -7,13 +7,13 @@ services:
   Netresearch\NrImageOptimize\:
     resource: '../Classes/*'
 
-  Netresearch\NrImageOptimize\Processor:
-    arguments:
-      $imageManager: !service
-        class: Intervention\Image\ImageManager
-        arguments:
-          - !service
-            class: Intervention\Image\Drivers\Imagick\Driver
+  Intervention\Image\ImageManager:
+    factory:
+      - '@Netresearch\NrImageOptimize\Service\ImageManagerFactory'
+      - 'create'
+
+  Netresearch\NrImageOptimize\ProcessorInterface:
+    alias: Netresearch\NrImageOptimize\Processor
 
   Netresearch\NrImageOptimize\Controller\MaintenanceController:
     public: true
