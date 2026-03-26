@@ -75,9 +75,9 @@ class SystemRequirementsServiceTest extends TestCase
         $result = $this->service->collect();
 
         foreach ($result as $category) {
-            self::assertArrayHasKey('labelKey', $category);
-            self::assertArrayHasKey('items', $category);
-            self::assertIsArray($category['items']);
+            self::assertArrayHasKey('labelKey', $category); // @phpstan-ignore staticMethod.alreadyNarrowedType
+            self::assertArrayHasKey('items', $category); // @phpstan-ignore staticMethod.alreadyNarrowedType
+            self::assertIsArray($category['items']); // @phpstan-ignore staticMethod.alreadyNarrowedType
         }
     }
 

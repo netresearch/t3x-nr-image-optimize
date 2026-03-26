@@ -49,7 +49,7 @@ opt-in per usage.
 ..  code-block:: html
     :caption: Enable responsive srcset with default variants
 
-    <nrio:sourceSet
+    <nr:sourceSet
         path="{f:uri.image(
             image: image,
             maxWidth: size,
@@ -71,7 +71,7 @@ Custom width variants
 ..  code-block:: html
     :caption: Specify custom breakpoints for srcset
 
-    <nrio:sourceSet
+    <nr:sourceSet
         path="{f:uri.image(
             image: image,
             maxWidth: size,

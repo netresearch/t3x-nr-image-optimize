@@ -12,7 +12,7 @@
             <p class="text-muted mb-0"><f:translate key="module.systemRequirements.description" extensionName="NrImageOptimize" /></p>
         </div>
         <div>
-            <f:link.action action="index" class="btn btn-default">
+            <f:link.action action="index" class="btn btn-secondary">
                 <core:icon identifier="actions-arrow-left" size="small"/>
                 <f:translate key="module.backToMaintenance" extensionName="NrImageOptimize" />
             </f:link.action>
@@ -136,24 +136,7 @@
         </div>
     </div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-            tooltipTriggerList.map(function (tooltipTriggerEl) {
-                return new bootstrap.Tooltip(tooltipTriggerEl, {
-                    boundary: 'window',
-                    customClass: 'tooltip-wide'
-                });
-            });
-        });
-    </script>
-
-    <style>
-        .tooltip-wide .tooltip-inner {
-            max-width: 400px;
-            text-align: left;
-        }
-    </style>
+    <f:be.pageRenderer includeJavaScriptFiles="{0: 'EXT:nr_image_optimize/Resources/Public/JavaScript/SystemRequirements.js'}" includeCssFiles="{0: 'EXT:nr_image_optimize/Resources/Public/Css/SystemRequirements.css'}" />
 </f:section>
 
 </html>

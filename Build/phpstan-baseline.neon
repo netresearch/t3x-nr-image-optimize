@@ -1,19 +1,2 @@
 parameters:
-	ignoreErrors:
-		-
-			message: '#^Call to static method PHPUnit\\Framework\\Assert\:\:assertArrayHasKey\(\) with ''items'' and array\{labelKey\: string, items\: list\<array\<string, mixed\>\>\} will always evaluate to true\.$#'
-			identifier: staticMethod.alreadyNarrowedType
-			count: 1
-			path: ../Tests/Unit/Service/SystemRequirementsServiceTest.php
-
-		-
-			message: '#^Call to static method PHPUnit\\Framework\\Assert\:\:assertArrayHasKey\(\) with ''labelKey'' and array\{labelKey\: string, items\: list\<array\<string, mixed\>\>\} will always evaluate to true\.$#'
-			identifier: staticMethod.alreadyNarrowedType
-			count: 1
-			path: ../Tests/Unit/Service/SystemRequirementsServiceTest.php
-
-		-
-			message: '#^Call to static method PHPUnit\\Framework\\Assert\:\:assertIsArray\(\) with list\<array\<string, mixed\>\> will always evaluate to true\.$#'
-			identifier: staticMethod.alreadyNarrowedType
-			count: 1
-			path: ../Tests/Unit/Service/SystemRequirementsServiceTest.php
+	ignoreErrors: []

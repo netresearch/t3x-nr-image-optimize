@@ -44,8 +44,6 @@ use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper;
  * @author  Axel Seemann <axel.seemann@netresearch.de>
  * @author  Rico Sonntag <rico.sonntag@netresearch.de>
  * @license Netresearch https://www.netresearch.de
- *
- * @see    https://www.netresearch.de
  */
 class SourceSetViewHelper extends AbstractViewHelper
 {

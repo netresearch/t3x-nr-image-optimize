@@ -20,6 +20,7 @@ use Intervention\Image\ImageManager;
 use Intervention\Image\Interfaces\ImageInterface;
 
 use function is_dir;
+use function is_string;
 use function max;
 use function md5;
 use function min;
@@ -64,8 +65,6 @@ use function usleep;
  * @author  Axel Seemann <axel.seemann@netresearch.de>
  * @author  Rico Sonntag <rico.sonntag@netresearch.de>
  * @license Netresearch https://www.netresearch.de
- *
- * @see    https://www.netresearch.de
  */
 class Processor
 {
@@ -208,6 +207,10 @@ class Processor
             $targetWidth,
             $targetHeight,
         );
+
+        // Re-clamp dimensions after aspect-ratio calculation to prevent DoS
+        $targetWidth  = $this->clampDimension($targetWidth);
+        $targetHeight = $this->clampDimension($targetHeight);
 
         $targetQuality  = $urlInfo['targetQuality'];
         $processingMode = $urlInfo['processingMode'];
@@ -545,18 +548,22 @@ class Processor
     }
 
     /**
-     * Fetch a query parameter value from the incoming request URI.
+     * Fetch a scalar query parameter value from the incoming request URI.
+     *
+     * Array-valued parameters (e.g. `foo[]=bar`) are ignored and treated as absent.
      *
      * @param RequestInterface $request The incoming request
      * @param string           $key     Parameter name
      *
-     * @return mixed The raw query value or null if not present
+     * @return string|null The raw query value or null if not present or not scalar
      */
-    private function getQueryValue(RequestInterface $request, string $key): mixed
+    private function getQueryValue(RequestInterface $request, string $key): ?string
     {
         parse_str($request->getUri()->getQuery(), $query);
 
-        return $query[$key] ?? null;
+        $value = $query[$key] ?? null;
+
+        return is_string($value) ? $value : null;
     }
 
     /**

@@ -39,7 +39,7 @@ Welcome! This repository contains the TYPO3 extension **`nr_image_optimize`**, w
 - `Build/`: Tooling configs (PHP CS Fixer, Rector, PHPStan, PHPUnit, etc.).
 - `Resources/`: Public assets and localization. Respect existing naming/layout.
 - `Configuration/`: TYPO3 DI & middleware registration.
-- `Tests/`: Reserved for automated tests (currently empty – add here if you create tests).
+- `Tests/`: Automated tests (Unit, Fuzz). Follow existing patterns when adding tests.
 - `ext_emconf.php` & `composer.json`: Extension metadata. Update versions consistently when releasing.
 
 ## Contribution Tips

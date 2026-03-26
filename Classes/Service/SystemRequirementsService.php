@@ -398,16 +398,19 @@ final class SystemRequirementsService
             return ['available' => null, 'version' => 'n/a'];
         }
 
-        $path = trim((string) @shell_exec('command -v ' . escapeshellarg($cmd) . ' 2>/dev/null'));
+        $path = shell_exec('command -v ' . escapeshellarg($cmd) . ' 2>/dev/null');
+        $path = trim((string) $path);
 
         if ($path === '') {
             return ['available' => false, 'version' => null];
         }
 
-        $ver = trim((string) @shell_exec(escapeshellarg($cmd) . ' -version 2>&1'));
+        $ver = shell_exec(escapeshellarg($cmd) . ' -version 2>&1');
+        $ver = trim((string) $ver);
 
         if ($ver === '') {
-            $ver = trim((string) @shell_exec(escapeshellarg($cmd) . ' --version 2>&1'));
+            $ver = shell_exec(escapeshellarg($cmd) . ' --version 2>&1');
+            $ver = trim((string) $ver);
         }
 
         return [

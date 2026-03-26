@@ -29,8 +29,6 @@ use function str_starts_with;
  *
  * @author  Axel Seemann <axel.seemann@netresearch.de>
  * @license Netresearch https://www.netresearch.de
- *
- * @see    https://www.netresearch.de
  */
 readonly class ProcessingMiddleware implements MiddlewareInterface
 {
