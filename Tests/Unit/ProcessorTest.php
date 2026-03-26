@@ -11,10 +11,9 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Tests\Unit;
 
-use Intervention\Image\Drivers\Gd\Driver;
-use Intervention\Image\ImageManager;
 use Intervention\Image\Interfaces\EncodedImageInterface;
 use Intervention\Image\Interfaces\ImageInterface;
+use Intervention\Image\Origin;
 use Netresearch\NrImageOptimize\Processor;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -23,8 +22,11 @@ use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseFactoryInterface;
+use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamFactoryInterface;
+use Psr\Http\Message\StreamInterface;
 use Psr\Http\Message\UriInterface;
+use ReflectionClass;
 use ReflectionMethod;
 use TYPO3\CMS\Core\Core\ApplicationContext;
 use TYPO3\CMS\Core\Core\Environment;
@@ -39,6 +41,8 @@ class ProcessorTest extends TestCase
     private ResponseFactoryInterface&MockObject $responseFactory;
 
     private StreamFactoryInterface&MockObject $streamFactory;
+
+    private Processor $processor;
 
     protected function setUp(): void
     {
@@ -59,20 +63,24 @@ class ProcessorTest extends TestCase
         $this->lockFactory     = $this->createMock(LockFactory::class);
         $this->responseFactory = $this->createMock(ResponseFactoryInterface::class);
         $this->streamFactory   = $this->createMock(StreamFactoryInterface::class);
+
+        // ImageManager is final and cannot be mocked. Use newInstanceWithoutConstructor
+        // since tests only exercise private helper methods via reflection that do not
+        // depend on ImageManager.
+        $reflection      = new ReflectionClass(Processor::class);
+        $this->processor = $reflection->newInstanceWithoutConstructor();
+
+        // Inject the mocked dependencies via reflection for tests that need them
+        $this->setProperty($this->processor, 'lockFactory', $this->lockFactory);
+        $this->setProperty($this->processor, 'responseFactory', $this->responseFactory);
+        $this->setProperty($this->processor, 'streamFactory', $this->streamFactory);
     }
 
-    /**
-     * Create a Processor instance using the GD driver (Imagick may not be
-     * available in all environments).
-     */
-    private function createProcessor(): Processor
+    private function setProperty(object $object, string $property, mixed $value): void
     {
-        return new Processor(
-            new ImageManager(new Driver()),
-            $this->lockFactory,
-            $this->responseFactory,
-            $this->streamFactory,
-        );
+        $reflection = new ReflectionClass($object);
+        $prop       = $reflection->getProperty($property);
+        $prop->setValue($object, $value);
     }
 
     private function callMethod(object $object, string $method, mixed ...$arguments): mixed
@@ -85,10 +93,8 @@ class ProcessorTest extends TestCase
     #[Test]
     public function gatherInformationBasedOnUrlParsesVariantConfiguration(): void
     {
-        $processor = $this->createProcessor();
-
         /** @var array<string, mixed> $result */
-        $result = $this->callMethod($processor, 'gatherInformationBasedOnUrl', '/processed/path/to/image.w800h400q75m1.webp');
+        $result = $this->callMethod($this->processor, 'gatherInformationBasedOnUrl', '/processed/path/to/image.w800h400q75m1.webp');
 
         self::assertSame(
             '/var/www/html/public/processed/path/to/image.w800h400q75m1.webp',
@@ -108,10 +114,8 @@ class ProcessorTest extends TestCase
     #[Test]
     public function gatherInformationBasedOnUrlNormalizesJpegExtension(): void
     {
-        $processor = $this->createProcessor();
-
         /** @var array<string, mixed> $result */
-        $result = $this->callMethod($processor, 'gatherInformationBasedOnUrl', '/processed/path/to/image.w200h100m0q60.jpeg');
+        $result = $this->callMethod($this->processor, 'gatherInformationBasedOnUrl', '/processed/path/to/image.w200h100m0q60.jpeg');
 
         self::assertSame('jpg', $result['extension']);
     }
@@ -119,10 +123,8 @@ class ProcessorTest extends TestCase
     #[Test]
     public function gatherInformationBasedOnUrlAppliesDefaultsWhenModeDetailsMissing(): void
     {
-        $processor = $this->createProcessor();
-
         /** @var array<string, mixed> $result */
-        $result = $this->callMethod($processor, 'gatherInformationBasedOnUrl', '/processed/path/to/image.w800.jpg');
+        $result = $this->callMethod($this->processor, 'gatherInformationBasedOnUrl', '/processed/path/to/image.w800.jpg');
 
         self::assertSame(800, $result['targetWidth']);
         self::assertNull($result['targetHeight']);
@@ -133,36 +135,30 @@ class ProcessorTest extends TestCase
     #[Test]
     public function getValueFromModeParsesNumericFragments(): void
     {
-        $processor = $this->createProcessor();
-
-        self::assertSame(800, $this->callMethod($processor, 'getValueFromMode', 'w', 'w800h400q80m1'));
-        self::assertSame(400, $this->callMethod($processor, 'getValueFromMode', 'h', 'w800h400q80m1'));
-        self::assertSame(80, $this->callMethod($processor, 'getValueFromMode', 'q', 'w800h400q80m1'));
-        self::assertSame(1, $this->callMethod($processor, 'getValueFromMode', 'm', 'w800h400q80m1'));
+        self::assertSame(800, $this->callMethod($this->processor, 'getValueFromMode', 'w', 'w800h400q80m1'));
+        self::assertSame(400, $this->callMethod($this->processor, 'getValueFromMode', 'h', 'w800h400q80m1'));
+        self::assertSame(80, $this->callMethod($this->processor, 'getValueFromMode', 'q', 'w800h400q80m1'));
+        self::assertSame(1, $this->callMethod($this->processor, 'getValueFromMode', 'm', 'w800h400q80m1'));
     }
 
     #[Test]
     public function getValueFromModeReturnsNullIfIdentifierMissing(): void
     {
-        $processor = $this->createProcessor();
-
-        self::assertNull($this->callMethod($processor, 'getValueFromMode', 'q', 'w200h300'));
-        self::assertNull($this->callMethod($processor, 'getValueFromMode', 'w', ''));
+        self::assertNull($this->callMethod($this->processor, 'getValueFromMode', 'q', 'w200h300'));
+        self::assertNull($this->callMethod($this->processor, 'getValueFromMode', 'w', ''));
     }
 
     #[Test]
     #[DataProvider('skipVariantQueryProvider')]
     public function skipVariantCreationEvaluatesQueryFlag(string $method, string $query, bool $expected): void
     {
-        $processor = $this->createProcessor();
-
         $uri = $this->createMock(UriInterface::class);
         $uri->method('getQuery')->willReturn($query);
 
         $request = $this->createMock(RequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
-        self::assertSame($expected, $this->callMethod($processor, $method, $request));
+        self::assertSame($expected, $this->callMethod($this->processor, $method, $request));
     }
 
     /**
@@ -181,44 +177,37 @@ class ProcessorTest extends TestCase
     #[Test]
     public function getQueryValueReturnsRequestedParameter(): void
     {
-        $processor = $this->createProcessor();
-
         $uri = $this->createMock(UriInterface::class);
         $uri->method('getQuery')->willReturn('foo=bar&skipWebP=1');
 
         $request = $this->createMock(RequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
-        self::assertSame('bar', $this->callMethod($processor, 'getQueryValue', $request, 'foo'));
-        self::assertSame('1', $this->callMethod($processor, 'getQueryValue', $request, 'skipWebP'));
+        self::assertSame('bar', $this->callMethod($this->processor, 'getQueryValue', $request, 'foo'));
+        self::assertSame('1', $this->callMethod($this->processor, 'getQueryValue', $request, 'skipWebP'));
     }
 
     #[Test]
     public function getQueryValueReturnsNullForMissingParameter(): void
     {
-        $processor = $this->createProcessor();
-
         $uri = $this->createMock(UriInterface::class);
         $uri->method('getQuery')->willReturn('foo=bar');
 
         $request = $this->createMock(RequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
-        self::assertNull($this->callMethod($processor, 'getQueryValue', $request, 'baz'));
+        self::assertNull($this->callMethod($this->processor, 'getQueryValue', $request, 'baz'));
     }
 
     #[Test]
     public function calculateTargetDimensionsDerivesMissingHeight(): void
     {
-        $processor = $this->createProcessor();
-
-        /** @var ImageInterface&MockObject $image */
         $image = $this->createMock(ImageInterface::class);
         $image->method('width')->willReturn(800);
         $image->method('height')->willReturn(400);
 
         /** @var array{0: int|null, 1: int|null} $result */
-        $result = $this->callMethod($processor, 'calculateTargetDimensions', $image, 400, null);
+        $result = $this->callMethod($this->processor, 'calculateTargetDimensions', $image, 400, null);
 
         self::assertSame(400, $result[0]);
         self::assertSame(200, $result[1]);
@@ -227,83 +216,131 @@ class ProcessorTest extends TestCase
     #[Test]
     public function calculateTargetDimensionsDerivesMissingWidth(): void
     {
-        $processor = $this->createProcessor();
-
-        /** @var ImageInterface&MockObject $image */
         $image = $this->createMock(ImageInterface::class);
         $image->method('width')->willReturn(800);
         $image->method('height')->willReturn(400);
 
         /** @var array{0: int|null, 1: int|null} $result */
-        $result = $this->callMethod($processor, 'calculateTargetDimensions', $image, null, 200);
+        $result = $this->callMethod($this->processor, 'calculateTargetDimensions', $image, null, 200);
 
         self::assertSame(400, $result[0]);
         self::assertSame(200, $result[1]);
     }
 
     #[Test]
+    public function calculateTargetDimensionsReturnsBothWhenProvided(): void
+    {
+        $image = $this->createMock(ImageInterface::class);
+        $image->method('width')->willReturn(800);
+        $image->method('height')->willReturn(400);
+
+        /** @var array{0: int|null, 1: int|null} $result */
+        $result = $this->callMethod($this->processor, 'calculateTargetDimensions', $image, 600, 300);
+
+        self::assertSame(600, $result[0]);
+        self::assertSame(300, $result[1]);
+    }
+
+    #[Test]
+    public function calculateTargetDimensionsReturnsNullsWhenBothMissing(): void
+    {
+        $image = $this->createMock(ImageInterface::class);
+        $image->method('width')->willReturn(800);
+        $image->method('height')->willReturn(400);
+
+        /** @var array{0: int|null, 1: int|null} $result */
+        $result = $this->callMethod($this->processor, 'calculateTargetDimensions', $image, null, null);
+
+        self::assertNull($result[0]);
+        self::assertNull($result[1]);
+    }
+
+    #[Test]
     public function processImageUsesCoverForDefaultMode(): void
     {
-        $processor = $this->createProcessor();
-
-        /** @var ImageInterface&MockObject $image */
         $image = $this->createMock(ImageInterface::class);
         $image->expects(self::once())->method('cover')->with(400, 200);
         $image->expects(self::never())->method('scale');
 
-        $this->callMethod($processor, 'processImage', $image, 400, 200, 0);
+        $this->callMethod($this->processor, 'processImage', $image, 400, 200, 0);
     }
 
     #[Test]
     public function processImageFallsBackToCoverForUnknownMode(): void
     {
-        $processor = $this->createProcessor();
-
-        /** @var ImageInterface&MockObject $image */
         $image = $this->createMock(ImageInterface::class);
         $image->expects(self::once())->method('cover')->with(600, 400);
         $image->expects(self::never())->method('scale');
 
-        $this->callMethod($processor, 'processImage', $image, 600, 400, 99);
+        $this->callMethod($this->processor, 'processImage', $image, 600, 400, 99);
     }
 
     #[Test]
     public function processImageUsesScaleForFitMode(): void
     {
-        $processor = $this->createProcessor();
-
-        /** @var ImageInterface&MockObject $image */
         $image = $this->createMock(ImageInterface::class);
         $image->expects(self::never())->method('cover');
         $image->expects(self::once())->method('scale')->with(320, 180);
 
-        $this->callMethod($processor, 'processImage', $image, 320, 180, 1);
+        $this->callMethod($this->processor, 'processImage', $image, 320, 180, 1);
     }
 
     #[Test]
-    public function processImageSkipsWhenDimensionMissing(): void
+    public function processImageSkipsWhenWidthMissing(): void
     {
-        $processor = $this->createProcessor();
-
-        /** @var ImageInterface&MockObject $image */
         $image = $this->createMock(ImageInterface::class);
         $image->expects(self::never())->method('cover');
         $image->expects(self::never())->method('scale');
 
-        $this->callMethod($processor, 'processImage', $image, null, 200, 0);
+        $result = $this->callMethod($this->processor, 'processImage', $image, null, 200, 0);
+
+        self::assertSame($image, $result);
+    }
+
+    #[Test]
+    public function processImageSkipsWhenHeightMissing(): void
+    {
+        $image = $this->createMock(ImageInterface::class);
+        $image->expects(self::never())->method('cover');
+        $image->expects(self::never())->method('scale');
+
+        $result = $this->callMethod($this->processor, 'processImage', $image, 400, null, 0);
+
+        self::assertSame($image, $result);
+    }
+
+    #[Test]
+    public function processImageSkipsWhenBothDimensionsMissing(): void
+    {
+        $image = $this->createMock(ImageInterface::class);
+        $image->expects(self::never())->method('cover');
+        $image->expects(self::never())->method('scale');
+
+        $result = $this->callMethod($this->processor, 'processImage', $image, null, null, 1);
+
+        self::assertSame($image, $result);
+    }
+
+    #[Test]
+    public function processImageReturnsTheImageInstance(): void
+    {
+        $image = $this->createMock(ImageInterface::class);
+        $image->method('cover')->willReturn($image);
+
+        $result = $this->callMethod($this->processor, 'processImage', $image, 400, 200, 0);
+
+        self::assertSame($image, $result);
     }
 
     #[Test]
     public function hasVariantForChecksFileExistence(): void
     {
-        $processor = $this->createProcessor();
-
         $base = sys_get_temp_dir() . '/nr-image-optimize-' . uniqid('', true);
         $webp = $base . '.webp';
         touch($webp);
 
-        self::assertTrue($this->callMethod($processor, 'hasVariantFor', $base, 'webp'));
-        self::assertFalse($this->callMethod($processor, 'hasVariantFor', $base, 'avif'));
+        self::assertTrue($this->callMethod($this->processor, 'hasVariantFor', $base, 'webp'));
+        self::assertFalse($this->callMethod($this->processor, 'hasVariantFor', $base, 'avif'));
 
         unlink($webp);
     }
@@ -311,9 +348,6 @@ class ProcessorTest extends TestCase
     #[Test]
     public function generateWebpVariantEncodesAndSavesImage(): void
     {
-        $processor = $this->createProcessor();
-
-        /** @var ImageInterface&MockObject $image */
         $image   = $this->createMock(ImageInterface::class);
         $encoded = $this->createMock(EncodedImageInterface::class);
 
@@ -322,15 +356,12 @@ class ProcessorTest extends TestCase
         $image->expects(self::once())->method('toWebp')->with(90)->willReturn($encoded);
         $image->expects(self::once())->method('save')->with($variantBase . '.webp')->willReturnSelf();
 
-        $this->callMethod($processor, 'generateWebpVariant', $image, 90, $variantBase);
+        $this->callMethod($this->processor, 'generateWebpVariant', $image, 90, $variantBase);
     }
 
     #[Test]
     public function generateAvifVariantEncodesAndSavesImage(): void
     {
-        $processor = $this->createProcessor();
-
-        /** @var ImageInterface&MockObject $image */
         $image   = $this->createMock(ImageInterface::class);
         $encoded = $this->createMock(EncodedImageInterface::class);
 
@@ -339,22 +370,43 @@ class ProcessorTest extends TestCase
         $image->expects(self::once())->method('toAvif')->with(75)->willReturn($encoded);
         $image->expects(self::once())->method('save')->with($variantBase . '.avif')->willReturnSelf();
 
-        $this->callMethod($processor, 'generateAvifVariant', $image, 75, $variantBase);
+        $this->callMethod($this->processor, 'generateAvifVariant', $image, 75, $variantBase);
     }
 
     #[Test]
     public function variantExtensionHelpersDetectRequestedFormat(): void
     {
-        $processor = $this->createProcessor();
+        self::assertTrue($this->callMethod($this->processor, 'isWebpImage', 'webp'));
+        self::assertFalse($this->callMethod($this->processor, 'isAvifImage', 'webp'));
 
-        self::assertTrue($this->callMethod($processor, 'isWebpImage', 'webp'));
-        self::assertFalse($this->callMethod($processor, 'isAvifImage', 'webp'));
+        self::assertTrue($this->callMethod($this->processor, 'isAvifImage', 'avif'));
+        self::assertFalse($this->callMethod($this->processor, 'isWebpImage', 'avif'));
 
-        self::assertTrue($this->callMethod($processor, 'isAvifImage', 'avif'));
-        self::assertFalse($this->callMethod($processor, 'isWebpImage', 'avif'));
+        self::assertFalse($this->callMethod($this->processor, 'isWebpImage', 'jpg'));
+        self::assertFalse($this->callMethod($this->processor, 'isAvifImage', 'jpg'));
+    }
 
-        self::assertFalse($this->callMethod($processor, 'isWebpImage', 'jpg'));
-        self::assertFalse($this->callMethod($processor, 'isAvifImage', 'jpg'));
+    #[Test]
+    #[DataProvider('extensionHelperProvider')]
+    public function isWebpAndAvifImageDetectsCorrectExtensions(string $extension, bool $expectedWebp, bool $expectedAvif): void
+    {
+        self::assertSame($expectedWebp, $this->callMethod($this->processor, 'isWebpImage', $extension));
+        self::assertSame($expectedAvif, $this->callMethod($this->processor, 'isAvifImage', $extension));
+    }
+
+    /**
+     * @return iterable<string, array{0: string, 1: bool, 2: bool}>
+     */
+    public static function extensionHelperProvider(): iterable
+    {
+        yield 'webp' => ['webp', true, false];
+        yield 'avif' => ['avif', false, true];
+        yield 'jpg' => ['jpg', false, false];
+        yield 'png' => ['png', false, false];
+        yield 'gif' => ['gif', false, false];
+        yield 'empty' => ['', false, false];
+        yield 'WEBP uppercase' => ['WEBP', false, false];
+        yield 'AVIF uppercase' => ['AVIF', false, false];
     }
 
     #[Test]
@@ -367,8 +419,147 @@ class ProcessorTest extends TestCase
             ->with('nr_image_optimize-' . md5('test-key'))
             ->willReturn($locker);
 
-        $processor = $this->createProcessor();
+        self::assertSame($locker, $this->processor->getLocker('test-key'));
+    }
 
-        self::assertSame($locker, $processor->getLocker('test-key'));
+    #[Test]
+    public function buildOutputResponsePrefersAvifWhenAvailable(): void
+    {
+        $base = sys_get_temp_dir() . '/nr-image-optimize-response-' . uniqid('', true);
+        file_put_contents($base . '.avif', 'fake-avif-data');
+        file_put_contents($base . '.webp', 'fake-webp-data');
+
+        $image    = $this->createMock(ImageInterface::class);
+        $response = $this->createMock(ResponseInterface::class);
+        $stream   = $this->createMock(StreamInterface::class);
+
+        $this->responseFactory->method('createResponse')->with(200)->willReturn($response);
+        $response->method('withHeader')->with('Content-Type', 'image/avif')->willReturn($response);
+        $this->streamFactory->method('createStream')->with('fake-avif-data')->willReturn($stream);
+        $response->method('withBody')->with($stream)->willReturn($response);
+
+        $result = $this->callMethod($this->processor, 'buildOutputResponse', $image, 'jpg', 80, $base);
+
+        self::assertSame($response, $result);
+
+        unlink($base . '.avif');
+        unlink($base . '.webp');
+    }
+
+    #[Test]
+    public function buildOutputResponseFallsToWebpWhenNoAvif(): void
+    {
+        $base = sys_get_temp_dir() . '/nr-image-optimize-response-' . uniqid('', true);
+        file_put_contents($base . '.webp', 'fake-webp-data');
+
+        $image    = $this->createMock(ImageInterface::class);
+        $response = $this->createMock(ResponseInterface::class);
+        $stream   = $this->createMock(StreamInterface::class);
+
+        $this->responseFactory->method('createResponse')->with(200)->willReturn($response);
+        $response->method('withHeader')->with('Content-Type', 'image/webp')->willReturn($response);
+        $this->streamFactory->method('createStream')->with('fake-webp-data')->willReturn($stream);
+        $response->method('withBody')->with($stream)->willReturn($response);
+
+        $result = $this->callMethod($this->processor, 'buildOutputResponse', $image, 'jpg', 80, $base);
+
+        self::assertSame($response, $result);
+
+        unlink($base . '.webp');
+    }
+
+    #[Test]
+    public function buildOutputResponseFallsToOriginalFormatWhenNoVariants(): void
+    {
+        $base = sys_get_temp_dir() . '/nr-image-optimize-response-' . uniqid('', true);
+
+        $encodedImage = $this->createMock(EncodedImageInterface::class);
+        $encodedImage->method('toString')->willReturn('encoded-jpg-data');
+
+        $origin = $this->createMock(Origin::class);
+        $origin->method('mimetype')->willReturn('image/jpeg');
+
+        $image = $this->createMock(ImageInterface::class);
+        $image->method('origin')->willReturn($origin);
+        $image->method('encodeByExtension')->with('jpg', 80)->willReturn($encodedImage);
+
+        $response = $this->createMock(ResponseInterface::class);
+        $stream   = $this->createMock(StreamInterface::class);
+
+        $this->responseFactory->method('createResponse')->with(200)->willReturn($response);
+        $response->method('withHeader')->with('Content-Type', 'image/jpeg')->willReturn($response);
+        $this->streamFactory->method('createStream')->with('encoded-jpg-data')->willReturn($stream);
+        $response->method('withBody')->with($stream)->willReturn($response);
+
+        $result = $this->callMethod($this->processor, 'buildOutputResponse', $image, 'jpg', 80, $base);
+
+        self::assertSame($response, $result);
+    }
+
+    #[Test]
+    public function getValueFromModeHandlesRepeatedIdentifiers(): void
+    {
+        // When the same identifier appears twice, array_search returns the first occurrence
+        $result = $this->callMethod($this->processor, 'getValueFromMode', 'w', 'w100w200');
+
+        self::assertSame(100, $result);
+    }
+
+    #[Test]
+    public function getValueFromModeHandlesLargeNumericValues(): void
+    {
+        self::assertSame(99999, $this->callMethod($this->processor, 'getValueFromMode', 'w', 'w99999'));
+    }
+
+    #[Test]
+    public function gatherInformationBasedOnUrlHandlesExtensionCaseInsensitivity(): void
+    {
+        /** @var array<string, mixed> $result */
+        $result = $this->callMethod($this->processor, 'gatherInformationBasedOnUrl', '/processed/image.w100h50.PNG');
+
+        self::assertSame('png', $result['extension']);
+    }
+
+    #[Test]
+    public function gatherInformationBasedOnUrlHandlesUrlWithoutModeString(): void
+    {
+        // This URL does not match the regex pattern (no mode digits)
+        /** @var array<string, mixed> $result */
+        $result = $this->callMethod($this->processor, 'gatherInformationBasedOnUrl', '/processed/image.jpg');
+
+        // When regex does not match, defaults should be applied
+        self::assertNull($result['targetWidth']);
+        self::assertNull($result['targetHeight']);
+        self::assertSame(100, $result['targetQuality']);
+        self::assertSame(0, $result['processingMode']);
+    }
+
+    #[Test]
+    public function getQueryValueReturnsNullForEmptyQueryString(): void
+    {
+        $uri = $this->createMock(UriInterface::class);
+        $uri->method('getQuery')->willReturn('');
+
+        $request = $this->createMock(RequestInterface::class);
+        $request->method('getUri')->willReturn($uri);
+
+        self::assertNull($this->callMethod($this->processor, 'getQueryValue', $request, 'anything'));
+    }
+
+    #[Test]
+    public function gatherInformationBasedOnUrlHandlesNestedDirectories(): void
+    {
+        /** @var array<string, mixed> $result */
+        $result = $this->callMethod(
+            $this->processor,
+            'gatherInformationBasedOnUrl',
+            '/processed/deep/nested/path/image.w400h300q90m0.jpg',
+        );
+
+        self::assertSame(400, $result['targetWidth']);
+        self::assertSame(300, $result['targetHeight']);
+        self::assertSame(90, $result['targetQuality']);
+        self::assertSame(0, $result['processingMode']);
+        self::assertStringContainsString('deep/nested/path', $result['pathOriginal']);
     }
 }

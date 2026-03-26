@@ -24,8 +24,8 @@ use Netresearch\NrImageOptimize\ViewHelpers\SourceSetViewHelper;
 
 use function pathinfo;
 
-use PHPUnit\Framework\Attributes\Before;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
@@ -47,9 +47,10 @@ class SourceSetViewHelperTest extends TestCase
 {
     private SourceSetViewHelper $viewHelper;
 
-    #[Before]
     protected function setUp(): void
     {
+        parent::setUp();
+
         $tempDir = sys_get_temp_dir() . '/nr-image-optimize-test';
 
         Environment::initialize(
@@ -207,6 +208,38 @@ class SourceSetViewHelperTest extends TestCase
         $this->viewHelper->setArguments([
             'path'          => '/path/to/image.jpg',
             'widthVariants' => '0, -100, foo',
+        ]);
+
+        self::assertSame([480, 576, 640, 768, 992, 1200, 1800], $this->callMethod('getWidthVariants'));
+    }
+
+    #[Test]
+    public function getWidthVariantsAcceptsArrayInput(): void
+    {
+        $this->viewHelper->setArguments([
+            'path'          => '/path/to/image.jpg',
+            'widthVariants' => [800, 1200, 400],
+        ]);
+
+        self::assertSame([400, 800, 1200], $this->callMethod('getWidthVariants'));
+    }
+
+    #[Test]
+    public function getWidthVariantsRemovesDuplicatesFromArray(): void
+    {
+        $this->viewHelper->setArguments([
+            'path'          => '/path/to/image.jpg',
+            'widthVariants' => [640, 640, 320, 320],
+        ]);
+
+        self::assertSame([320, 640], $this->callMethod('getWidthVariants'));
+    }
+
+    #[Test]
+    public function getWidthVariantsUsesDefaultsWhenNotProvided(): void
+    {
+        $this->viewHelper->setArguments([
+            'path' => '/path/to/image.jpg',
         ]);
 
         self::assertSame([480, 576, 640, 768, 992, 1200, 1800], $this->callMethod('getWidthVariants'));
@@ -379,6 +412,31 @@ class SourceSetViewHelperTest extends TestCase
     }
 
     #[Test]
+    public function getResourcePathOmitsQueryStringWhenNoFlagsSet(): void
+    {
+        $this->viewHelper->setArguments([
+            'mode' => 'cover',
+        ]);
+
+        $result = $this->viewHelper->getResourcePath('/path/to/image.jpg', 100, 100, 80, false, false);
+
+        self::assertStringNotContainsString('?', $result);
+    }
+
+    #[Test]
+    public function getResourcePathIncludesOnlySkipWebPQueryWhenOnlyWebPSkipped(): void
+    {
+        $this->viewHelper->setArguments([
+            'mode' => 'cover',
+        ]);
+
+        $result = $this->viewHelper->getResourcePath('/path/to/image.jpg', 100, 100, 80, false, true);
+
+        self::assertStringContainsString('skipWebP=1', $result);
+        self::assertStringNotContainsString('skipAvif', $result);
+    }
+
+    #[Test]
     public function generateSrcSetCreatesSourceElementsForBreakpoints(): void
     {
         $this->viewHelper->setArguments([
@@ -400,6 +458,37 @@ class SourceSetViewHelperTest extends TestCase
             . '/processed/images/picture.w400h240m0q100.jpg x2" />' . PHP_EOL;
 
         self::assertSame($expected, $result);
+    }
+
+    #[Test]
+    public function generateSrcSetReturnsEmptyStringForEmptySet(): void
+    {
+        $this->viewHelper->setArguments([
+            'path' => '/images/picture.jpg',
+            'set'  => [],
+        ]);
+
+        $result = $this->viewHelper->generateSrcSet();
+
+        self::assertSame('', $result);
+    }
+
+    #[Test]
+    public function generateSrcSetHandlesMultipleBreakpoints(): void
+    {
+        $this->viewHelper->setArguments([
+            'path' => '/images/picture.jpg',
+            'set'  => [
+                480 => ['width' => 200, 'height' => 120],
+                768 => ['width' => 400, 'height' => 240],
+            ],
+        ]);
+
+        $result = $this->viewHelper->generateSrcSet();
+
+        self::assertStringContainsString('(max-width: 480px)', $result);
+        self::assertStringContainsString('(max-width: 768px)', $result);
+        self::assertSame(2, substr_count($result, '<source'));
     }
 
     #[Test]
@@ -464,6 +553,20 @@ class SourceSetViewHelperTest extends TestCase
     }
 
     #[Test]
+    public function renderFetchpriorityAutoValue(): void
+    {
+        $this->viewHelper->setArguments([
+            'path'          => '/path/to/image.jpg',
+            'width'         => 400,
+            'height'        => 300,
+            'fetchpriority' => 'auto',
+        ]);
+
+        $result = $this->viewHelper->render();
+        self::assertStringContainsString('fetchpriority="auto"', $result);
+    }
+
+    #[Test]
     public function getArgModeMapsFitAndDefaultsToCover(): void
     {
         $this->viewHelper->setArguments([
@@ -491,6 +594,14 @@ class SourceSetViewHelperTest extends TestCase
         $this->viewHelper->setArguments([
             'attributes' => 'not-an-array',
         ]);
+
+        self::assertSame([], $this->callMethod('getAttributes'));
+    }
+
+    #[Test]
+    public function getAttributesReturnsEmptyArrayWhenNotSet(): void
+    {
+        $this->viewHelper->setArguments([]);
 
         self::assertSame([], $this->callMethod('getAttributes'));
     }
@@ -542,5 +653,205 @@ class SourceSetViewHelperTest extends TestCase
         ]);
 
         self::assertSame($set, $this->callMethod('getArgSet'));
+    }
+
+    #[Test]
+    public function getArgSetReturnsEmptyArrayWhenNotProvided(): void
+    {
+        $this->viewHelper->setArguments([
+            'path' => '/images/demo.jpg',
+        ]);
+
+        self::assertSame([], $this->callMethod('getArgSet'));
+    }
+
+    #[Test]
+    public function useJsLazyLoadReturnsTrueWhenClassContainsLazyload(): void
+    {
+        $this->viewHelper->setArguments([
+            'class' => 'image lazyload responsive',
+        ]);
+
+        self::assertTrue($this->viewHelper->useJsLazyLoad());
+    }
+
+    #[Test]
+    public function useJsLazyLoadReturnsFalseWhenClassDoesNotContainLazyload(): void
+    {
+        $this->viewHelper->setArguments([
+            'class' => 'image responsive',
+        ]);
+
+        self::assertFalse($this->viewHelper->useJsLazyLoad());
+    }
+
+    #[Test]
+    public function useJsLazyLoadReturnsFalseWhenClassIsEmpty(): void
+    {
+        $this->viewHelper->setArguments([
+            'class' => '',
+        ]);
+
+        self::assertFalse($this->viewHelper->useJsLazyLoad());
+    }
+
+    #[Test]
+    public function useNativeLazyLoadReturnsTrueWhenEnabled(): void
+    {
+        $this->viewHelper->setArguments([
+            'lazyload' => true,
+        ]);
+
+        self::assertTrue($this->callMethod('useNativeLazyLoad'));
+    }
+
+    #[Test]
+    public function useNativeLazyLoadReturnsFalseWhenDisabled(): void
+    {
+        $this->viewHelper->setArguments([
+            'lazyload' => false,
+        ]);
+
+        self::assertFalse($this->callMethod('useNativeLazyLoad'));
+    }
+
+    #[Test]
+    public function calculateVariantHeightReturnsZeroWhenNoAspectRatio(): void
+    {
+        self::assertSame(0, $this->callMethod('calculateVariantHeight', 640, 0.0));
+    }
+
+    #[Test]
+    public function calculateVariantHeightComputesProportionally(): void
+    {
+        // Aspect ratio of 0.5 means height is half the width
+        self::assertSame(320, $this->callMethod('calculateVariantHeight', 640, 0.5));
+    }
+
+    #[Test]
+    #[DataProvider('fetchpriorityProvider')]
+    public function getArgFetchpriorityValidatesValues(string $input, string $expected): void
+    {
+        $this->viewHelper->setArguments([
+            'fetchpriority' => $input,
+        ]);
+
+        self::assertSame($expected, $this->callMethod('getArgFetchpriority'));
+    }
+
+    /**
+     * @return iterable<string, array{0: string, 1: string}>
+     */
+    public static function fetchpriorityProvider(): iterable
+    {
+        yield 'high' => ['high', 'high'];
+        yield 'low' => ['low', 'low'];
+        yield 'auto' => ['auto', 'auto'];
+        yield 'HIGH uppercase' => ['HIGH', 'high'];
+        yield 'Low mixed case' => ['Low', 'low'];
+        yield 'invalid value' => ['urgent', ''];
+        yield 'empty string' => ['', ''];
+        yield 'whitespace only' => ['  ', ''];
+    }
+
+    #[Test]
+    public function renderLegacyModeIncludesDataSrcAndDataSrcsetAttributes(): void
+    {
+        $this->viewHelper->setArguments([
+            'path'   => '/path/to/image.jpg',
+            'width'  => 400,
+            'height' => 300,
+        ]);
+
+        $result = $this->viewHelper->render();
+
+        // Legacy mode always includes data-src and data-srcset
+        self::assertStringContainsString('data-src=', $result);
+        self::assertStringContainsString('data-srcset=', $result);
+    }
+
+    #[Test]
+    public function renderLegacyModeWithLazyloadClassUsesPlaceholderSrc(): void
+    {
+        $this->viewHelper->setArguments([
+            'path'   => '/path/to/image.jpg',
+            'width'  => 400,
+            'height' => 300,
+            'class'  => 'lazyload',
+        ]);
+
+        $result = $this->viewHelper->render();
+
+        // When lazyload class is present, src should be a transparent placeholder
+        self::assertStringContainsString('src="data:image/gif;base64,', $result);
+    }
+
+    #[Test]
+    public function renderOutputIsSelfClosingTag(): void
+    {
+        $this->viewHelper->setArguments([
+            'path'   => '/path/to/image.jpg',
+            'width'  => 400,
+            'height' => 300,
+        ]);
+
+        $result = $this->viewHelper->render();
+
+        self::assertStringContainsString('/>', $result);
+        self::assertStringContainsString('<img ', $result);
+    }
+
+    #[Test]
+    public function renderEscapesHtmlInAltAndTitle(): void
+    {
+        $this->viewHelper->setArguments([
+            'path'   => '/path/to/image.jpg',
+            'width'  => 400,
+            'height' => 300,
+            'alt'    => 'Image <with> "quotes"',
+            'title'  => 'Title &amp; more',
+        ]);
+
+        $result = $this->viewHelper->render();
+
+        self::assertStringContainsString('alt="Image &lt;with&gt; &quot;quotes&quot;"', $result);
+        self::assertStringContainsString('title="Title &amp;amp; more"', $result);
+    }
+
+    #[Test]
+    public function renderResponsiveSrcsetWithZeroHeightOmitsHeightCalculation(): void
+    {
+        $this->viewHelper->setArguments([
+            'path'             => '/path/to/image.jpg',
+            'width'            => 800,
+            'height'           => 0,
+            'responsiveSrcset' => true,
+        ]);
+
+        $result = $this->viewHelper->render();
+
+        // When height is 0, variant heights should also be 0 (no aspect ratio)
+        self::assertStringContainsString('h0', $result);
+    }
+
+    #[Test]
+    public function validateWidthVariantsReturnsDefaultsForEmptyArray(): void
+    {
+        /** @var array<int> $result */
+        $result = $this->callMethod('validateWidthVariants', []);
+
+        self::assertSame([480, 576, 640, 768, 992, 1200, 1800], $result);
+    }
+
+    #[Test]
+    public function validateWidthVariantsFiltersInvalidValues(): void
+    {
+        /** @var array<int> $result */
+        $result = $this->callMethod('validateWidthVariants', [0, -1, 100, 200, 0]);
+
+        self::assertContains(100, $result);
+        self::assertContains(200, $result);
+        self::assertNotContains(0, $result);
+        self::assertNotContains(-1, $result);
     }
 }

@@ -11,18 +11,14 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Tests\Fuzz;
 
-use Intervention\Image\Drivers\Gd\Driver;
-use Intervention\Image\ImageManager;
 use Netresearch\NrImageOptimize\Processor;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
-use Psr\Http\Message\ResponseFactoryInterface;
-use Psr\Http\Message\StreamFactoryInterface;
+use ReflectionClass;
 use ReflectionMethod;
 use TYPO3\CMS\Core\Core\ApplicationContext;
 use TYPO3\CMS\Core\Core\Environment;
-use TYPO3\CMS\Core\Locking\LockFactory;
 
 /**
  * Fuzz tests for the Processor class.
@@ -52,12 +48,10 @@ final class ProcessorFuzzTest extends TestCase
             'UNIX',
         );
 
-        $this->processor = new Processor(
-            new ImageManager(new Driver()),
-            $this->createMock(LockFactory::class),
-            $this->createMock(ResponseFactoryInterface::class),
-            $this->createMock(StreamFactoryInterface::class),
-        );
+        // ImageManager is final and cannot be mocked. Use newInstanceWithoutConstructor
+        // since fuzz tests only exercise URL parsing via reflection, not image operations.
+        $reflection      = new ReflectionClass(Processor::class);
+        $this->processor = $reflection->newInstanceWithoutConstructor();
     }
 
     /**
@@ -196,7 +190,7 @@ final class ProcessorFuzzTest extends TestCase
             self::assertSame(0, $result['processingMode'], sprintf('Expected default processingMode for non-matching URL "%s"', $url));
         }
 
-        // Edge cases that DO match the regex — verify all parsed components
+        // Edge cases that DO match the regex -- verify all parsed components
         $matchingCases = [
             '/processed/' . str_repeat('a', 1000) . '.w100.jpg' => [
                 'targetWidth' => 100, 'targetHeight' => null, 'targetQuality' => 100, 'processingMode' => 0, 'extension' => 'jpg',
