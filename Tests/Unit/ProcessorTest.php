@@ -58,6 +58,10 @@ class ProcessorTest extends TestCase
 
     private Processor $processor;
 
+    private ?string $tempDir = null;
+
+    private ?ReflectionProperty $prop = null;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -90,6 +94,18 @@ class ProcessorTest extends TestCase
         $this->setProperty($this->processor, 'responseFactory', $this->responseFactory);
         $this->setProperty($this->processor, 'streamFactory', $this->streamFactory);
         $this->setProperty($this->processor, 'eventDispatcher', $this->eventDispatcher);
+    }
+
+    protected function tearDown(): void
+    {
+        if ($this->tempDir !== null && $this->prop instanceof ReflectionProperty && is_dir($this->tempDir)) {
+            $this->tearDownRealEnvironment($this->tempDir, $this->prop);
+        }
+
+        $this->tempDir = null;
+        $this->prop    = null;
+
+        parent::tearDown();
     }
 
     private function setProperty(object $object, string $property, mixed $value): void
@@ -1085,6 +1101,9 @@ class ProcessorTest extends TestCase
             'UNIX',
         );
 
+        $this->tempDir = $tempDir;
+        $this->prop    = $prop;
+
         return ['tempDir' => $tempDir, 'prop' => $prop];
     }
 
@@ -1151,6 +1170,7 @@ class ProcessorTest extends TestCase
         $streamFactory = $this->createMock(StreamFactoryInterface::class);
         $streamFactory->method('createStreamFromFile')->willReturn($stream);
 
+        $response->method('getStatusCode')->willReturn(200);
         $response->method('withHeader')->willReturn($response);
         $response->method('withBody')->willReturn($response);
 
@@ -1375,6 +1395,7 @@ class ProcessorTest extends TestCase
         $streamFactory = $this->createMock(StreamFactoryInterface::class);
         $streamFactory->method('createStreamFromFile')->willReturn($stream);
 
+        $response->method('getStatusCode')->willReturn(200);
         $response->method('withHeader')->willReturn($response);
         $response->method('withBody')->willReturn($response);
 
@@ -1741,6 +1762,7 @@ class ProcessorTest extends TestCase
         file_put_contents($tempDir . '/public/processed/img.w100h50m0q80.jpg', 'cached-variant');
 
         $response200 = $this->createMock(ResponseInterface::class);
+        $response200->method('getStatusCode')->willReturn(200);
         $response200->method('withHeader')->willReturn($response200);
         $response200->method('withBody')->willReturn($response200);
 
@@ -2274,6 +2296,7 @@ class ProcessorTest extends TestCase
         $variantPath = $tempDir . '/public/processed/img.w100h50m0q80.jpg';
 
         $response200 = $this->createMock(ResponseInterface::class);
+        $response200->method('getStatusCode')->willReturn(200);
         $response200->method('withHeader')->willReturn($response200);
         $response200->method('withBody')->willReturn($response200);
 
