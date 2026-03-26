@@ -451,4 +451,58 @@ class MaintenanceControllerTest extends TestCase
         self::assertSame('only.webp', $result['oldestFile']['name']);
         self::assertSame('only.webp', $result['newestFile']['name']);
     }
+
+    // -------------------------------------------------------------------------
+    // buildLargestFiles
+    // -------------------------------------------------------------------------
+
+    #[Test]
+    public function buildLargestFilesSortsAndLimitsFiles(): void
+    {
+        $files = [];
+
+        for ($i = 1; $i <= 7; ++$i) {
+            $files[] = [
+                'name' => 'file' . $i . '.jpg',
+                'path' => 'file' . $i . '.jpg',
+                'size' => $i * 100,
+            ];
+        }
+
+        /** @var list<array<string, mixed>> $result */
+        $result = $this->callMethod('buildLargestFiles', $files);
+
+        self::assertCount(5, $result);
+        self::assertSame(700, $result[0]['size']);
+        self::assertSame(600, $result[1]['size']);
+
+        foreach ($result as $file) {
+            self::assertArrayHasKey('sizeHuman', $file);
+        }
+    }
+
+    #[Test]
+    public function buildLargestFilesHandlesEmptyArray(): void
+    {
+        /** @var list<array<string, mixed>> $result */
+        $result = $this->callMethod('buildLargestFiles', []);
+
+        self::assertSame([], $result);
+    }
+
+    #[Test]
+    public function buildLargestFilesHandlesFewerThanFiveFiles(): void
+    {
+        $files = [
+            ['name' => 'a.jpg', 'path' => 'a.jpg', 'size' => 200],
+            ['name' => 'b.jpg', 'path' => 'b.jpg', 'size' => 100],
+        ];
+
+        /** @var list<array<string, mixed>> $result */
+        $result = $this->callMethod('buildLargestFiles', $files);
+
+        self::assertCount(2, $result);
+        self::assertSame(200, $result[0]['size']);
+        self::assertSame(100, $result[1]['size']);
+    }
 }

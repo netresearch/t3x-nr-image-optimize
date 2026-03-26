@@ -853,4 +853,41 @@ class SourceSetViewHelperTest extends TestCase
         self::assertNotContains(0, $result);
         self::assertNotContains(-1, $result);
     }
+
+    // -------------------------------------------------------------------------
+    // getResourcePath: path traversal rejection (line 350)
+    // -------------------------------------------------------------------------
+
+    #[Test]
+    public function getResourcePathRejectsPathTraversal(): void
+    {
+        $result = $this->callMethod('getResourcePath', '../../etc/passwd', 100, 50);
+
+        // Should return the original path unchanged when it contains '..'
+        self::assertSame('../../etc/passwd', $result);
+    }
+
+    // -------------------------------------------------------------------------
+    // generateSrcSet: data-srcset on source elements when JS lazy (line 421)
+    // -------------------------------------------------------------------------
+
+    #[Test]
+    public function generateSrcSetIncludesDataSrcsetWhenJsLazyActive(): void
+    {
+        $this->viewHelper->setArguments([
+            'path'  => '/images/picture.jpg',
+            'class' => 'lazyload',
+            'set'   => [
+                480 => [
+                    'width'  => 200,
+                    'height' => 120,
+                ],
+            ],
+        ]);
+
+        $result = $this->viewHelper->generateSrcSet();
+
+        self::assertStringContainsString('data-srcset=', $result);
+        self::assertStringContainsString('srcset=', $result);
+    }
 }
