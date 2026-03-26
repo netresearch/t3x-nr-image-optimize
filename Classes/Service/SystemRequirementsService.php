@@ -11,11 +11,39 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Service;
 
+use function array_intersect;
+use function array_map;
+use function array_values;
+use function class_exists;
+
 use Composer\InstalledVersions;
+
+use function escapeshellarg;
+use function explode;
+use function extension_loaded;
+use function file_get_contents;
+use function function_exists;
+use function gd_info;
+
 use Imagick;
+
+use function implode;
+use function in_array;
+use function ini_get;
+use function is_array;
+use function is_file;
+use function json_decode;
+use function phpversion;
+use function shell_exec;
+
 use Throwable;
+
+use function trim;
+
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Information\Typo3Version;
+
+use function version_compare;
 
 /**
  * Service to collect and check system requirements for the image optimization extension.
@@ -25,9 +53,67 @@ use TYPO3\CMS\Core\Information\Typo3Version;
 final class SystemRequirementsService
 {
     /**
+     * Minimum required PHP version.
+     */
+    private const MIN_PHP_VERSION = '8.2.0';
+
+    /**
+     * Minimum required TYPO3 version.
+     */
+    private const MIN_TYPO3_VERSION = '13.4.0';
+
+    /**
+     * TYPO3 version requirement display string.
+     */
+    private const TYPO3_VERSION_REQUIREMENT = '>= 13.4';
+
+    /**
+     * PHP extensions that are optional (warning if missing, not error).
+     *
+     * @var list<string>
+     */
+    private const OPTIONAL_PHP_EXTENSIONS = ['imagick', 'gd'];
+
+    /**
+     * PHP extensions checked during requirements gathering.
+     *
+     * @var list<string>
+     */
+    private const REQUIRED_PHP_EXTENSIONS = ['imagick', 'gd', 'mbstring', 'exif'];
+
+    /**
+     * Image formats considered relevant for the supported formats display.
+     *
+     * @var list<string>
+     */
+    private const RELEVANT_IMAGE_FORMATS = ['AVIF', 'WEBP', 'JPEG', 'JPG', 'PNG', 'GIF', 'SVG'];
+
+    /**
+     * Composer packages required by this extension.
+     *
+     * @var list<string>
+     */
+    private const REQUIRED_COMPOSER_PACKAGES = [
+        'intervention/image',
+        'intervention/gif',
+    ];
+
+    /**
+     * CLI tools to check for availability.
+     *
+     * @var array<string, string>
+     */
+    private const CLI_TOOLS = [
+        'magick'   => 'CLI: magick',
+        'convert'  => 'CLI: convert',
+        'identify' => 'CLI: identify',
+        'gm'       => 'CLI: gm (GraphicsMagick)',
+    ];
+
+    /**
      * Collect all system requirements and their current status.
      *
-     * @return array<string, array<string, mixed>>
+     * @return array<string, array{labelKey: string, items: list<array<string, mixed>>}>
      */
     public function collect(): array
     {
@@ -44,31 +130,21 @@ final class SystemRequirementsService
     /**
      * Check PHP version and required extensions.
      *
-     * @return array<string, mixed>
+     * @return array{labelKey: string, items: list<array<string, mixed>>}
      */
     private function checkPhp(): array
     {
-        $required = '>= 8.2.0';
+        $required = '>= ' . self::MIN_PHP_VERSION;
         $current  = PHP_VERSION;
-        $ok       = version_compare($current, '8.2.0', '>=');
+        $ok       = version_compare($current, self::MIN_PHP_VERSION, '>=');
 
         $items   = [];
         $items[] = $this->makeItem('sysreq.phpVersion', $current, $required, $ok ? 'success' : 'error');
 
-        $extensions = [
-            'imagick'  => 'imagick',
-            'gd'       => 'gd',
-            'mbstring' => 'mbstring',
-            'exif'     => 'exif',
-        ];
-
-        foreach ($extensions as $ext => $extName) {
-            $loaded = extension_loaded($ext);
-            if ($ext === 'imagick' || $ext === 'gd') {
-                $status = $loaded ? 'success' : 'warning';
-            } else {
-                $status = $loaded ? 'success' : 'error';
-            }
+        foreach (self::REQUIRED_PHP_EXTENSIONS as $ext) {
+            $loaded     = extension_loaded($ext);
+            $isOptional = in_array($ext, self::OPTIONAL_PHP_EXTENSIONS, true);
+            $status     = $loaded ? 'success' : ($isOptional ? 'warning' : 'error');
 
             $items[] = $this->makeItem(
                 'sysreq.phpExtension',
@@ -76,7 +152,7 @@ final class SystemRequirementsService
                 null,
                 $status,
                 null,
-                [$extName],
+                [$ext],
                 $loaded ? 'sysreq.loaded' : 'sysreq.notLoaded',
             );
         }
@@ -87,60 +163,13 @@ final class SystemRequirementsService
     /**
      * Check Imagick extension and ImageMagick capabilities.
      *
-     * @return array<string, mixed>
+     * @return array{labelKey: string, items: list<array<string, mixed>>}
      */
     private function checkImagick(): array
     {
-        $items      = [];
-        $hasImagick = extension_loaded('imagick');
+        $items = [];
 
-        if ($hasImagick) {
-            $imagickVersion = phpversion('imagick') !== false ? phpversion('imagick') : null;
-            $items[]        = $this->makeItem('sysreq.imagickVersion', $imagickVersion, null, 'success', null, [], $imagickVersion === null ? 'sysreq.unknown' : null);
-
-            try {
-                $imInfo    = Imagick::getVersion();
-                $imVersion = $imInfo['versionString'];
-                $items[]   = $this->makeItem('sysreq.imageMagickVersion', $imVersion, null, 'success');
-
-                $formats = Imagick::queryFormats();
-                $avif    = in_array('AVIF', $formats, true);
-                $webp    = in_array('WEBP', $formats, true);
-                $items[] = $this->makeItem(
-                    'sysreq.webpSupport',
-                    null,
-                    null,
-                    $webp ? 'success' : 'warning',
-                    null,
-                    [],
-                    $webp ? 'sysreq.yes' : 'sysreq.no',
-                    'sysreq.optional',
-                );
-                $items[] = $this->makeItem(
-                    'sysreq.avifSupport',
-                    null,
-                    null,
-                    $avif ? 'success' : 'warning',
-                    null,
-                    [],
-                    $avif ? 'sysreq.yes' : 'sysreq.no',
-                    'sysreq.optional',
-                );
-
-                $relevant = array_values(array_intersect($formats, ['AVIF', 'WEBP', 'JPEG', 'JPG', 'PNG', 'GIF', 'SVG']));
-                $items[]  = $this->makeItem('sysreq.supportedFormats', implode(', ', $relevant), null, 'success');
-            } catch (Throwable $e) {
-                $items[] = $this->makeItem(
-                    'sysreq.imageMagickVersion',
-                    null,
-                    null,
-                    'warning',
-                    $e->getMessage(),
-                    [],
-                    'sysreq.unavailable',
-                );
-            }
-        } else {
+        if (!extension_loaded('imagick')) {
             $items[] = $this->makeItem(
                 'sysreq.imagickVersion',
                 null,
@@ -151,6 +180,42 @@ final class SystemRequirementsService
                 'sysreq.notLoaded',
                 'sysreq.recommended',
             );
+
+            return $this->makeCategory('sysreq.imageMagickCategory', $items);
+        }
+
+        $rawVersion     = phpversion('imagick');
+        $imagickVersion = $rawVersion !== false ? $rawVersion : null;
+        $items[]        = $this->makeItem(
+            'sysreq.imagickVersion',
+            $imagickVersion,
+            null,
+            'success',
+            null,
+            [],
+            $imagickVersion === null ? 'sysreq.unknown' : null,
+        );
+
+        try {
+            $imInfo  = Imagick::getVersion();
+            $items[] = $this->makeItem('sysreq.imageMagickVersion', $imInfo['versionString'], null, 'success');
+
+            $formats = Imagick::queryFormats();
+            $items[] = $this->makeFormatSupportItem('sysreq.webpSupport', in_array('WEBP', $formats, true));
+            $items[] = $this->makeFormatSupportItem('sysreq.avifSupport', in_array('AVIF', $formats, true));
+
+            $relevant = array_values(array_intersect($formats, self::RELEVANT_IMAGE_FORMATS));
+            $items[]  = $this->makeItem('sysreq.supportedFormats', implode(', ', $relevant), null, 'success');
+        } catch (Throwable $e) {
+            $items[] = $this->makeItem(
+                'sysreq.imageMagickVersion',
+                null,
+                null,
+                'warning',
+                $e->getMessage(),
+                [],
+                'sysreq.unavailable',
+            );
         }
 
         return $this->makeCategory('sysreq.imageMagickCategory', $items);
@@ -159,40 +224,13 @@ final class SystemRequirementsService
     /**
      * Check GD library capabilities (fallback driver).
      *
-     * @return array<string, mixed>
+     * @return array{labelKey: string, items: list<array<string, mixed>>}
      */
     private function checkGd(): array
     {
         $items = [];
 
-        if (extension_loaded('gd')) {
-            $info      = gd_info();
-            $gdVersion = $info['GD Version'] ?? null;
-            $items[]   = $this->makeItem('sysreq.gdVersion', $gdVersion, null, 'success', null, [], $gdVersion === null ? 'sysreq.unknown' : null);
-
-            $webp    = (bool) ($info['WebP Support'] ?? false);
-            $avif    = (bool) ($info['AVIF Support'] ?? false);
-            $items[] = $this->makeItem(
-                'sysreq.webpSupport',
-                null,
-                null,
-                $webp ? 'success' : 'warning',
-                null,
-                [],
-                $webp ? 'sysreq.yes' : 'sysreq.no',
-                'sysreq.optional',
-            );
-            $items[] = $this->makeItem(
-                'sysreq.avifSupport',
-                null,
-                null,
-                $avif ? 'success' : 'warning',
-                null,
-                [],
-                $avif ? 'sysreq.yes' : 'sysreq.no',
-                'sysreq.optional',
-            );
-        } else {
+        if (!extension_loaded('gd')) {
             $items[] = $this->makeItem(
                 'sysreq.gdVersion',
                 null,
@@ -203,27 +241,64 @@ final class SystemRequirementsService
                 'sysreq.notLoaded',
                 'sysreq.fallback',
             );
+
+            return $this->makeCategory('sysreq.gdCategory', $items);
         }
+
+        $info      = gd_info();
+        $gdVersion = $info['GD Version'] ?? null;
+        $items[]   = $this->makeItem(
+            'sysreq.gdVersion',
+            $gdVersion,
+            null,
+            'success',
+            null,
+            [],
+            $gdVersion === null ? 'sysreq.unknown' : null,
+        );
+
+        $items[] = $this->makeFormatSupportItem('sysreq.webpSupport', (bool) ($info['WebP Support'] ?? false));
+        $items[] = $this->makeFormatSupportItem('sysreq.avifSupport', (bool) ($info['AVIF Support'] ?? false));
 
         return $this->makeCategory('sysreq.gdCategory', $items);
     }
 
     /**
-     * Check Composer dependencies.
+     * Create a format support item (WebP/AVIF) with consistent status and keys.
+     *
+     * @param string $labelKey  Translation key for the format label
+     * @param bool   $supported Whether the format is supported
      *
      * @return array<string, mixed>
      */
+    private function makeFormatSupportItem(string $labelKey, bool $supported): array
+    {
+        return $this->makeItem(
+            $labelKey,
+            null,
+            null,
+            $supported ? 'success' : 'warning',
+            null,
+            [],
+            $supported ? 'sysreq.yes' : 'sysreq.no',
+            'sysreq.optional',
+        );
+    }
+
+    /**
+     * Check Composer dependencies.
+     *
+     * @return array{labelKey: string, items: list<array<string, mixed>>}
+     */
     private function checkComposer(): array
     {
-        $packages = [
-            'intervention/image' => 'intervention/image',
-            'intervention/gif'   => 'intervention/gif',
-        ];
         $items = [];
 
-        foreach ($packages as $name => $label) {
+        foreach (self::REQUIRED_COMPOSER_PACKAGES as $name) {
             $installed = class_exists(InstalledVersions::class) && InstalledVersions::isInstalled($name);
-            $version   = $installed ? (InstalledVersions::getPrettyVersion($name) ?? InstalledVersions::getVersion($name)) : null;
+            $version   = $installed
+                ? (InstalledVersions::getPrettyVersion($name) ?? InstalledVersions::getVersion($name))
+                : null;
 
             if (!$installed) {
                 $version   = $this->findVersionFromComposerInstalled($name);
@@ -239,7 +314,7 @@ final class SystemRequirementsService
                 [],
                 $installed ? null : 'sysreq.notInstalled',
                 null,
-                $label,
+                $name,
             );
         }
 
@@ -249,27 +324,28 @@ final class SystemRequirementsService
     /**
      * Check TYPO3 version.
      *
-     * @return array<string, mixed>
+     * @return array{labelKey: string, items: list<array<string, mixed>>}
      */
     private function checkTypo3(): array
     {
-        $typo3   = (new Typo3Version())->getVersion();
-        $ok      = version_compare($typo3, '13.4.0', '>=');
-        $items   = [];
-        $items[] = $this->makeItem('sysreq.typo3Version', $typo3, '>= 13.4', $ok ? 'success' : 'error');
+        $typo3 = (new Typo3Version())->getVersion();
+        $ok    = version_compare($typo3, self::MIN_TYPO3_VERSION, '>=');
 
-        return $this->makeCategory('sysreq.typo3Requirements', $items);
+        return $this->makeCategory('sysreq.typo3Requirements', [
+            $this->makeItem('sysreq.typo3Version', $typo3, self::TYPO3_VERSION_REQUIREMENT, $ok ? 'success' : 'error'),
+        ]);
     }
 
     /**
      * Check CLI tools availability (optional).
      *
-     * @return array<string, mixed>
+     * @return array{labelKey: string, items: list<array<string, mixed>>}
      */
     private function checkCliTools(): array
     {
         $items            = [];
         $disableFunctions = ini_get('disable_functions');
+
         if ($disableFunctions === false) {
             $disableFunctions = '';
         }
@@ -288,34 +364,10 @@ final class SystemRequirementsService
             'sysreq.optional',
         );
 
-        $checkBin = static function (string $cmd) use ($execAllowed): array {
-            if (!$execAllowed) {
-                return ['available' => null, 'version' => 'n/a'];
-            }
+        foreach (self::CLI_TOOLS as $cmd => $label) {
+            $res    = $this->checkBinaryAvailability($cmd, $execAllowed);
+            $status = $res['available'] === true ? 'success' : 'warning';
 
-            $path = trim((string) @shell_exec('command -v ' . escapeshellarg($cmd) . ' 2>/dev/null'));
-            if ($path === '') {
-                return ['available' => false, 'version' => null];
-            }
-
-            $ver = trim((string) @shell_exec(escapeshellarg($cmd) . ' -version 2>&1'));
-            if ($ver === '') {
-                $ver = trim((string) @shell_exec(escapeshellarg($cmd) . ' --version 2>&1'));
-            }
-
-            return ['available' => true, 'version' => $ver !== '' ? $ver : null, 'versionKey' => $ver === '' ? 'sysreq.unknown' : null];
-        };
-
-        $cliTools = [
-            'magick'   => 'CLI: magick',
-            'convert'  => 'CLI: convert',
-            'identify' => 'CLI: identify',
-            'gm'       => 'CLI: gm (GraphicsMagick)',
-        ];
-
-        foreach ($cliTools as $cmd => $label) {
-            $res     = $checkBin($cmd);
-            $status  = $res['available'] === true ? 'success' : 'warning';
             $items[] = $this->makeItem(
                 null,
                 $res['version'],
@@ -323,7 +375,7 @@ final class SystemRequirementsService
                 $status,
                 null,
                 [],
-                ($res['available'] === true) ? 'sysreq.found' : 'sysreq.notFound',
+                $res['available'] === true ? 'sysreq.found' : 'sysreq.notFound',
                 'sysreq.optional',
                 $label,
             );
@@ -333,35 +385,116 @@ final class SystemRequirementsService
     }
 
     /**
+     * Check whether a CLI binary is available and retrieve its version.
+     *
+     * @param string $cmd         Command name to look up
+     * @param bool   $execAllowed Whether exec/shell_exec is permitted
+     *
+     * @return array{available: bool|null, version: string|null}
+     */
+    private function checkBinaryAvailability(string $cmd, bool $execAllowed): array
+    {
+        if (!$execAllowed) {
+            return ['available' => null, 'version' => 'n/a'];
+        }
+
+        $path = trim((string) @shell_exec('command -v ' . escapeshellarg($cmd) . ' 2>/dev/null'));
+
+        if ($path === '') {
+            return ['available' => false, 'version' => null];
+        }
+
+        $ver = trim((string) @shell_exec(escapeshellarg($cmd) . ' -version 2>&1'));
+
+        if ($ver === '') {
+            $ver = trim((string) @shell_exec(escapeshellarg($cmd) . ' --version 2>&1'));
+        }
+
+        return [
+            'available' => true,
+            'version'   => $ver !== '' ? $ver : null,
+        ];
+    }
+
+    /**
      * Find package version from composer installed.json or composer.lock.
+     *
+     * @param string $package Composer package name (e.g., 'vendor/package')
+     *
+     * @return string|null Package version or null if not found
      */
     private function findVersionFromComposerInstalled(string $package): ?string
     {
+        $version = $this->findVersionFromInstalledJson($package);
+
+        if ($version !== null) {
+            return $version;
+        }
+
+        return $this->findVersionFromComposerLock($package);
+    }
+
+    /**
+     * Search for a package version in vendor/composer/installed.json.
+     *
+     * @param string $package Composer package name
+     *
+     * @return string|null Version string or null
+     */
+    private function findVersionFromInstalledJson(string $package): ?string
+    {
         $installedJson = Environment::getProjectPath() . '/vendor/composer/installed.json';
-        if (is_file($installedJson)) {
-            $data = json_decode((string) file_get_contents($installedJson), true);
-            if (is_array($data)) {
-                $packages = $data['packages'] ?? $data;
-                if (is_array($packages)) {
-                    foreach ($packages as $p) {
-                        if (is_array($p) && ($p['name'] ?? '') === $package) {
-                            return $p['pretty_version'] ?? $p['version'] ?? null;
-                        }
-                    }
-                }
+
+        if (!is_file($installedJson)) {
+            return null;
+        }
+
+        $data = json_decode((string) file_get_contents($installedJson), true);
+
+        if (!is_array($data)) {
+            return null;
+        }
+
+        $packages = $data['packages'] ?? $data;
+
+        if (!is_array($packages)) {
+            return null;
+        }
+
+        foreach ($packages as $p) {
+            if (is_array($p) && ($p['name'] ?? '') === $package) {
+                return $p['pretty_version'] ?? $p['version'] ?? null;
             }
         }
 
+        return null;
+    }
+
+    /**
+     * Search for a package version in composer.lock.
+     *
+     * @param string $package Composer package name
+     *
+     * @return string|null Version string or null
+     */
+    private function findVersionFromComposerLock(string $package): ?string
+    {
         $lock = Environment::getProjectPath() . '/composer.lock';
-        if (is_file($lock)) {
-            $data = json_decode((string) file_get_contents($lock), true);
-            if (is_array($data)) {
-                foreach (['packages', 'packages-dev'] as $key) {
-                    foreach ($data[$key] ?? [] as $p) {
-                        if (is_array($p) && ($p['name'] ?? '') === $package) {
-                            return $p['version'] ?? null;
-                        }
-                    }
+
+        if (!is_file($lock)) {
+            return null;
+        }
+
+        $data = json_decode((string) file_get_contents($lock), true);
+
+        if (!is_array($data)) {
+            return null;
+        }
+
+        foreach (['packages', 'packages-dev'] as $key) {
+            foreach ($data[$key] ?? [] as $p) {
+                if (is_array($p) && ($p['name'] ?? '') === $package) {
+                    return $p['version'] ?? null;
                 }
             }
         }
@@ -372,9 +505,10 @@ final class SystemRequirementsService
     /**
      * Create a category array for template rendering.
      *
-     * @param array<int, array<string, mixed>> $items
+     * @param string                     $labelKey Translation key for the category header
+     * @param list<array<string, mixed>> $items    Category items
      *
-     * @return array<string, mixed>
+     * @return array{labelKey: string, items: list<array<string, mixed>>}
      */
     private function makeCategory(string $labelKey, array $items): array
     {
@@ -424,6 +558,10 @@ final class SystemRequirementsService
 
     /**
      * Get icon identifier for status.
+     *
+     * @param string $status Status value ('success', 'warning', or 'error')
+     *
+     * @return string TYPO3 icon identifier
      */
     private function iconForStatus(string $status): string
     {
@@ -436,6 +574,10 @@ final class SystemRequirementsService
 
     /**
      * Get badge CSS class for status.
+     *
+     * @param string $status Status value ('success', 'warning', or 'error')
+     *
+     * @return string Bootstrap badge CSS class(es)
      */
     private function badgeForStatus(string $status): string
     {

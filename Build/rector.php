@@ -29,11 +29,6 @@ return static function (RectorConfig $rectorConfig): void {
         '../ext_*',
     ]);
 
-    $rectorConfig->skip([
-        '../ext_emconf.php',
-        '../ext_*.sql',
-    ]);
-
     $rectorConfig->phpstanConfig('Build/phpstan.neon');
     $rectorConfig->importNames();
     $rectorConfig->removeUnusedImports();
@@ -54,8 +49,10 @@ return static function (RectorConfig $rectorConfig): void {
         Typo3LevelSetList::UP_TO_TYPO3_13,
     ]);
 
-    // Skip some rules
+    // Skip paths and rules
     $rectorConfig->skip([
+        '../ext_emconf.php',
+        '../ext_*.sql',
         CatchExceptionNameMatchingTypeRector::class,
         ClassPropertyAssignToConstructorPromotionRector::class,
         RemoveUselessParamTagRector::class,

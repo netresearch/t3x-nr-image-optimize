@@ -1,7 +1,9 @@
 ---
 name: Bug report
 about: Report a bug to help improve the extension
-
+title: ''
+labels: bug
+assignees: ''
 ---
 
 **Bug description**

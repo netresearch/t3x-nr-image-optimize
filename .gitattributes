@@ -4,9 +4,9 @@
 /.editorconfig    export-ignore
 /.gitattributes   export-ignore
 /.gitignore       export-ignore
-/.php-cs-fixer.cache export-ignore
+/AGENTS.md        export-ignore
+/CONTRIBUTING.md  export-ignore
 /Makefile         export-ignore
 /CHANGELOG.md     export-ignore
-/captainhook.json export-ignore
 /codecov.yml      export-ignore
 /renovate.json    export-ignore

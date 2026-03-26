@@ -270,29 +270,32 @@ class Processor
             return null;
         }
 
-        $basePath = Environment::getPublicPath();
+        $basePath     = Environment::getPublicPath();
+        $relativePath = $information[2];
+        $modeString   = $information[3];
+        $rawExtension = $information[4];
 
-        $extension = strtolower($information[4] ?? '');
+        $extension = strtolower($rawExtension);
 
         if ($extension === 'jpeg') {
             $extension = 'jpg';
         }
 
         // Clamp dimensions and quality to safe ranges to prevent DoS
-        $targetWidth   = $this->clampDimension($this->getValueFromMode('w', $information[3] ?? ''));
-        $targetHeight  = $this->clampDimension($this->getValueFromMode('h', $information[3] ?? ''));
+        $targetWidth   = $this->clampDimension($this->getValueFromMode('w', $modeString));
+        $targetHeight  = $this->clampDimension($this->getValueFromMode('h', $modeString));
         $targetQuality = $this->clampQuality(
-            $this->getValueFromMode('q', $information[3] ?? '') ?? self::MAX_QUALITY,
+            $this->getValueFromMode('q', $modeString) ?? self::MAX_QUALITY,
         );
 
         return [
             'pathVariant'    => $basePath . $variantUrl,
-            'pathOriginal'   => $basePath . '/' . ($information[2] ?? '') . '.' . ($information[4] ?? ''),
+            'pathOriginal'   => $basePath . '/' . $relativePath . '.' . $rawExtension,
             'extension'      => $extension,
             'targetWidth'    => $targetWidth,
             'targetHeight'   => $targetHeight,
             'targetQuality'  => $targetQuality,
-            'processingMode' => $this->getValueFromMode('m', $information[3] ?? '') ?? 0,
+            'processingMode' => $this->getValueFromMode('m', $modeString) ?? 0,
         ];
     }
 

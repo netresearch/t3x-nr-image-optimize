@@ -1,4 +1,4 @@
-.PHONY: help cgl cgl-fix phpstan rector test test-unit
+.PHONY: help cgl cgl-fix phpstan rector fractor lint test test-unit test-fuzz
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -15,9 +15,18 @@ phpstan: ## Run PHPStan static analysis
 rector: ## Run Rector dry-run
 	composer ci:test:php:rector
 
+fractor: ## Run Fractor dry-run
+	composer ci:test:php:fractor
+
+lint: ## Run PHP linter
+	composer ci:test:php:lint
+
 test: test-unit ## Run all tests
 
 test-unit: ## Run unit tests
 	composer ci:test:php:unit
+
+test-fuzz: ## Run fuzz tests
+	composer ci:test:php:fuzz
 
 .DEFAULT_GOAL := help

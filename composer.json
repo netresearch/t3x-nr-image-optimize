@@ -2,8 +2,15 @@
     "name": "netresearch/nr-image-optimize",
     "description": "On-demand image optimization for TYPO3 with processed delivery, WebP and AVIF variants, and responsive srcset ViewHelpers.",
     "type": "typo3-cms-extension",
-    "license": [
-        "GPL-3.0-or-later"
+    "license": "GPL-3.0-or-later",
+    "keywords": [
+        "typo3",
+        "image",
+        "optimization",
+        "webp",
+        "avif",
+        "responsive",
+        "srcset"
     ],
     "homepage": "https://extensions.typo3.org/extension/nr_image_optimize",
     "support": {
@@ -27,6 +34,7 @@
         }
     },
     "require": {
+        "php": ">=8.2",
         "typo3/cms-core": "^13.4 || ^14.0",
         "typo3/cms-fluid": "^13.4 || ^14.0",
         "intervention/image": "^3.11"
@@ -76,7 +84,8 @@
             "phpunit --configuration Build/UnitTests.xml"
         ],
         "ci:test:php:unit:coverage": [
-            "XDEBUG_MODE=coverage && phpunit --configuration Build/UnitTests.xml --coverage-html .build/coverage/"
+            "@putenv XDEBUG_MODE=coverage",
+            "phpunit --configuration Build/UnitTests.xml --coverage-html .build/coverage/"
         ],
         "ci:test:php:fuzz": [
             "phpunit --configuration Build/FuzzTests.xml --no-coverage"

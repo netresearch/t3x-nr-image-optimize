@@ -393,7 +393,7 @@ class SourceSetViewHelper extends AbstractViewHelper
         }
 
         foreach ($this->getAttributes() as $key => $value) {
-            $tagString .= ' ' . htmlspecialchars((string) $key, ENT_QUOTES | ENT_HTML5)
+            $tagString .= ' ' . htmlspecialchars($key, ENT_QUOTES | ENT_HTML5)
                 . '="' . htmlspecialchars((string) $value, ENT_QUOTES | ENT_HTML5) . '"';
         }
 
