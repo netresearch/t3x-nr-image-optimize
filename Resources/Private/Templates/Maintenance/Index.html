@@ -24,7 +24,7 @@
             <div class="alert alert-{f:if(condition: '{flashMessage.severity} == 2', then: 'danger', else: 'success')} alert-dismissible fade show" role="alert">
                 <core:icon identifier="actions-{f:if(condition: '{flashMessage.severity} == 2', then: 'close', else: 'check')}" size="small"/>
                 {flashMessage.message}
-                <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
         </f:for>
     </f:flashMessages>
@@ -90,10 +90,10 @@
                 </div>
                 <div class="card-body">
                     <div class="mb-3">
-                        <label class="form-label text-muted small mb-1"><f:translate key="stats.directoryPath" extensionName="NrImageOptimize" /></label>
+                        <label for="processedPathInput" class="form-label text-muted small mb-1"><f:translate key="stats.directoryPath" extensionName="NrImageOptimize" /></label>
                         <div class="input-group">
                             <span class="input-group-text"><core:icon identifier="apps-filetree-folder-default" size="small"/></span>
-                            <input type="text" class="form-control form-control-sm" value="{processedPath}" readonly>
+                            <input type="text" id="processedPathInput" class="form-control form-control-sm" value="{processedPath}" readonly>
                         </div>
                     </div>
 
@@ -216,7 +216,7 @@
                 <div class="card-body">
                     <div class="alert alert-warning mb-3">
                         <div class="d-flex">
-                            <div style="margin-right: 0.5rem;">
+                            <div class="me-2">
                                 <core:icon identifier="actions-exclamation-triangle" size="small"/>
                             </div>
                             <div class="small">
@@ -225,7 +225,7 @@
                         </div>
                     </div>
 
-                    <f:form action="clearProcessedImages">
+                    <f:form action="clearProcessedImages" additionalAttributes="{onsubmit: 'return confirm(\'Are you sure you want to delete all processed images? This action cannot be undone.\');'}">
                         <div class="d-grid">
                             <f:form.button type="submit" class="btn btn-danger">
                                 <core:icon identifier="actions-delete" size="small"/>

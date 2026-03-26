@@ -1,70 +1,91 @@
-.. |release| image:: https://img.shields.io/github/v/release/netresearch/t3x-nr-image-optimize?sort=semver
-   :target: https://github.com/netresearch/t3x-nr-image-optimize/releases/latest
-.. |license| image:: https://img.shields.io/github/license/netresearch/t3x-nr-image-optimize
-   :target: https://github.com/netresearch/t3x-nr-image-optimize/blob/main/LICENSE
-.. |ci| image:: https://github.com/netresearch/t3x-nr-image-optimize/actions/workflows/ci.yml/badge.svg
-.. |php| image:: https://img.shields.io/badge/PHP-8.2%20|%208.3%20|%208.4%20|%208.5-blue.svg
-.. |typo3| image:: https://img.shields.io/badge/TYPO3-13.4%20|%2014-orange.svg
+..  |release| image:: https://img.shields.io/github/v/release/netresearch/t3x-nr-image-optimize?sort=semver
+    :target: https://github.com/netresearch/t3x-nr-image-optimize/releases/latest
+..  |license| image:: https://img.shields.io/github/license/netresearch/t3x-nr-image-optimize
+    :target: https://github.com/netresearch/t3x-nr-image-optimize/blob/main/LICENSE
+..  |ci| image:: https://github.com/netresearch/t3x-nr-image-optimize/actions/workflows/ci.yml/badge.svg
+    :target: https://github.com/netresearch/t3x-nr-image-optimize/actions/workflows/ci.yml
+..  |php| image:: https://img.shields.io/badge/PHP-8.2%20|%208.3%20|%208.4%20|%208.5-blue.svg
+    :target: https://www.php.net/
+..  |typo3| image:: https://img.shields.io/badge/TYPO3-13.4%20|%2014-orange.svg
+    :target: https://typo3.org/
 
 |php| |typo3| |license| |ci| |release|
 
-.. _nr_image_optimize:
+================================
+Image Optimization for TYPO3
+================================
 
-=====================================
-🚀 TYPO3 Extension: nr_image_optimize
-=====================================
+The ``nr_image_optimize`` extension provides on-demand image
+optimization for TYPO3. Images are processed lazily via
+middleware when first requested, with support for modern formats
+(WebP, AVIF), responsive ``srcset`` generation, and automatic
+format negotiation.
 
-The ``nr_image_optimize`` extension is an advanced TYPO3 extension for image optimization. It provides lazy image processing, modern formats, responsive images, and performance optimizations.
+Features
+========
 
-🎨 Features
+-   **Lazy image processing.** Images are optimized only when
+    a visitor first requests them.
+-   **Modern format support.** Automatic WebP and AVIF
+    conversion with fallback to original formats.
+-   **Responsive images.** Built-in ``SourceSetViewHelper``
+    for ``srcset`` and ``sizes`` generation.
+-   **Render modes.** Choose between ``cover`` and ``fit``
+    resize strategies.
+-   **Width-based srcset.** Optional responsive ``srcset``
+    with configurable width variants and ``sizes`` attribute.
+-   **Fetch priority.** Native ``fetchpriority`` attribute
+    support for Core Web Vitals optimization.
+-   **Middleware-based processing.** Lightweight frontend
+    middleware intercepts ``/processed/`` requests.
+-   **Backend maintenance module.** View statistics, check
+    system requirements, and clear processed images.
+
+Requirements
 ============
 
-- 🚀 **Lazy Image Processing**: Images are processed only when requested.
-- 🎨 **Modern Format Support**: WebP and AVIF with automatic fallback.
-- 📱 **Responsive Images**: Built-in ViewHelper for srcset generation.
-- ⚡ **Performance Optimized**: Middleware-based processing for efficiency.
-- 🔧 **Intervention Image**: Powered by the Intervention Image library.
-- 📊 **Core Web Vitals**: Improves LCP and overall page performance.
-- 🧹 **Backend Cleanup**: Remove generated variants via "Remove Temporary Assets" in the TYPO3 Maintenance module.
+-   PHP 8.2, 8.3, 8.4, or 8.5.
+-   TYPO3 13.4 or 14.
+-   Intervention Image library (installed via Composer
+    automatically).
 
-🛠️ Requirements
-================
+Recommended extensions
+======================
 
-- PHP 8.2, 8.3, 8.4, or 8.5
-- TYPO3 13.4 or 14
-- Intervention Image library (installed via Composer automatically)
+-   `imageoptimizer
+    <https://github.com/christophlehmann/imageoptimizer>`__
+    -- Optimize images with external binaries of your choice.
 
-📌 Recommended Extensions
-========================
-
-- `https://github.com/christophlehmann/imageoptimizer`
-
-💾 Installation
-================
+Installation
+============
 
 Via Composer (recommended)
-------------------------
+--------------------------
 
-.. code-block:: bash
+..  code-block:: bash
 
     composer require netresearch/nr-image-optimize
 
-Manual Installation
-------------------
+Manual installation
+-------------------
 
-1. Download the extension from the TYPO3 Extension Repository
-2. Upload to ``typo3conf/ext/``
-3. Activate the extension in the Extension Manager
+1.  Download the extension from the
+    `TYPO3 Extension Repository
+    <https://extensions.typo3.org/extension/nr_image_optimize>`__.
+2.  Upload to ``typo3conf/ext/``.
+3.  Activate the extension in the Extension Manager.
 
-⚙️ Configuration
-================
+Configuration
+=============
 
-The extension works out of the box with sensible defaults. Images are automatically optimized when accessed via the ``/processed/`` path.
+The extension works out of the box with sensible defaults.
+Images are automatically optimized when accessed via the
+``/processed/`` path.
 
-ViewHelper Usage
+ViewHelper usage
 ----------------
 
-.. code-block:: html
+..  code-block:: html
 
     {namespace nr=Netresearch\NrImageOptimize\ViewHelpers}
 
@@ -75,236 +96,82 @@ ViewHelper Usage
                   sizes="(max-width: 768px) 100vw, 50vw"
     />
 
-Supported Parameters
----------------------
+Supported parameters
+--------------------
 
-- ``file``: Image file resource
-- ``width``: Target width in pixels
-- ``height``: Target height in pixels
-- ``quality``: JPEG/WebP quality (1-100)
-- ``sizes``: Responsive sizes attribute
-- ``format``: Output format (auto, webp, avif, jpg, png)
+``file``
+    Image file resource.
 
-📐 Source Set Configuration
----------------------------
+``width``
+    Target width in pixels.
 
-Different source sets can be defined for each media breakpoint via the ``set`` attribute:
+``height``
+    Target height in pixels.
 
-.. code-block:: html
-
-    <nr:sourceSet path="{f:uri.image(image: image, width: '960', height: '690', cropVariant: 'default')}"
-                  set="{
-                      480:{width: 160, height: 90},
-                      800:{width: 400, height: 300}
-                  }"
-    />
-
-🖼️ Render Modes
-----------------
-
-Two render modes are available for the ``SourceSetViewHelper``:
-
-- **cover**: Default mode, resizes images to fully cover the provided width and height.
-- **fit**: Resizes images so they fit within the provided width and height.
-
-.. code-block:: html
-
-    <nr:sourceSet path="{f:uri.image(image: image, width: '960', height: '690', cropVariant: 'default')}"
-                  width="960"
-                  height="690"
-                  mode="fit"
-    />
-
-📷 Responsive width-based srcset
-================================
-
-The extension provides a responsive, width-based ``srcset`` generation with a ``sizes`` attribute
-for improved responsive image handling. This feature is optional and can be enabled per usage.
-
-New Parameters
---------------
-
-``responsiveSrcset``
-  - Type: ``bool``
-  - Default: ``false``
-  - Description: Enable width-based responsive ``srcset`` generation instead of density-based (``x2``) ``srcset``.
-
-``widthVariants``
-  - Type: ``string|array``
-  - Default: ``'480, 576, 640, 768, 992, 1200, 1800'``
-  - Description: Width variants for responsive ``srcset`` (comma-separated string or array).
+``quality``
+    JPEG/WebP quality (1--100).
 
 ``sizes``
-  - Type: ``string``
-  - Default: ``(max-width: 576px) 100vw, (max-width: 768px) 50vw, (max-width: 992px) 33vw, (max-width: 1200px) 25vw, 1250px``
-  - Description: ``sizes`` attribute for responsive images.
+    Responsive ``sizes`` attribute.
+
+``format``
+    Output format: ``auto``, ``webp``, ``avif``, ``jpg``,
+    ``png``.
+
+``mode``
+    Render mode: ``cover`` (default) or ``fit``.
+
+``responsiveSrcset``
+    Enable width-based responsive ``srcset`` instead of
+    density-based ``2x``. Default: ``false``.
+
+``widthVariants``
+    Width variants for responsive ``srcset``
+    (comma-separated string or array).
+    Default: ``480, 576, 640, 768, 992, 1200, 1800``.
 
 ``fetchpriority``
-  - Type: ``string``
-  - Allowed values: ``high``, ``low``, ``auto``
-  - Default: ``''`` (omitted)
-  - Description: Adds the native HTML attribute ``fetchpriority`` to the generated ``<img>`` tag to hint the browser about resource prioritization. Any other value will be ignored.
+    Native HTML ``fetchpriority`` attribute (``high``,
+    ``low``, ``auto``).
 
-Usage Examples
---------------
+Documentation
+=============
 
-Enable responsive srcset with default values:
+Full documentation is available in the ``Documentation/``
+directory and is rendered on
+`docs.typo3.org
+<https://docs.typo3.org/p/netresearch/nr-image-optimize/main/en-us/>`__.
 
-.. code-block:: html
+Development and testing
+=======================
 
-   <nrio:sourceSet
-       path="{f:uri.image(image: image, maxWidth: size, cropVariant: 'default')}"
-       width="{size}"
-       height="{size * ratio}"
-       alt="{image.properties.alternative}"
-       lazyload="1"
-       mode="fit"
-       responsiveSrcset="1"
-   />
-
-Custom width variants:
-
-.. code-block:: html
-
-   <nrio:sourceSet
-       path="{f:uri.image(image: image, maxWidth: size, cropVariant: 'default')}"
-       width="{size}"
-       height="{size * ratio}"
-       alt="{image.properties.alternative}"
-       lazyload="1"
-       mode="fit"
-       responsiveSrcset="1"
-       widthVariants="320,640,1024,1920,2560"
-   />
-
-Custom sizes attribute:
-
-.. code-block:: html
-
-   <nrio:sourceSet
-       path="{f:uri.image(image: image, maxWidth: size, cropVariant: 'default')}"
-       width="{size}"
-       height="{size * ratio}"
-       alt="{image.properties.alternative}"
-       lazyload="1"
-       mode="fit"
-       responsiveSrcset="1"
-       sizes="(max-width: 640px) 100vw, (max-width: 1024px) 75vw, 50vw"
-   />
-
-Output Comparison
------------------
-
-Legacy mode (``responsiveSrcset=false`` or not set):
-
-.. code-block:: html
-
-   <img src="/processed/fileadmin/image.w625h250m1q100.jpg"
-        srcset="/processed/fileadmin/image.w1250h500m1q100.jpg x2"
-        width="625"
-        height="250"
-        loading="lazy">
-
-Responsive mode (``responsiveSrcset=true``):
-
-.. code-block:: html
-
-   <img src="/processed/fileadmin/image.w1250h1250m1q100.png"
-        srcset="/processed/fileadmin/image.w480h480m1q100.png 480w,
-                /processed/fileadmin/image.w576h576m1q100.png 576w,
-                /processed/fileadmin/image.w640h640m1q100.png 640w,
-                /processed/fileadmin/image.w768h768m1q100.png 768w,
-                /processed/fileadmin/image.w992h992m1q100.png 992w,
-                /processed/fileadmin/image.w1200h1200m1q100.png 1200w"
-                /processed/fileadmin/image.w1800h1800m1q100.png 1800w"
-        sizes="auto, (min-width: 992px) 991px, 100vw"
-        width="991"
-        loading="lazy"
-        alt="Image">
-
-Backward Compatibility
-----------------------
-
-- By default, ``responsiveSrcset`` is set to ``false``, maintaining the existing 2x density-based ``srcset`` behavior.
-- All existing templates will continue to work without modifications.
-- To enable the new responsive ``srcset``, explicitly set ``responsiveSrcset="1"`` in your templates.
-
-Lazy Loading
-------------
-
-- Both modes support lazy loading with native ``loading="lazy"`` attribute.
-- When using JS-based lazy loading (``class="lazyload"``), the ``data-srcset`` attribute is added automatically.
-
-🧪 Development & Testing
-========================
-
-Unit tests ensure functionality and code quality.
-
-.. code-block:: bash
+..  code-block:: bash
 
     # Run all tests
     composer ci:test
 
     # Run specific tests
-    composer ci:test:php:cgl     # Code style
-    composer ci:test:php:lint    # PHP syntax
-    composer ci:test:php:phpstan # Static analysis
-    composer ci:test:php:unit    # PHPUnit tests
-    composer ci:test:php:rector  # Code quality
+    composer ci:test:php:cgl      # Code style
+    composer ci:test:php:lint     # PHP syntax
+    composer ci:test:php:phpstan  # Static analysis
+    composer ci:test:php:unit     # PHPUnit tests
+    composer ci:test:php:rector   # Code quality
 
-🏗️ Architecture
-================
+License
+=======
 
-The extension uses a middleware approach for image processing:
+GPL-3.0-or-later. See the
+`LICENSE file <LICENSE>`_ for details.
 
-1. **ProcessingMiddleware**: Intercepts requests to ``/processed/`` paths
-2. **Processor**: Handles image optimization and format conversion
-3. **SourceSetViewHelper**: Generates responsive image markup
+Support
+=======
 
-⚡ Performance Considerations
-=============================
+For issues and feature requests, please use the
+`GitHub issue tracker
+<https://github.com/netresearch/t3x-nr-image-optimize/issues>`_.
 
-- Images are processed only once and cached
-- Supports native browser lazy loading
-- Automatic format negotiation based on Accept headers
-- Optimized for CDN delivery
+Credits
+=======
 
-📄 License
-===========
-
-GPL-3.0-or-later. See `LICENSE file <LICENSE>`_ for details.
-
-🆘 Support
-==========
-
-For issues and feature requests, please use the `GitHub issue tracker <https://github.com/netresearch/t3x-nr-image-optimize/issues>`_.
-
-🙏 Credits
-===========
-
-Developed by `Netresearch DTT GmbH <https://www.netresearch.de/>`_
-
-🔧 Maintenance
-==============
-
-Backend Module
---------------
-
-The extension provides a backend module for maintenance tasks accessible via **Admin Tools → Processed Images Maintenance**.
-
-Features:
-
-- **Overview**: View statistics about processed images (file count, total size, directory count, largest files, file types distribution)
-- **System Requirements**: Check all technical prerequisites and tool availability:
-  
-  - PHP version and extensions (Imagick, GD)
-  - ImageMagick/GraphicsMagick capabilities (WebP, AVIF support)
-  - Composer dependencies (Intervention Image)
-  - TYPO3 version compatibility
-  - CLI tools (magick, convert, identify, gm - optional)
-
-- **Clear Processed Images**: Remove all on-demand generated images. Images will be regenerated automatically when first accessed again.
-
-.. note::
-   After clearing processed images, expect temporarily increased loading times on the frontend until images are regenerated on-demand.
-
+Developed by
+`Netresearch DTT GmbH <https://www.netresearch.de/>`_.

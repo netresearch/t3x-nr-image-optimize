@@ -1,4 +1,8 @@
-..  This is a common file included in all documentation files via
+..  This file contains global includes for all documentation files.
+    Include at the top of every RST file via:
     ``..  include:: /Includes.rst.txt``
 
+..  |extension_key| replace:: nr_image_optimize
+..  |extension_name| replace:: Image Optimization for TYPO3
+..  |vendor| replace:: Netresearch DTT GmbH
 ..  |release| replace:: 2.2.1

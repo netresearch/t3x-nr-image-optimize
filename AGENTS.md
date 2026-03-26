@@ -2,7 +2,7 @@ Welcome! This repository contains the TYPO3 extension **`nr_image_optimize`**, w
 
 ## Project Overview
 - **Purpose**: Serve processed variants of images (including WebP/AVIF fallbacks) and generate responsive `<img>` tags via Fluid ViewHelpers.
-- **Runtime**: TYPO3 v13.4 with PHP 8.2+ and the Intervention Image library (Imagick driver).
+- **Runtime**: TYPO3 13.4 / 14 with PHP 8.2+ and the Intervention Image library (Imagick driver).
 - **Key Entry Points**:
     - `Classes/Processor.php`: parses `/processed/...` requests, applies resizing/cropping, encodes variants, and streams the response.
     - `Classes/Middleware/ProcessingMiddleware.php`: TYPO3 PSR-15 middleware that delegates matching requests to the processor.
@@ -33,19 +33,19 @@ Welcome! This repository contains the TYPO3 extension **`nr_image_optimize`**, w
 - Run `composer ci:test` locally **before** committing.
 - Force pushes **allowed only** on your feature branch using
    `git push --force-with-lease`. Never force-push `main`.
-- Keep commits atomic; prefer checkpoints (`FEATURE: …`, `TEST: …`, , `BUGFIX: …`).
+- Keep commits atomic; prefer checkpoints (`FEATURE: …`, `TEST: …`, `BUGFIX: …`).
 
 ## Directory Highlights
 - `Build/`: Tooling configs (PHP CS Fixer, Rector, PHPStan, PHPUnit, etc.).
 - `Resources/`: Public assets and localization. Respect existing naming/layout.
 - `Configuration/`: TYPO3 DI & middleware registration.
-- `Tests/`: Reserved for automated tests (currently empty – add here if you create tests).
+- `Tests/`: Automated tests (Unit, Fuzz). Follow existing patterns when adding tests.
 - `ext_emconf.php` & `composer.json`: Extension metadata. Update versions consistently when releasing.
 
 ## Contribution Tips
 - Explain how new features affect image processing (e.g., new query flags, formats, or ViewHelper attributes).
-- Keep documentation (`README.rst`, changelog) in sync with code changes.
+- Keep documentation (`Documentation/` directory, changelog) in sync with code changes.
 - For new services/middleware, wire them up via `Configuration/Services.yaml` or `Configuration/RequestMiddlewares.php`.
 - Avoid committing generated files under `.build/` or TYPO3 caches.
 
-By following these guidelines you’ll help other agents contribute efficiently. Happy hacking! ✨
+By following these guidelines you’ll help other agents contribute efficiently.

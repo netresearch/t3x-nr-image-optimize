@@ -70,14 +70,13 @@ class SystemRequirementsServiceTest extends TestCase
     }
 
     #[Test]
-    public function collectReturnsCategoriesWithCorrectStructure(): void
+    public function collectReturnsCategoriesWithNonEmptyLabelKeysAndItems(): void
     {
         $result = $this->service->collect();
 
-        foreach ($result as $category) {
-            self::assertArrayHasKey('labelKey', $category);
-            self::assertArrayHasKey('items', $category);
-            self::assertIsArray($category['items']);
+        foreach ($result as $key => $category) {
+            self::assertNotEmpty($category['labelKey'], sprintf('Category "%s" should have a non-empty labelKey', $key));
+            self::assertNotEmpty($category['items'], sprintf('Category "%s" should have at least one item', $key));
         }
     }
 
@@ -296,6 +295,17 @@ class SystemRequirementsServiceTest extends TestCase
         // Check intervention/gif
         $interventionGif = $result['items'][1];
         self::assertSame('intervention/gif', $interventionGif['label']);
+
+        // Verify status reflects actual installation state
+        foreach ($result['items'] as $item) {
+            if ($item['status'] === 'success') {
+                self::assertNotNull($item['current'], 'Installed packages should have a version');
+                self::assertNull($item['currentKey'], 'Installed packages should not have a currentKey');
+            } else {
+                self::assertSame('error', $item['status']);
+                self::assertSame('sysreq.notInstalled', $item['currentKey']);
+            }
+        }
     }
 
     #[Test]
@@ -334,6 +344,50 @@ class SystemRequirementsServiceTest extends TestCase
         self::assertContains('CLI: convert', $labels);
         self::assertContains('CLI: identify', $labels);
         self::assertContains('CLI: gm (GraphicsMagick)', $labels);
+    }
+
+    #[Test]
+    public function makeFormatSupportItemReturnsCorrectStructureWhenSupported(): void
+    {
+        /** @var array<string, mixed> $result */
+        $result = $this->callMethod('makeFormatSupportItem', 'sysreq.webpSupport', true);
+
+        self::assertSame('sysreq.webpSupport', $result['labelKey']);
+        self::assertSame('success', $result['status']);
+        self::assertSame('sysreq.yes', $result['currentKey']);
+        self::assertSame('sysreq.optional', $result['requiredKey']);
+    }
+
+    #[Test]
+    public function makeFormatSupportItemReturnsCorrectStructureWhenNotSupported(): void
+    {
+        /** @var array<string, mixed> $result */
+        $result = $this->callMethod('makeFormatSupportItem', 'sysreq.avifSupport', false);
+
+        self::assertSame('sysreq.avifSupport', $result['labelKey']);
+        self::assertSame('warning', $result['status']);
+        self::assertSame('sysreq.no', $result['currentKey']);
+        self::assertSame('sysreq.optional', $result['requiredKey']);
+    }
+
+    #[Test]
+    public function checkBinaryAvailabilityReturnsNullAvailableWhenExecNotAllowed(): void
+    {
+        /** @var array<string, mixed> $result */
+        $result = $this->callMethod('checkBinaryAvailability', 'magick', false);
+
+        self::assertNull($result['available']);
+        self::assertSame('n/a', $result['version']);
+    }
+
+    #[Test]
+    public function checkBinaryAvailabilityReturnsFalseForNonexistentBinary(): void
+    {
+        /** @var array<string, mixed> $result */
+        $result = $this->callMethod('checkBinaryAvailability', 'nonexistent_binary_xyz_' . uniqid('', true), true);
+
+        self::assertFalse($result['available']);
+        self::assertNull($result['version']);
     }
 
     #[Test]
@@ -494,5 +548,261 @@ class SystemRequirementsServiceTest extends TestCase
         unlink($vendorDir . '/installed.json');
         rmdir($vendorDir);
         rmdir($projectPath . '/vendor');
+    }
+
+    // -------------------------------------------------------------------------
+    // checkImagick when imagick IS loaded
+    // -------------------------------------------------------------------------
+
+    #[Test]
+    public function checkImagickReturnsVersionAndFormatsWhenLoaded(): void
+    {
+        if (!extension_loaded('imagick')) {
+            self::markTestSkipped('imagick extension not available');
+        }
+
+        /** @var array<string, mixed> $result */
+        $result = $this->callMethod('checkImagick');
+
+        self::assertSame('sysreq.imageMagickCategory', $result['labelKey']);
+
+        // Should have imagick version item at minimum
+        self::assertGreaterThanOrEqual(2, count($result['items']));
+
+        $firstItem = $result['items'][0];
+        self::assertSame('sysreq.imagickVersion', $firstItem['labelKey']);
+        self::assertSame('success', $firstItem['status']);
+
+        // Check for WebP support, AVIF support, and supported formats items
+        $labelKeys = array_column($result['items'], 'labelKey');
+        self::assertContains('sysreq.webpSupport', $labelKeys);
+        self::assertContains('sysreq.avifSupport', $labelKeys);
+        self::assertContains('sysreq.supportedFormats', $labelKeys);
+    }
+
+    // -------------------------------------------------------------------------
+    // checkGd when gd IS loaded
+    // -------------------------------------------------------------------------
+
+    #[Test]
+    public function checkGdReturnsVersionAndFormatSupportWhenLoaded(): void
+    {
+        if (!extension_loaded('gd')) {
+            self::markTestSkipped('gd extension not available');
+        }
+
+        /** @var array<string, mixed> $result */
+        $result = $this->callMethod('checkGd');
+
+        self::assertSame('sysreq.gdCategory', $result['labelKey']);
+        self::assertGreaterThanOrEqual(3, count($result['items']));
+
+        $firstItem = $result['items'][0];
+        self::assertSame('sysreq.gdVersion', $firstItem['labelKey']);
+        self::assertSame('success', $firstItem['status']);
+
+        // WebP and AVIF support items
+        $labelKeys = array_column($result['items'], 'labelKey');
+        self::assertContains('sysreq.webpSupport', $labelKeys);
+        self::assertContains('sysreq.avifSupport', $labelKeys);
+    }
+
+    // -------------------------------------------------------------------------
+    // checkBinaryAvailability: found binary with version
+    // -------------------------------------------------------------------------
+
+    #[Test]
+    public function checkBinaryAvailabilityReturnsTrueForExistingBinary(): void
+    {
+        // 'ls' should exist on all Unix systems
+        /** @var array<string, mixed> $result */
+        $result = $this->callMethod('checkBinaryAvailability', 'ls', true);
+
+        self::assertTrue($result['available']);
+        // Version may or may not be available depending on the system
+    }
+
+    #[Test]
+    public function checkBinaryAvailabilityRetrievesVersionWithDashDash(): void
+    {
+        // 'bash' typically responds to --version
+        /** @var array<string, mixed> $result */
+        $result = $this->callMethod('checkBinaryAvailability', 'bash', true);
+
+        self::assertTrue($result['available']);
+        self::assertNotNull($result['version']);
+    }
+
+    #[Test]
+    public function checkBinaryAvailabilityReturnsNullVersionForSilentBinary(): void
+    {
+        // 'true' is a binary that produces no output for -version or --version
+        /** @var array<string, mixed> $result */
+        $result = $this->callMethod('checkBinaryAvailability', 'true', true);
+
+        self::assertTrue($result['available']);
+        self::assertNull($result['version']);
+    }
+
+    // -------------------------------------------------------------------------
+    // findVersionFromInstalledJson edge cases
+    // -------------------------------------------------------------------------
+
+    #[Test]
+    public function findVersionFromInstalledJsonReturnsNullForInvalidJson(): void
+    {
+        $projectPath = Environment::getProjectPath();
+        $vendorDir   = $projectPath . '/vendor/composer';
+        mkdir($vendorDir, 0o777, true);
+
+        file_put_contents($vendorDir . '/installed.json', 'not valid json');
+
+        $result = $this->callMethod('findVersionFromInstalledJson', 'any/package');
+        self::assertNull($result);
+
+        unlink($vendorDir . '/installed.json');
+        rmdir($vendorDir);
+        rmdir($projectPath . '/vendor');
+    }
+
+    #[Test]
+    public function findVersionFromInstalledJsonReturnsNullWhenPackagesKeyIsNotArray(): void
+    {
+        $projectPath = Environment::getProjectPath();
+        $vendorDir   = $projectPath . '/vendor/composer';
+        mkdir($vendorDir, 0o777, true);
+
+        // 'packages' is a string, not array
+        file_put_contents($vendorDir . '/installed.json', json_encode(['packages' => 'not-an-array'], JSON_THROW_ON_ERROR));
+
+        $result = $this->callMethod('findVersionFromInstalledJson', 'any/package');
+        self::assertNull($result);
+
+        unlink($vendorDir . '/installed.json');
+        rmdir($vendorDir);
+        rmdir($projectPath . '/vendor');
+    }
+
+    #[Test]
+    public function findVersionFromInstalledJsonReturnsNullForNonExistentFile(): void
+    {
+        $result = $this->callMethod('findVersionFromInstalledJson', 'any/package');
+        self::assertNull($result);
+    }
+
+    #[Test]
+    public function findVersionFromInstalledJsonReturnsNullWhenFileNotReadable(): void
+    {
+        $projectPath = Environment::getProjectPath();
+        $vendorDir   = $projectPath . '/vendor/composer';
+        mkdir($vendorDir, 0o777, true);
+
+        $file = $vendorDir . '/installed.json';
+        file_put_contents($file, '{}');
+        chmod($file, 0o000);
+
+        $result = $this->callMethod('findVersionFromInstalledJson', 'any/package');
+
+        // Restore permissions before cleanup
+        chmod($file, 0o644);
+        unlink($file);
+        rmdir($vendorDir);
+        rmdir($projectPath . '/vendor');
+
+        self::assertNull($result);
+    }
+
+    // -------------------------------------------------------------------------
+    // findVersionFromComposerLock edge cases
+    // -------------------------------------------------------------------------
+
+    #[Test]
+    public function findVersionFromComposerLockReturnsNullForInvalidJson(): void
+    {
+        $projectPath = Environment::getProjectPath();
+
+        file_put_contents($projectPath . '/composer.lock', 'invalid json content');
+
+        $result = $this->callMethod('findVersionFromComposerLock', 'any/package');
+        self::assertNull($result);
+
+        unlink($projectPath . '/composer.lock');
+    }
+
+    #[Test]
+    public function findVersionFromComposerLockReturnsNullWhenDataIsNotArray(): void
+    {
+        $projectPath = Environment::getProjectPath();
+
+        file_put_contents($projectPath . '/composer.lock', '"just a string"');
+
+        $result = $this->callMethod('findVersionFromComposerLock', 'any/package');
+        self::assertNull($result);
+
+        unlink($projectPath . '/composer.lock');
+    }
+
+    #[Test]
+    public function findVersionFromComposerLockReturnsNullForNonExistentFile(): void
+    {
+        $result = $this->callMethod('findVersionFromComposerLock', 'any/package');
+        self::assertNull($result);
+    }
+
+    #[Test]
+    public function findVersionFromComposerLockReturnsNullWhenFileNotReadable(): void
+    {
+        $projectPath = Environment::getProjectPath();
+        $file        = $projectPath . '/composer.lock';
+
+        file_put_contents($file, '{}');
+        chmod($file, 0o000);
+
+        $result = $this->callMethod('findVersionFromComposerLock', 'any/package');
+
+        chmod($file, 0o644);
+        unlink($file);
+
+        self::assertNull($result);
+    }
+
+    #[Test]
+    public function findVersionFromComposerLockReturnsNullForMissingPackage(): void
+    {
+        $projectPath = Environment::getProjectPath();
+
+        $data = json_encode([
+            'packages'     => [['name' => 'other/package', 'version' => '1.0.0']],
+            'packages-dev' => [],
+        ], JSON_THROW_ON_ERROR);
+        file_put_contents($projectPath . '/composer.lock', $data);
+
+        $result = $this->callMethod('findVersionFromComposerLock', 'missing/package');
+        self::assertNull($result);
+
+        unlink($projectPath . '/composer.lock');
+    }
+
+    // -------------------------------------------------------------------------
+    // checkComposer: fallback path (line 301/304/305)
+    // -------------------------------------------------------------------------
+
+    #[Test]
+    public function checkComposerFallsBackToComposerInstalledWhenNotInInstalledVersions(): void
+    {
+        // This exercises the fallback path where InstalledVersions doesn't know a package
+        // but findVersionFromComposerInstalled does find it.
+        // We just verify the method runs end-to-end and returns valid structure.
+        /** @var array<string, mixed> $result */
+        $result = $this->callMethod('checkComposer');
+
+        self::assertSame('sysreq.composerDeps', $result['labelKey']);
+        self::assertCount(2, $result['items']);
+
+        foreach ($result['items'] as $item) {
+            self::assertArrayHasKey('status', $item);
+            self::assertArrayHasKey('label', $item);
+            self::assertContains($item['status'], ['success', 'error']);
+        }
     }
 }

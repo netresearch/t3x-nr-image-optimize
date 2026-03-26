@@ -1,13 +1,32 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<guides xmlns="https://www.phpdoc.org/guides"
-        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:schemaLocation="https://www.phpdoc.org/guides vendor/phpdocumentor/guides/resources/schema/guides.xsd">
-    <project title="Image Optimization for TYPO3"/>
-    <extension class="\T3Docs\Typo3DocsTheme\DependencyInjection\Typo3DocsThemeExtension"
-               edit-on-github="netresearch/t3x-nr-image-optimize"
-               edit-on-github-branch="main"
-               project-home="https://extensions.typo3.org/extension/nr_image_optimize"
-               project-repository="https://github.com/netresearch/t3x-nr-image-optimize"
-               project-issues="https://github.com/netresearch/t3x-nr-image-optimize/issues"
+<guides
+    xmlns="https://www.phpdoc.org/guides"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="https://www.phpdoc.org/guides
+        vendor/phpdocumentor/guides-cli/resources/schema/guides.xsd"
+    theme="typo3docs"
+    default-code-language="html"
+    links-are-relative="true"
+>
+    <project
+        title="Image Optimization for TYPO3"
+        version="2.2"
+        release="2.2.1"
+        copyright="since 2023 by Netresearch DTT GmbH"
     />
+
+    <extension
+        class="\T3Docs\Typo3DocsTheme\DependencyInjection\Typo3DocsThemeExtension"
+        typo3-core-preferred="stable"
+        interlink-shortcode="netresearch/nr-image-optimize"
+        project-home="https://extensions.typo3.org/extension/nr_image_optimize"
+        project-contact="https://github.com/netresearch/t3x-nr-image-optimize/issues"
+        project-repository="https://github.com/netresearch/t3x-nr-image-optimize"
+        project-issues="https://github.com/netresearch/t3x-nr-image-optimize/issues"
+        edit-on-github="netresearch/t3x-nr-image-optimize"
+        edit-on-github-branch="main"
+        edit-on-github-directory="Documentation"
+        project-discussions="https://github.com/netresearch/t3x-nr-image-optimize/discussions"
+    />
+
 </guides>

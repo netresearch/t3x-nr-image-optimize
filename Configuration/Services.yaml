@@ -6,7 +6,6 @@ services:
 
   Netresearch\NrImageOptimize\:
     resource: '../Classes/*'
-    exclude: '../Classes/Domain/Model/*'
 
   Netresearch\NrImageOptimize\Processor:
     arguments:
@@ -15,9 +14,6 @@ services:
         arguments:
           - !service
             class: Intervention\Image\Drivers\Imagick\Driver
-
-  Netresearch\NrImageOptimize\Service\SystemRequirementsService:
-    public: false
 
   Netresearch\NrImageOptimize\Controller\MaintenanceController:
     public: true

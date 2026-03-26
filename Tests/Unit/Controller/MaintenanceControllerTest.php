@@ -13,6 +13,7 @@ namespace Netresearch\NrImageOptimize\Tests\Unit\Controller;
 
 use Netresearch\NrImageOptimize\Controller\MaintenanceController;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use RecursiveDirectoryIterator;
@@ -304,6 +305,135 @@ class MaintenanceControllerTest extends TestCase
     }
 
     #[Test]
+    #[DataProvider('formatBytesProvider')]
+    public function formatBytesReturnsExpectedOutput(int $bytes, string $expected): void
+    {
+        self::assertSame($expected, $this->callMethod('formatBytes', $bytes));
+    }
+
+    /**
+     * @return iterable<string, array{0: int, 1: string}>
+     */
+    public static function formatBytesProvider(): iterable
+    {
+        yield '0 bytes' => [0, '0 B'];
+        yield '1 byte' => [1, '1 B'];
+        yield '512 bytes' => [512, '512 B'];
+        yield '1023 bytes' => [1023, '1023 B'];
+        yield 'exactly 1 KB' => [1024, '1 KB'];
+        yield '1.5 KB' => [1536, '1.5 KB'];
+        yield '1023 KB' => [1024 * 1023, '1023 KB'];
+        yield 'exactly 1 MB' => [1048576, '1 MB'];
+        yield 'exactly 1 GB' => [1073741824, '1 GB'];
+        yield 'negative' => [-100, '0 B'];
+        yield '2.5 MB' => [2621440, '2.5 MB'];
+        yield '1.25 KB' => [1280, '1.25 KB'];
+        yield 'exactly 1 TB' => [1024 * 1024 * 1024 * 1024, '1 TB'];
+        yield '1.5 TB' => [(int) (1.5 * 1024 * 1024 * 1024 * 1024), '1.5 TB'];
+        yield 'fractional KB truncated to 2 decimals' => [1075, '1.05 KB'];
+    }
+
+    #[Test]
+    public function getDirectoryStatsSortsFileTypesBySizeDescending(): void
+    {
+        $testDir = $this->tempDir . '/sort-verify-test';
+        mkdir($testDir, 0o777, true);
+
+        file_put_contents($testDir . '/tiny.gif', str_repeat('a', 5));
+        file_put_contents($testDir . '/medium.png', str_repeat('b', 500));
+        file_put_contents($testDir . '/large.jpg', str_repeat('c', 2000));
+
+        /** @var array<string, mixed> $result */
+        $result = $this->callMethod('getDirectoryStats', $testDir);
+
+        $keys = array_keys($result['fileTypes']);
+        self::assertSame('jpg', $keys[0]);
+        self::assertSame('png', $keys[1]);
+        self::assertSame('gif', $keys[2]);
+    }
+
+    #[Test]
+    public function updateTimestampRecordReturnsNewRecordWhenCurrentIsNull(): void
+    {
+        /** @var array<string, mixed> $result */
+        $result = $this->callMethod('updateTimestampRecord', null, 'file.jpg', 1000000, true);
+
+        self::assertSame('file.jpg', $result['name']);
+        self::assertSame(1000000, $result['mtime']);
+        self::assertArrayHasKey('date', $result);
+    }
+
+    #[Test]
+    public function updateTimestampRecordReplacesOlderWhenTrackingOldest(): void
+    {
+        $current = ['name' => 'current.jpg', 'mtime' => 2000, 'date' => '2020-01-01 00:33:20'];
+
+        /** @var array<string, mixed> $result */
+        $result = $this->callMethod('updateTimestampRecord', $current, 'older.jpg', 1000, true);
+
+        self::assertSame('older.jpg', $result['name']);
+        self::assertSame(1000, $result['mtime']);
+    }
+
+    #[Test]
+    public function updateTimestampRecordKeepsCurrentWhenNotOlder(): void
+    {
+        $current = ['name' => 'current.jpg', 'mtime' => 1000, 'date' => '2020-01-01 00:16:40'];
+
+        /** @var array<string, mixed> $result */
+        $result = $this->callMethod('updateTimestampRecord', $current, 'newer.jpg', 2000, true);
+
+        self::assertSame('current.jpg', $result['name']);
+        self::assertSame(1000, $result['mtime']);
+    }
+
+    #[Test]
+    public function updateTimestampRecordKeepsCurrentWhenSameTimestampForOldest(): void
+    {
+        $current = ['name' => 'current.jpg', 'mtime' => 1000, 'date' => '2020-01-01 00:16:40'];
+
+        /** @var array<string, mixed> $result */
+        $result = $this->callMethod('updateTimestampRecord', $current, 'same.jpg', 1000, true);
+
+        self::assertSame('current.jpg', $result['name']);
+    }
+
+    #[Test]
+    public function updateTimestampRecordReplacesNewerWhenTrackingNewest(): void
+    {
+        $current = ['name' => 'current.jpg', 'mtime' => 1000, 'date' => '2020-01-01 00:16:40'];
+
+        /** @var array<string, mixed> $result */
+        $result = $this->callMethod('updateTimestampRecord', $current, 'newer.jpg', 2000, false);
+
+        self::assertSame('newer.jpg', $result['name']);
+        self::assertSame(2000, $result['mtime']);
+    }
+
+    #[Test]
+    public function updateTimestampRecordKeepsCurrentWhenNotNewerForNewest(): void
+    {
+        $current = ['name' => 'current.jpg', 'mtime' => 2000, 'date' => '2020-01-01 00:33:20'];
+
+        /** @var array<string, mixed> $result */
+        $result = $this->callMethod('updateTimestampRecord', $current, 'older.jpg', 1000, false);
+
+        self::assertSame('current.jpg', $result['name']);
+        self::assertSame(2000, $result['mtime']);
+    }
+
+    #[Test]
+    public function updateTimestampRecordKeepsCurrentWhenSameTimestampForNewest(): void
+    {
+        $current = ['name' => 'current.jpg', 'mtime' => 2000, 'date' => '2020-01-01 00:33:20'];
+
+        /** @var array<string, mixed> $result */
+        $result = $this->callMethod('updateTimestampRecord', $current, 'same.jpg', 2000, false);
+
+        self::assertSame('current.jpg', $result['name']);
+    }
+
+    #[Test]
     public function getDirectoryStatsHandlesSingleFile(): void
     {
         $testDir = $this->tempDir . '/single-test';
@@ -320,5 +450,78 @@ class MaintenanceControllerTest extends TestCase
         self::assertCount(1, $result['largestFiles']);
         self::assertSame('only.webp', $result['oldestFile']['name']);
         self::assertSame('only.webp', $result['newestFile']['name']);
+    }
+
+    // -------------------------------------------------------------------------
+    // buildLargestFiles
+    // -------------------------------------------------------------------------
+
+    #[Test]
+    public function buildLargestFilesSortsAndLimitsFiles(): void
+    {
+        $files = [];
+
+        for ($i = 1; $i <= 7; ++$i) {
+            $files[] = [
+                'name' => 'file' . $i . '.jpg',
+                'path' => 'file' . $i . '.jpg',
+                'size' => $i * 100,
+            ];
+        }
+
+        /** @var list<array<string, mixed>> $result */
+        $result = $this->callMethod('buildLargestFiles', $files);
+
+        self::assertCount(5, $result);
+        self::assertSame(700, $result[0]['size']);
+        self::assertSame(600, $result[1]['size']);
+
+        foreach ($result as $file) {
+            self::assertArrayHasKey('sizeHuman', $file);
+        }
+    }
+
+    #[Test]
+    public function buildLargestFilesHandlesEmptyArray(): void
+    {
+        /** @var list<array<string, mixed>> $result */
+        $result = $this->callMethod('buildLargestFiles', []);
+
+        self::assertSame([], $result);
+    }
+
+    #[Test]
+    public function buildLargestFilesHandlesFewerThanFiveFiles(): void
+    {
+        $files = [
+            ['name' => 'a.jpg', 'path' => 'a.jpg', 'size' => 200],
+            ['name' => 'b.jpg', 'path' => 'b.jpg', 'size' => 100],
+        ];
+
+        /** @var list<array<string, mixed>> $result */
+        $result = $this->callMethod('buildLargestFiles', $files);
+
+        self::assertCount(2, $result);
+        self::assertSame(200, $result[0]['size']);
+        self::assertSame(100, $result[1]['size']);
+    }
+
+    #[Test]
+    public function getDirectoryStatsSkipsNonRegularFiles(): void
+    {
+        $testDir = $this->tempDir . '/nonfile-test';
+        mkdir($testDir, 0o777, true);
+
+        file_put_contents($testDir . '/real.jpg', str_repeat('x', 100));
+
+        // Create a dangling symlink (not a dir, not a regular file)
+        symlink('/nonexistent-target-' . uniqid('', true), $testDir . '/dangling-link');
+
+        /** @var array<string, mixed> $result */
+        $result = $this->callMethod('getDirectoryStats', $testDir);
+
+        // Only the real file should be counted (dangling symlink is skipped)
+        self::assertSame(1, $result['count']);
+        self::assertSame(100, $result['size']);
     }
 }

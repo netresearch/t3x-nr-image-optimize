@@ -1,13 +1,16 @@
-# PHPStorm
-.idea
-.vscode
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
 
 # Netresearch environment
 .env
 .nrdev
 
-# OSX
+# OS
 .DS_Store
+Thumbs.db
 
 # Composer
 vendor/
@@ -15,14 +18,15 @@ bin/
 logs/
 composer.lock
 
-# Build stuff
+# Build
 .build/
 
 # PHPUnit
 phpunit-report.xml
 coverage/
 
-# Cache
+# Cache files
+*.cache
 .php-cs-fixer.cache
 .phplint.cache
 .phpunit.result.cache

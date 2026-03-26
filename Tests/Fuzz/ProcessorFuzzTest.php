@@ -11,18 +11,14 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Tests\Fuzz;
 
-use Intervention\Image\Drivers\Gd\Driver;
-use Intervention\Image\ImageManager;
 use Netresearch\NrImageOptimize\Processor;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
-use Psr\Http\Message\ResponseFactoryInterface;
-use Psr\Http\Message\StreamFactoryInterface;
+use ReflectionClass;
 use ReflectionMethod;
 use TYPO3\CMS\Core\Core\ApplicationContext;
 use TYPO3\CMS\Core\Core\Environment;
-use TYPO3\CMS\Core\Locking\LockFactory;
 
 /**
  * Fuzz tests for the Processor class.
@@ -52,12 +48,10 @@ final class ProcessorFuzzTest extends TestCase
             'UNIX',
         );
 
-        $this->processor = new Processor(
-            new ImageManager(new Driver()),
-            $this->createMock(LockFactory::class),
-            $this->createMock(ResponseFactoryInterface::class),
-            $this->createMock(StreamFactoryInterface::class),
-        );
+        // ImageManager is final and cannot be mocked. Use newInstanceWithoutConstructor
+        // since fuzz tests only exercise URL parsing via reflection, not image operations.
+        $reflection      = new ReflectionClass(Processor::class);
+        $this->processor = $reflection->newInstanceWithoutConstructor();
     }
 
     /**
@@ -118,7 +112,7 @@ final class ProcessorFuzzTest extends TestCase
     }
 
     /**
-     * Generate a random mode string for getValueFromMode fuzzing.
+     * Generate a random mode string for parseAllModeValues fuzzing.
      */
     private function randomModeString(): string
     {
@@ -143,28 +137,28 @@ final class ProcessorFuzzTest extends TestCase
             $url = $this->randomUrlPath();
 
             $result = $method->invoke($this->processor, $url);
-            // If it returns, it must be an array
-            self::assertIsArray($result, sprintf('Expected array for URL: %s', $url));
+            // Must be array or null (non-matching pattern)
+            self::assertTrue(
+                $result === null || is_array($result),
+                sprintf('Expected array|null for URL: %s, got %s', $url, get_debug_type($result)),
+            );
         }
     }
 
     #[Test]
-    public function getValueFromModeDoesNotCrashWithRandomInput(): void
+    public function parseAllModeValuesDoesNotCrashWithRandomInput(): void
     {
-        $method      = new ReflectionMethod($this->processor, 'getValueFromMode');
-        $identifiers = ['w', 'h', 'q', 'm', '', 'x', 'W', "\0"];
+        $method = new ReflectionMethod($this->processor, 'parseAllModeValues');
 
         for ($i = 0; $i < 500; ++$i) {
-            $identifier = $identifiers[array_rand($identifiers)];
-            $mode       = $this->randomModeString();
+            $mode = $this->randomModeString();
 
-            $result = $method->invoke($this->processor, $identifier, $mode);
-            // Must return int or null
-            self::assertTrue(
-                $result === null || is_int($result),
+            $result = $method->invoke($this->processor, $mode);
+            // Must return an array
+            self::assertIsArray(
+                $result,
                 sprintf(
-                    'Expected int|null for identifier=%s mode=%s, got %s',
-                    $identifier,
+                    'Expected array for mode=%s, got %s',
                     $mode,
                     get_debug_type($result),
                 ),
@@ -189,20 +183,16 @@ final class ProcessorFuzzTest extends TestCase
 
         foreach ($nonMatchingCases as $url) {
             $result = $method->invoke($this->processor, $url);
-            self::assertIsArray($result, sprintf('Expected array for edge case URL "%s"', $url));
-            self::assertNull($result['targetWidth'], sprintf('Expected null targetWidth for non-matching URL "%s"', $url));
-            self::assertNull($result['targetHeight'], sprintf('Expected null targetHeight for non-matching URL "%s"', $url));
-            self::assertSame(100, $result['targetQuality'], sprintf('Expected default targetQuality for non-matching URL "%s"', $url));
-            self::assertSame(0, $result['processingMode'], sprintf('Expected default processingMode for non-matching URL "%s"', $url));
+            self::assertNull($result, sprintf('Expected null for non-matching edge case URL "%s"', $url));
         }
 
-        // Edge cases that DO match the regex — verify all parsed components
+        // Edge cases that DO match the regex -- verify all parsed components
         $matchingCases = [
             '/processed/' . str_repeat('a', 1000) . '.w100.jpg' => [
                 'targetWidth' => 100, 'targetHeight' => null, 'targetQuality' => 100, 'processingMode' => 0, 'extension' => 'jpg',
             ],
             '/processed/image.w0h0q0m0.jpg' => [
-                'targetWidth' => 0, 'targetHeight' => 0, 'targetQuality' => 0, 'processingMode' => 0, 'extension' => 'jpg',
+                'targetWidth' => 1, 'targetHeight' => 1, 'targetQuality' => 1, 'processingMode' => 0, 'extension' => 'jpg',
             ],
             '/processed/image.w100h200.WEBP' => [
                 'targetWidth' => 100, 'targetHeight' => 200, 'targetQuality' => 100, 'processingMode' => 0, 'extension' => 'webp',

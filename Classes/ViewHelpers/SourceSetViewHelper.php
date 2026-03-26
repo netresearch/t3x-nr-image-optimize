@@ -12,11 +12,12 @@ declare(strict_types=1);
 namespace Netresearch\NrImageOptimize\ViewHelpers;
 
 use function array_filter;
+use function array_map;
 use function array_unique;
 use function explode;
 use function floor;
 use function getimagesize;
-use function htmlentities;
+use function htmlspecialchars;
 use function http_build_query;
 use function implode;
 use function is_array;
@@ -24,6 +25,7 @@ use function round;
 use function sort;
 use function sprintf;
 use function str_contains;
+use function strtolower;
 use function trim;
 
 use TYPO3\CMS\Core\Core\Environment;
@@ -42,17 +44,35 @@ use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper;
  * @author  Axel Seemann <axel.seemann@netresearch.de>
  * @author  Rico Sonntag <rico.sonntag@netresearch.de>
  * @license Netresearch https://www.netresearch.de
- *
- * @see    https://www.netresearch.de
  */
 class SourceSetViewHelper extends AbstractViewHelper
 {
     /**
      * Default width variants if none are provided or all are invalid.
      *
-     * @var array<int>
+     * @var list<int>
      */
     private const DEFAULT_WIDTH_VARIANTS = [480, 576, 640, 768, 992, 1200, 1800];
+
+    /**
+     * Default quality for generated image variants.
+     */
+    private const DEFAULT_QUALITY = 100;
+
+    /**
+     * Transparent 1x1 GIF used as placeholder for JS lazy-loaded images.
+     */
+    private const LAZY_LOAD_PLACEHOLDER = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
+
+    /**
+     * Default sizes attribute for responsive images.
+     */
+    private const DEFAULT_SIZES = 'auto, (min-width: 992px) 991px, 100vw';
+
+    /**
+     * Retina density multiplier for legacy srcset generation.
+     */
+    private const RETINA_MULTIPLIER = 2;
 
     /**
      * Fluid internal: disable automatic output escaping as we output HTML tags.
@@ -63,6 +83,14 @@ class SourceSetViewHelper extends AbstractViewHelper
      * Fluid internal: do not escape child content since we assemble HTML ourselves.
      */
     protected $escapeChildren = false;
+
+    /**
+     * Cache for getimagesize() results to avoid repeated disk I/O for the same
+     * image file during a single request cycle.
+     *
+     * @var array<string, array{0: int, 1: int}|false>
+     */
+    private static array $imageSizeCache = [];
 
     /**
      * Register and describe supported ViewHelper arguments.
@@ -81,11 +109,9 @@ class SourceSetViewHelper extends AbstractViewHelper
         $this->registerArgument('title', 'string', 'Title attribute for the image. HTML-escaped.', false, '');
         $this->registerArgument('lazyload', 'bool', 'Add loading="lazy" (native lazy loading).', false, false);
         $this->registerArgument('attributes', 'array', 'Extra HTML attributes merged into the rendered tag.', false, []);
-
-        // New arguments for responsive srcset
         $this->registerArgument('responsiveSrcset', 'bool', 'Enable width-based responsive srcset (default: false for backward compatibility).', false, false);
         $this->registerArgument('widthVariants', 'string|array', 'Width variants for responsive srcset (comma-separated string or array).', false);
-        $this->registerArgument('sizes', 'string', 'Sizes attribute for responsive images.', false, 'auto, (min-width: 992px) 991px, 100vw');
+        $this->registerArgument('sizes', 'string', 'Sizes attribute for responsive images.', false, self::DEFAULT_SIZES);
         $this->registerArgument('fetchpriority', 'string', "Resource fetch priority for the image: 'high', 'low', or 'auto'.", false, '');
     }
 
@@ -96,116 +122,155 @@ class SourceSetViewHelper extends AbstractViewHelper
      */
     public function render(): string
     {
-        $this->escapeOutput   = false;
-        $this->escapeChildren = false;
-
         $width  = $this->getArgWidth();
         $height = $this->getArgHeight();
 
-        // Check if responsive srcset is enabled
         if (($this->arguments['responsiveSrcset'] ?? false) === true) {
             return $this->renderResponsiveSrcset($width, $height);
         }
 
-        // Legacy behavior: 2x density variant
         return $this->renderLegacyDensitySrcset($width, $height);
     }
 
     /**
-     * Render the new responsive width-based srcset with sizes attribute.
+     * Render the responsive width-based srcset with sizes attribute.
+     *
+     * @param int $width  Base width in pixels
+     * @param int $height Base height in pixels
+     *
+     * @return string HTML markup
      */
     private function renderResponsiveSrcset(int $width, int $height): string
     {
-        // Get width variants
         $widthVariants = $this->getWidthVariants();
+        $path          = $this->getArgPath();
+        $jsLazy        = $this->useJsLazyLoad();
 
-        // Calculate aspect ratio if height is provided
-        $aspectRatio = ($width > 0 && $height > 0) ? $height / $width : 0;
+        $aspectRatio = ($width > 0 && $height > 0) ? $height / $width : 0.0;
 
-        // Generate srcset entries
         $srcsetEntries = [];
+
         foreach ($widthVariants as $variantWidth) {
             $variantHeight   = $this->calculateVariantHeight($variantWidth, $aspectRatio);
-            $url             = $this->getResourcePath($this->getArgPath(), $variantWidth, $variantHeight);
+            $url             = $this->getResourcePath($path, $variantWidth, $variantHeight);
             $srcsetEntries[] = $url . ' ' . $variantWidth . 'w';
         }
 
-        $srcSet = implode(', ', $srcsetEntries);
+        $srcSet  = implode(', ', $srcsetEntries);
+        $srcPath = $this->getResourcePath($path, $width, $height);
 
-        // Use the original requested width for the src attribute
-        $srcPath = $this->getResourcePath($this->getArgPath(), $width, $height);
+        $sizesValue = $this->arguments['sizes'] ?? self::DEFAULT_SIZES;
 
-        // Resolve sizes with safe default if not provided via setArguments()
-        $defaultSizes = 'auto, (min-width: 992px) 991px, 100vw';
-        $sizesValue   = $this->arguments['sizes'] ?? $defaultSizes;
+        $props          = $this->buildImageAttributes($srcPath, $srcSet, $width, $height, $jsLazy);
+        $props['sizes'] = $sizesValue;
 
-        $props = [
-            'src'           => $this->useJsLazyLoad() ? 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==' : $srcPath,
-            'srcset'        => $srcSet,
-            'sizes'         => $sizesValue,
-            'width'         => $width,
-            'height'        => $height,
-            'alt'           => trim(htmlentities($this->arguments['alt'] ?? '')),
-            'title'         => trim(htmlentities($this->arguments['title'] ?? '')),
-            'class'         => trim($this->arguments['class'] ?? ''),
-            'fetchpriority' => $this->getArgFetchpriority(),
-        ];
-
-        if ($this->useJsLazyLoad()) {
+        if ($jsLazy) {
             $props['data-src']    = $srcPath;
             $props['data-srcset'] = $srcSet;
         }
 
-        return $this->generateSrcSet()
-            . $this->tag(
-                'img',
-                array_filter(
-                    $props,
-                    static fn (int|string|null $value, string|int $key): bool => $key === 'alt'
-                        ? $value !== null
-                        : ($value !== null) && ($value !== ''),
-                    ARRAY_FILTER_USE_BOTH,
-                ),
-            );
+        $sources = $this->generateSrcSet();
+        $imgTag  = $this->tag('img', $this->filterEmptyAttributes($props));
+
+        return $this->wrapInPicture($sources . $imgTag);
     }
 
     /**
      * Render the legacy density-based srcset (2x variant).
+     *
+     * @param int $width  Base width in pixels
+     * @param int $height Base height in pixels
+     *
+     * @return string HTML markup
      */
     private function renderLegacyDensitySrcset(int $width, int $height): string
     {
-        // Provide a higher pixel-density (DPR 2) candidate via srcset "x2"
-        $srcSet  = $this->getResourcePath($this->getArgPath(), $width * 2, $height * 2) . ' x2';
-        $srcPath = $this->getResourcePath($this->getArgPath(), $width, $height);
+        $path   = $this->getArgPath();
+        $jsLazy = $this->useJsLazyLoad();
 
-        $props = [
-            'src'           => $this->useJsLazyLoad() ? 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==' : $srcPath,
-            'data-src'      => $srcPath,
-            'data-srcset'   => $srcSet,
+        $srcSet  = $this->getResourcePath($path, $width * self::RETINA_MULTIPLIER, $height * self::RETINA_MULTIPLIER) . ' 2x';
+        $srcPath = $this->getResourcePath($path, $width, $height);
+
+        $props = $this->buildImageAttributes($srcPath, $srcSet, $width, $height, $jsLazy);
+
+        if ($jsLazy) {
+            $props['data-src']    = $srcPath;
+            $props['data-srcset'] = $srcSet;
+        }
+
+        $sources = $this->generateSrcSet();
+        $imgTag  = $this->tag('img', $this->filterEmptyAttributes($props));
+
+        return $this->wrapInPicture($sources . $imgTag);
+    }
+
+    /**
+     * Build the common image tag attributes shared between responsive and legacy modes.
+     *
+     * @param string $srcPath Source URL for the img src attribute
+     * @param string $srcSet  Srcset attribute value
+     * @param int    $width   Image width in pixels
+     * @param int    $height  Image height in pixels
+     * @param bool   $jsLazy  Whether JS-based lazy loading is active
+     *
+     * @return array<string, int|string> Attribute map
+     */
+    private function buildImageAttributes(string $srcPath, string $srcSet, int $width, int $height, bool $jsLazy): array
+    {
+        return [
+            'src'           => $jsLazy ? self::LAZY_LOAD_PLACEHOLDER : $srcPath,
             'srcset'        => $srcSet,
             'width'         => $width,
             'height'        => $height,
-            'alt'           => trim(htmlentities($this->arguments['alt'] ?? '')),
-            'title'         => trim(htmlentities($this->arguments['title'] ?? '')),
+            'alt'           => trim($this->arguments['alt'] ?? ''),
+            'title'         => trim($this->arguments['title'] ?? ''),
             'class'         => trim($this->arguments['class'] ?? ''),
             'fetchpriority' => $this->getArgFetchpriority(),
         ];
+    }
 
-        return $this->generateSrcSet()
-            . $this->tag(
-                'img',
-                array_filter(
-                    $props,
-                    static fn (int|string|null $value, string|int $key): bool => $key === 'alt'
-                        ? $value !== null
-                        : ($value !== null) && ($value !== ''),
-                    ARRAY_FILTER_USE_BOTH,
-                ),
-            );
+    /**
+     * Filter out empty or null attribute values, preserving empty 'alt' for accessibility.
+     *
+     * @param array<string, int|string|null> $props Attribute map
+     *
+     * @return array<string, int|string|null> Filtered attribute map
+     */
+    private function filterEmptyAttributes(array $props): array
+    {
+        return array_filter(
+            $props,
+            static fn (int|string|null $value, string|int $key): bool => match (true) {
+                $key === 'alt' => $value !== null,
+                $key === 'width', $key === 'height' => !in_array($value, [null, '', 0], true),
+                default => $value !== null && $value !== '',
+            },
+            ARRAY_FILTER_USE_BOTH,
+        );
+    }
+
+    /**
+     * Wrap the given HTML content in a <picture> element.
+     *
+     * Per HTML spec, <source> elements are only valid inside <picture>, <audio>,
+     * or <video>. This ensures valid markup when <source> tags are present.
+     *
+     * @param string $content Inner HTML (source elements + img tag)
+     *
+     * @return string HTML wrapped in <picture>...</picture>
+     */
+    private function wrapInPicture(string $content): string
+    {
+        return '<picture>' . PHP_EOL . $content . '</picture>' . PHP_EOL;
     }
 
     /**
      * Calculate the height for a variant width while maintaining aspect ratio.
+     *
+     * @param int   $variantWidth Target width for the variant
+     * @param float $aspectRatio  Height-to-width ratio (0 if not constrained)
+     *
+     * @return int Calculated height or 0 if no aspect ratio constraint
      */
     private function calculateVariantHeight(int $variantWidth, float $aspectRatio): int
     {
@@ -215,7 +280,7 @@ class SourceSetViewHelper extends AbstractViewHelper
     /**
      * Get width variants as an array of integers, validated and sorted.
      *
-     * @return array<int>
+     * @return list<int>
      */
     private function getWidthVariants(): array
     {
@@ -227,7 +292,6 @@ class SourceSetViewHelper extends AbstractViewHelper
             $widths = array_map(intval(...), array_map(trim(...), explode(',', (string) $variants)));
         }
 
-        // Remove duplicates, invalid widths, and sort
         $widths = $this->validateWidthVariants($widths);
         sort($widths);
 
@@ -237,21 +301,21 @@ class SourceSetViewHelper extends AbstractViewHelper
     /**
      * Validate width variants and remove invalid values.
      *
-     * @param array<int> $widths
+     * @param array<int> $widths Raw width values
      *
-     * @return array<int>
+     * @return array<int> Validated widths or defaults if none are valid
      */
     private function validateWidthVariants(array $widths): array
     {
-        // Remove duplicates and invalid widths
-        $validWidths = array_unique(array_filter($widths, fn (int $width): bool => $width > 0));
+        $validWidths = array_unique(array_filter($widths, static fn (int $width): bool => $width > 0));
 
-        // Return default widths if no valid widths are provided
         return $validWidths === [] ? self::DEFAULT_WIDTH_VARIANTS : $validWidths;
     }
 
     /**
      * Determine whether JS-based lazy loading is requested via class name.
+     *
+     * @return bool True if 'lazyload' is present in the class attribute
      */
     public function useJsLazyLoad(): bool
     {
@@ -260,6 +324,9 @@ class SourceSetViewHelper extends AbstractViewHelper
 
     /**
      * Build a processed image URL for the given path and parameters.
+     *
+     * Uses a static cache for getimagesize() results to avoid repeated disk I/O
+     * when the same source image is used for multiple variants in a single page render.
      *
      * @param string $path     Public path to the original image (e.g., /fileadmin/..)
      * @param int    $width    Target width (0 keeps original)
@@ -274,12 +341,23 @@ class SourceSetViewHelper extends AbstractViewHelper
         string $path,
         int $width = 0,
         int $height = 0,
-        int $quality = 100,
+        int $quality = self::DEFAULT_QUALITY,
         bool $skipAvif = false,
         bool $skipWebP = false,
     ): string {
+        // Reject path traversal attempts
+        if (str_contains($path, '..')) {
+            return $path;
+        }
+
         if ($width === 0 && $height === 0) {
-            $info = getimagesize(Environment::getPublicPath() . $path);
+            // Use static cache to avoid repeated getimagesize() disk I/O
+            // for the same source image across multiple variant URLs.
+            if (!isset(self::$imageSizeCache[$path])) {
+                self::$imageSizeCache[$path] = @getimagesize(Environment::getPublicPath() . $path);
+            }
+
+            $info = self::$imageSizeCache[$path];
 
             if ($info !== false) {
                 $width  = $info[0];
@@ -287,20 +365,13 @@ class SourceSetViewHelper extends AbstractViewHelper
             }
         }
 
-        $args = [
-            'w' . $width,
-            'h' . $height,
-            'm' . $this->getArgMode(),
-            'q' . $quality,
-        ];
-
         $pathInfo = PathUtility::pathinfo($path);
 
-        if (isset($pathInfo['extension']) && ($pathInfo['extension'] === 'svg')) {
+        if (isset($pathInfo['extension']) && strtolower($pathInfo['extension']) === 'svg') {
             return $path;
         }
 
-        $generatorConfig = implode('', $args);
+        $generatorConfig = 'w' . $width . 'h' . $height . 'm' . $this->getArgMode() . 'q' . $quality;
 
         $url = sprintf(
             '/processed%s/%s.%s.%s',
@@ -310,12 +381,10 @@ class SourceSetViewHelper extends AbstractViewHelper
             $pathInfo['extension'] ?? '',
         );
 
-        $queryArgs = [
+        $queryArgs = array_filter([
             'skipWebP' => $skipWebP,
             'skipAvif' => $skipAvif,
-        ];
-
-        $queryArgs = array_filter($queryArgs);
+        ]);
 
         if ($queryArgs === []) {
             return $url;
@@ -332,18 +401,27 @@ class SourceSetViewHelper extends AbstractViewHelper
     public function generateSrcSet(): string
     {
         $return = '';
-        foreach ($this->getArgSet() as $maxWidth => $dimensions) {
-            $props          = [];
-            $props['media'] = '(max-width: ' . $maxWidth . 'px)';
-            $srcSet         = sprintf(
-                '%s, %s x2',
-                $this->getResourcePath($this->getArgPath(), $dimensions['width'], $dimensions['height'] ?? 0),
-                $this->getResourcePath($this->getArgPath(), $dimensions['width'] * 2, ($dimensions['height'] ?? 0) * 2),
-            );
-            $props['srcset']      = $srcSet;
-            $props['data-srcset'] = $srcSet;
+        $path   = $this->getArgPath();
+        $jsLazy = $this->useJsLazyLoad();
 
-            $return .= $this->tag('source', $props);
+        foreach ($this->getArgSet() as $maxWidth => $dimensions) {
+            $dimensionHeight = $dimensions['height'] ?? 0;
+            $srcSet          = sprintf(
+                '%s, %s 2x',
+                $this->getResourcePath($path, $dimensions['width'], $dimensionHeight),
+                $this->getResourcePath($path, $dimensions['width'] * self::RETINA_MULTIPLIER, $dimensionHeight * self::RETINA_MULTIPLIER),
+            );
+
+            $sourceProps = [
+                'media'  => '(max-width: ' . $maxWidth . 'px)',
+                'srcset' => $srcSet,
+            ];
+
+            if ($jsLazy) {
+                $sourceProps['data-srcset'] = $srcSet;
+            }
+
+            $return .= $this->tag('source', $sourceProps);
         }
 
         return $return;
@@ -352,23 +430,26 @@ class SourceSetViewHelper extends AbstractViewHelper
     /**
      * Render a self-closing HTML tag with given attributes and global attributes/lazyload applied.
      *
-     * @param string                               $tag        Tag name (e.g., 'img' or 'source')
-     * @param array<string, int|string|float|bool> $properties Attribute map to render into the tag
+     * @param string                                    $tag        Tag name (e.g., 'img' or 'source')
+     * @param array<string, int|string|float|bool|null> $properties Attribute map to render into the tag
      *
      * @return string The HTML string ending with a newline
      */
     private function tag(string $tag, array $properties): string
     {
         $tagString = '<' . $tag;
+
         foreach ($properties as $key => $value) {
-            $tagString .= ' ' . $key . '="' . $value . '"';
+            $tagString .= ' ' . htmlspecialchars($key, ENT_QUOTES | ENT_HTML5)
+                . '="' . htmlspecialchars((string) $value, ENT_QUOTES | ENT_HTML5) . '"';
         }
 
         foreach ($this->getAttributes() as $key => $value) {
-            $tagString .= ' ' . $key . '="' . $value . '"';
+            $tagString .= ' ' . htmlspecialchars($key, ENT_QUOTES | ENT_HTML5)
+                . '="' . htmlspecialchars((string) $value, ENT_QUOTES | ENT_HTML5) . '"';
         }
 
-        if ($this->useNativeLazyLoad()) {
+        if ($tag === 'img' && $this->useNativeLazyLoad()) {
             $tagString .= ' loading="lazy"';
         }
 
@@ -380,7 +461,7 @@ class SourceSetViewHelper extends AbstractViewHelper
     /**
      * Resolve width argument as integer pixels.
      *
-     * @return int
+     * @return int Width in pixels (0 means auto)
      */
     private function getArgWidth(): int
     {
@@ -390,7 +471,7 @@ class SourceSetViewHelper extends AbstractViewHelper
     /**
      * Resolve height argument as integer pixels.
      *
-     * @return int
+     * @return int Height in pixels (0 means auto)
      */
     private function getArgHeight(): int
     {
@@ -400,7 +481,7 @@ class SourceSetViewHelper extends AbstractViewHelper
     /**
      * Get the original image path argument.
      *
-     * @return string
+     * @return string Public path to the source image
      */
     private function getArgPath(): string
     {
@@ -421,7 +502,7 @@ class SourceSetViewHelper extends AbstractViewHelper
      * Map the semantic mode argument to a numeric processing mode used by Processor.
      * 0 = cover (default), 1 = fit (scale).
      *
-     * @return int
+     * @return int Processing mode identifier
      */
     private function getArgMode(): int
     {
@@ -436,7 +517,7 @@ class SourceSetViewHelper extends AbstractViewHelper
     /**
      * Additional attributes to append to the rendered tag(s).
      *
-     * @return array<string|int|float|bool> Key/value pairs merged into the HTML element
+     * @return array<string, string|int|float|bool> Key/value pairs merged into the HTML element
      */
     private function getAttributes(): array
     {
@@ -452,7 +533,7 @@ class SourceSetViewHelper extends AbstractViewHelper
     /**
      * Whether to add the native loading="lazy" attribute to the rendered tag.
      *
-     * @return bool
+     * @return bool True if native lazy loading is enabled
      */
     private function useNativeLazyLoad(): bool
     {
@@ -462,10 +543,13 @@ class SourceSetViewHelper extends AbstractViewHelper
     /**
      * Validate and return the fetchpriority attribute value.
      * Allowed values: 'high', 'low', 'auto'. Any other value returns empty string (attribute omitted).
+     *
+     * @return string Valid fetchpriority value or empty string
      */
     private function getArgFetchpriority(): string
     {
         $value = trim((string) ($this->arguments['fetchpriority'] ?? ''));
+
         if ($value === '') {
             return '';
         }

@@ -1,6 +1,6 @@
 <?php
 
-/**
+/*
  * This file is part of the package netresearch/nr-image-optimize.
  *
  * For the full copyright and license information, please read the
@@ -18,7 +18,8 @@ $EM_CONF['nr_image_optimize'] = [
     'version'        => '2.2.1',
     'constraints'    => [
         'depends' => [
-            'typo3' => '13.0.0-14.4.99',
+            'php'   => '8.2.0-8.5.99',
+            'typo3' => '13.4.0-14.4.99',
         ],
         'conflicts' => [],
         'suggests'  => [],

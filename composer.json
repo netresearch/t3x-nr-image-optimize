@@ -2,8 +2,21 @@
     "name": "netresearch/nr-image-optimize",
     "description": "On-demand image optimization for TYPO3 with processed delivery, WebP and AVIF variants, and responsive srcset ViewHelpers.",
     "type": "typo3-cms-extension",
-    "license": [
-        "GPL-3.0-or-later"
+    "license": "GPL-3.0-or-later",
+    "keywords": [
+        "typo3",
+        "image",
+        "optimization",
+        "webp",
+        "avif",
+        "responsive",
+        "srcset"
+    ],
+    "authors": [
+        {
+            "name": "Team der Netresearch DTT GmbH",
+            "homepage": "https://www.netresearch.de"
+        }
     ],
     "homepage": "https://extensions.typo3.org/extension/nr_image_optimize",
     "support": {
@@ -27,7 +40,9 @@
         }
     },
     "require": {
+        "php": ">=8.2",
         "typo3/cms-core": "^13.4 || ^14.0",
+        "typo3/cms-extbase": "^13.4 || ^14.0",
         "typo3/cms-fluid": "^13.4 || ^14.0",
         "intervention/image": "^3.11"
     },
@@ -76,10 +91,21 @@
             "phpunit --configuration Build/UnitTests.xml"
         ],
         "ci:test:php:unit:coverage": [
-            "XDEBUG_MODE=coverage && phpunit --configuration Build/UnitTests.xml --coverage-html .build/coverage/"
+            "@putenv XDEBUG_MODE=coverage",
+            "phpunit --configuration Build/UnitTests.xml --coverage-html .build/coverage/"
+        ],
+        "ci:test:php:acceptance": [
+            "phpunit --configuration Build/AcceptanceTests.xml"
+        ],
+        "ci:test:php:functional": [
+            "phpunit --configuration Build/FunctionalTests.xml"
         ],
         "ci:test:php:fuzz": [
             "phpunit --configuration Build/FuzzTests.xml --no-coverage"
+        ],
+        "ci:test:php:mutation": [
+            "@putenv XDEBUG_MODE=coverage",
+            "infection --configuration=infection.json5 --threads=4 --no-progress --show-mutations"
         ],
         "ci:test:php:phpstan": [
             "phpstan analyze --configuration Build/phpstan.neon --memory-limit=-1"

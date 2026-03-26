@@ -15,7 +15,13 @@ tests:
   - changed-files:
       - any-glob-to-any-file:
           - 'Tests/**'
-          - 'phpunit*.xml'
+          - 'Build/*Tests.xml'
+
+build:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'Build/**'
+          - 'Makefile'
 
 ci:
   - changed-files:

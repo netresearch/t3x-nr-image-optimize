@@ -19,18 +19,6 @@
                 <source>Clear processed images</source>
                 <target>Slet behandlede billeder</target>
             </trans-unit>
-            <trans-unit id="stats.overview" resname="stats.overview">
-                <source>Overview</source>
-                <target>Oversigt</target>
-            </trans-unit>
-            <trans-unit id="stats.path" resname="stats.path">
-                <source>Directory</source>
-                <target>Mappe</target>
-            </trans-unit>
-            <trans-unit id="stats.files" resname="stats.files">
-                <source>Files</source>
-                <target>Filer</target>
-            </trans-unit>
             <trans-unit id="stats.directories" resname="stats.directories">
                 <source>Subdirectories</source>
                 <target>Undermapper</target>
@@ -38,10 +26,6 @@
             <trans-unit id="stats.size" resname="stats.size">
                 <source>Total size</source>
                 <target>Samlet størrelse</target>
-            </trans-unit>
-            <trans-unit id="stats.age" resname="stats.age">
-                <source>File Age</source>
-                <target>Filens alder</target>
             </trans-unit>
             <trans-unit id="stats.oldest" resname="stats.oldest">
                 <source>Oldest file</source>
@@ -54,14 +38,6 @@
             <trans-unit id="stats.largest" resname="stats.largest">
                 <source>Largest Files (Top 5)</source>
                 <target>Største filer (Top 5)</target>
-            </trans-unit>
-            <trans-unit id="stats.file" resname="stats.file">
-                <source>File</source>
-                <target>Fil</target>
-            </trans-unit>
-            <trans-unit id="stats.types" resname="stats.types">
-                <source>File Types</source>
-                <target>Filtyper</target>
             </trans-unit>
             <trans-unit id="stats.extension" resname="stats.extension">
                 <source>Type</source>
