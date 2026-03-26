@@ -13,6 +13,7 @@ namespace Netresearch\NrImageOptimize\Tests\Unit\Middleware;
 
 use Netresearch\NrImageOptimize\Middleware\ProcessingMiddleware;
 use Netresearch\NrImageOptimize\Processor;
+use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
@@ -22,6 +23,7 @@ use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\UriInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 
+#[AllowMockObjectsWithoutExpectations]
 #[CoversClass(ProcessingMiddleware::class)]
 class ProcessingMiddlewareTest extends TestCase
 {
@@ -32,13 +34,13 @@ class ProcessingMiddlewareTest extends TestCase
         $processor->expects(self::never())->method('generateAndSend');
         $middleware = new ProcessingMiddleware($processor);
 
-        $uri = $this->createStub(UriInterface::class);
+        $uri = $this->createMock(UriInterface::class);
         $uri->method('getPath')->willReturn('/assets/image.jpg');
 
-        $request = $this->createStub(ServerRequestInterface::class);
+        $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
-        $response = $this->createStub(ResponseInterface::class);
+        $response = $this->createMock(ResponseInterface::class);
 
         $handler = $this->createMock(RequestHandlerInterface::class);
         $handler->expects(self::once())->method('handle')->with($request)->willReturn($response);
@@ -51,13 +53,13 @@ class ProcessingMiddlewareTest extends TestCase
     {
         $processor = $this->createMock(Processor::class);
 
-        $uri = $this->createStub(UriInterface::class);
+        $uri = $this->createMock(UriInterface::class);
         $uri->method('getPath')->willReturn('/processed/path/to/image.jpg');
 
-        $request = $this->createStub(ServerRequestInterface::class);
+        $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
-        $response = $this->createStub(ResponseInterface::class);
+        $response = $this->createMock(ResponseInterface::class);
 
         $handler = $this->createMock(RequestHandlerInterface::class);
         $handler->expects(self::never())->method('handle');
@@ -80,13 +82,13 @@ class ProcessingMiddlewareTest extends TestCase
         $processor->expects(self::never())->method('generateAndSend');
         $middleware = new ProcessingMiddleware($processor);
 
-        $uri = $this->createStub(UriInterface::class);
+        $uri = $this->createMock(UriInterface::class);
         $uri->method('getPath')->willReturn($path);
 
-        $request = $this->createStub(ServerRequestInterface::class);
+        $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
-        $response = $this->createStub(ResponseInterface::class);
+        $response = $this->createMock(ResponseInterface::class);
 
         $handler = $this->createMock(RequestHandlerInterface::class);
         $handler->expects(self::once())->method('handle')->with($request)->willReturn($response);
@@ -114,13 +116,13 @@ class ProcessingMiddlewareTest extends TestCase
     {
         $processor = $this->createMock(Processor::class);
 
-        $uri = $this->createStub(UriInterface::class);
+        $uri = $this->createMock(UriInterface::class);
         $uri->method('getPath')->willReturn($path);
 
-        $request = $this->createStub(ServerRequestInterface::class);
+        $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
-        $response = $this->createStub(ResponseInterface::class);
+        $response = $this->createMock(ResponseInterface::class);
 
         $handler = $this->createMock(RequestHandlerInterface::class);
         $handler->expects(self::never())->method('handle');
