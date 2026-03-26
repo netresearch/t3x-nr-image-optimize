@@ -870,7 +870,7 @@ class ProcessorTest extends TestCase
 
         $this->responseFactory->method('createResponse')->willReturn($response);
         $response->method('withHeader')->willReturn($response);
-        $this->streamFactory->method('createStream')->with('webp-data')->willReturn($stream);
+        $this->streamFactory->method('createStreamFromFile')->willReturn($stream);
         $response->method('withBody')->willReturn($response);
 
         $result = $this->callMethod($this->processor, 'serveCachedVariant', $base, 'jpg');
