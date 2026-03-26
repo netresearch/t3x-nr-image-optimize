@@ -11,8 +11,8 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize;
 
-use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
 
 /**
  * Contract for on-the-fly image processing of generated variants.
@@ -28,9 +28,9 @@ interface ProcessorInterface
     /**
      * Handle a processed image request and return the image response.
      *
-     * @param RequestInterface $request Incoming request containing the processed URL and query params
+     * @param ServerRequestInterface $request Incoming request containing the processed URL and query params
      *
      * @return ResponseInterface The image response or an error response
      */
-    public function generateAndSend(RequestInterface $request): ResponseInterface;
+    public function generateAndSend(ServerRequestInterface $request): ResponseInterface;
 }

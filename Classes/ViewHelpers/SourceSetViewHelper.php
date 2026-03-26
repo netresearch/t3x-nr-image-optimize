@@ -26,6 +26,7 @@ use function sort;
 use function sprintf;
 use function str_contains;
 use function strtolower;
+use function trigger_error;
 use function trim;
 
 use TYPO3\CMS\Core\Core\Environment;
@@ -378,6 +379,11 @@ class SourceSetViewHelper extends AbstractViewHelper
             if ($info !== false) {
                 $width  = $info[0];
                 $height = $info[1];
+            } else {
+                trigger_error(
+                    sprintf('getimagesize() failed for "%s"', $path),
+                    E_USER_NOTICE,
+                );
             }
         }
 
@@ -422,11 +428,12 @@ class SourceSetViewHelper extends AbstractViewHelper
         $mimeType = $this->getMimeTypeForPath($path);
 
         foreach ($this->getArgSet() as $maxWidth => $dimensions) {
+            $dimensionWidth  = $dimensions['width'] ?? 0;
             $dimensionHeight = $dimensions['height'] ?? 0;
             $srcSet          = sprintf(
                 '%s, %s 2x',
-                $this->getResourcePath($path, $dimensions['width'], $dimensionHeight),
-                $this->getResourcePath($path, $dimensions['width'] * self::RETINA_MULTIPLIER, $dimensionHeight * self::RETINA_MULTIPLIER),
+                $this->getResourcePath($path, $dimensionWidth, $dimensionHeight),
+                $this->getResourcePath($path, $dimensionWidth * self::RETINA_MULTIPLIER, $dimensionHeight * self::RETINA_MULTIPLIER),
             );
 
             $sourceProps = [
@@ -465,9 +472,11 @@ class SourceSetViewHelper extends AbstractViewHelper
                 . '="' . htmlspecialchars((string) $value, ENT_QUOTES | ENT_HTML5) . '"';
         }
 
-        foreach ($this->getAttributes() as $key => $value) {
-            $tagString .= ' ' . htmlspecialchars($key, ENT_QUOTES | ENT_HTML5)
-                . '="' . htmlspecialchars((string) $value, ENT_QUOTES | ENT_HTML5) . '"';
+        if ($tag === 'img') {
+            foreach ($this->getAttributes() as $key => $value) {
+                $tagString .= ' ' . htmlspecialchars($key, ENT_QUOTES | ENT_HTML5)
+                    . '="' . htmlspecialchars((string) $value, ENT_QUOTES | ENT_HTML5) . '"';
+            }
         }
 
         if ($tag === 'img' && $this->useNativeLazyLoad()) {

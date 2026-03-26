@@ -25,9 +25,9 @@ use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\EventDispatcher\EventDispatcherInterface;
-use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\StreamFactoryInterface;
 use Psr\Http\Message\StreamInterface;
 use Psr\Http\Message\UriInterface;
@@ -233,7 +233,7 @@ class ProcessorTest extends TestCase
         $uri = $this->createMock(UriInterface::class);
         $uri->method('getQuery')->willReturn('skipWebP=1&skipAvif=1');
 
-        $request = $this->createMock(RequestInterface::class);
+        $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
         /** @var array{skipWebP: bool, skipAvif: bool} $result */
@@ -249,7 +249,7 @@ class ProcessorTest extends TestCase
         $uri = $this->createMock(UriInterface::class);
         $uri->method('getQuery')->willReturn('');
 
-        $request = $this->createMock(RequestInterface::class);
+        $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
         /** @var array{skipWebP: bool, skipAvif: bool} $result */
@@ -265,7 +265,7 @@ class ProcessorTest extends TestCase
         $uri = $this->createMock(UriInterface::class);
         $uri->method('getQuery')->willReturn('skipWebP=0&skipAvif=0');
 
-        $request = $this->createMock(RequestInterface::class);
+        $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
         /** @var array{skipWebP: bool, skipAvif: bool} $result */
@@ -773,7 +773,7 @@ class ProcessorTest extends TestCase
         $uri = $this->createMock(UriInterface::class);
         $uri->method('getPath')->willReturn('/not-processed/image.jpg');
 
-        $request = $this->createMock(RequestInterface::class);
+        $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
         $response = $this->createMock(ResponseInterface::class);
@@ -1163,7 +1163,7 @@ class ProcessorTest extends TestCase
         $uri = $this->createMock(UriInterface::class);
         $uri->method('getPath')->willReturn('/processed/images/photo.w100h50m0q80.jpg');
 
-        $request = $this->createMock(RequestInterface::class);
+        $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
         $result = $processor->generateAndSend($request);
@@ -1335,7 +1335,7 @@ class ProcessorTest extends TestCase
         $uri = $this->createMock(UriInterface::class);
         $uri->method('getQuery')->willReturn('');
 
-        $request = $this->createMock(RequestInterface::class);
+        $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
         $urlInfo = [
@@ -1391,7 +1391,7 @@ class ProcessorTest extends TestCase
         $uri = $this->createMock(UriInterface::class);
         $uri->method('getPath')->willReturn('/processed/images/photo.w100h50m0q80.jpg');
 
-        $request = $this->createMock(RequestInterface::class);
+        $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
         $result = $processor->generateAndSend($request);
@@ -1441,7 +1441,7 @@ class ProcessorTest extends TestCase
         $uri = $this->createMock(UriInterface::class);
         $uri->method('getPath')->willReturn('/processed/images/photo.w100h50m0q80.jpg');
 
-        $request = $this->createMock(RequestInterface::class);
+        $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
         $result = $processor->generateAndSend($request);
@@ -1490,7 +1490,7 @@ class ProcessorTest extends TestCase
         $uri = $this->createMock(UriInterface::class);
         $uri->method('getPath')->willReturn('/processed/images/photo.w100h50m0q80.jpg');
 
-        $request = $this->createMock(RequestInterface::class);
+        $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
         $result = $processor->generateAndSend($request);
@@ -1561,7 +1561,7 @@ class ProcessorTest extends TestCase
         // Array-style params: skipWebP[]=foo should result in non-string value
         $uri->method('getQuery')->willReturn('skipWebP[]=foo&skipAvif=1');
 
-        $request = $this->createMock(RequestInterface::class);
+        $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
         /** @var array{skipWebP: bool, skipAvif: bool} $result */
@@ -1592,7 +1592,7 @@ class ProcessorTest extends TestCase
         // With the double-dot block in regex, this should return null from gatherInformationBasedOnUrl
         $uri = $this->createMock(UriInterface::class);
         $uri->method('getPath')->willReturn('/processed/../../../etc/passwd.w100.jpg');
-        $request = $this->createMock(RequestInterface::class);
+        $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
         $result = $processor->generateAndSend($request);
@@ -1631,7 +1631,7 @@ class ProcessorTest extends TestCase
 
         $uri = $this->createMock(UriInterface::class);
         $uri->method('getPath')->willReturn('/processed/img.w100h50m0q80.jpg');
-        $request = $this->createMock(RequestInterface::class);
+        $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
         $result = $processor->generateAndSend($request);
@@ -1675,7 +1675,7 @@ class ProcessorTest extends TestCase
 
         $uri = $this->createMock(UriInterface::class);
         $uri->method('getPath')->willReturn('/processed/img.w100h50m0q80.jpg');
-        $request = $this->createMock(RequestInterface::class);
+        $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
         $result = $processor->generateAndSend($request);
@@ -1718,7 +1718,7 @@ class ProcessorTest extends TestCase
         $uri = $this->createMock(UriInterface::class);
         $uri->method('getPath')->willReturn('/processed/img.w100h50m0q80.jpg');
         $uri->method('getQuery')->willReturn('');
-        $request = $this->createMock(RequestInterface::class);
+        $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
         $result = $processor->generateAndSend($request);
@@ -1766,7 +1766,7 @@ class ProcessorTest extends TestCase
 
         $uri = $this->createMock(UriInterface::class);
         $uri->method('getPath')->willReturn('/processed/img.w100h50m0q80.jpg');
-        $request = $this->createMock(RequestInterface::class);
+        $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
         $result = $processor->generateAndSend($request);
@@ -1861,7 +1861,7 @@ class ProcessorTest extends TestCase
 
         $uri = $this->createMock(UriInterface::class);
         $uri->method('getQuery')->willReturn('');
-        $request = $this->createMock(RequestInterface::class);
+        $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
         $urlInfo = [
@@ -1941,7 +1941,7 @@ class ProcessorTest extends TestCase
 
         $uri = $this->createMock(UriInterface::class);
         $uri->method('getQuery')->willReturn('');
-        $request = $this->createMock(RequestInterface::class);
+        $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
         $urlInfo = [
@@ -2021,7 +2021,7 @@ class ProcessorTest extends TestCase
 
         $uri = $this->createMock(UriInterface::class);
         $uri->method('getQuery')->willReturn('');
-        $request = $this->createMock(RequestInterface::class);
+        $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
         $urlInfo = [
@@ -2092,7 +2092,7 @@ class ProcessorTest extends TestCase
 
         $uri = $this->createMock(UriInterface::class);
         $uri->method('getQuery')->willReturn('skipWebP=1&skipAvif=1');
-        $request = $this->createMock(RequestInterface::class);
+        $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
         $urlInfo = [
@@ -2162,7 +2162,7 @@ class ProcessorTest extends TestCase
 
         $uri = $this->createMock(UriInterface::class);
         $uri->method('getQuery')->willReturn('');
-        $request = $this->createMock(RequestInterface::class);
+        $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
         $urlInfo = [
@@ -2231,7 +2231,7 @@ class ProcessorTest extends TestCase
 
         $uri = $this->createMock(UriInterface::class);
         $uri->method('getQuery')->willReturn('skipWebP=1&skipAvif=1');
-        $request = $this->createMock(RequestInterface::class);
+        $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
         $urlInfo = [
@@ -2306,7 +2306,7 @@ class ProcessorTest extends TestCase
 
         $uri = $this->createMock(UriInterface::class);
         $uri->method('getPath')->willReturn('/processed/img.w100h50m0q80.jpg');
-        $request = $this->createMock(RequestInterface::class);
+        $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
         // This covers line 223: return $cachedResponse after lock re-check
@@ -2359,7 +2359,7 @@ class ProcessorTest extends TestCase
 
         $uri = $this->createMock(UriInterface::class);
         $uri->method('getPath')->willReturn('/processed/escape/photo.w100h50m0q80.jpg');
-        $request = $this->createMock(RequestInterface::class);
+        $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
         $result = $processor->generateAndSend($request);
@@ -2439,7 +2439,7 @@ class ProcessorTest extends TestCase
         $uri = $this->createMock(UriInterface::class);
         $uri->method('getPath')->willReturn('/processed/images/photo.w100h50m0q80.jpg');
 
-        $request = $this->createMock(RequestInterface::class);
+        $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
         $processor->generateAndSend($request);
@@ -2527,7 +2527,7 @@ class ProcessorTest extends TestCase
         $uri = $this->createMock(UriInterface::class);
         $uri->method('getPath')->willReturn('/processed/img.w100h50m0q80.jpg');
         $uri->method('getQuery')->willReturn('');
-        $request = $this->createMock(RequestInterface::class);
+        $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
         $instance->generateAndSend($request);
@@ -2626,7 +2626,7 @@ class ProcessorTest extends TestCase
 
         $uri = $this->createMock(UriInterface::class);
         $uri->method('getQuery')->willReturn('');
-        $request = $this->createMock(RequestInterface::class);
+        $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
         $urlInfo = [
@@ -2712,7 +2712,7 @@ class ProcessorTest extends TestCase
 
         $uri = $this->createMock(UriInterface::class);
         $uri->method('getQuery')->willReturn('');
-        $request = $this->createMock(RequestInterface::class);
+        $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
         $urlInfo = [
@@ -2797,7 +2797,7 @@ class ProcessorTest extends TestCase
 
         $uri = $this->createMock(UriInterface::class);
         $uri->method('getPath')->willReturn('/processed/img.w100h50m0q80.jpg');
-        $request = $this->createMock(RequestInterface::class);
+        $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
         $processor->generateAndSend($request);
