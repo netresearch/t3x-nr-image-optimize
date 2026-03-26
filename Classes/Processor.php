@@ -555,13 +555,16 @@ class Processor
         // deepest existing parent directory and validate it
         $parent = $path;
 
-        while (($parent = dirname($parent)) !== $parent) {
+        do {
+            $previous = $parent;
+            $parent   = dirname($parent);
+
             $resolvedParent = realpath($parent);
 
             if ($resolvedParent !== false) {
                 return str_starts_with($resolvedParent, $publicPrefix) || $resolvedParent === $publicPath;
             }
-        }
+        } while ($parent !== $previous);
 
         return false;
     }

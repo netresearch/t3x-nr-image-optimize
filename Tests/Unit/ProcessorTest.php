@@ -25,10 +25,15 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamFactoryInterface;
 use Psr\Http\Message\StreamInterface;
 use Psr\Http\Message\UriInterface;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
 use ReflectionClass;
 use ReflectionMethod;
+use ReflectionProperty;
+use RuntimeException;
 use TYPO3\CMS\Core\Core\ApplicationContext;
 use TYPO3\CMS\Core\Core\Environment;
+use TYPO3\CMS\Core\Locking\Exception\LockCreateException;
 use TYPO3\CMS\Core\Locking\LockFactory;
 use TYPO3\CMS\Core\Locking\LockingStrategyInterface;
 
@@ -911,9 +916,9 @@ class ProcessorTest extends TestCase
         // Public root itself
         self::assertTrue($this->callMethod($this->processor, 'isPathWithinPublicRoot', $tempDir . '/public'));
 
-        // Non-existent path: returns false because the parent-walk loop body is
-        // unreachable (the while-condition assignment pattern evaluates to false)
-        self::assertFalse($this->callMethod($this->processor, 'isPathWithinPublicRoot', $tempDir . '/public/subdir/nonexistent.jpg'));
+        // Non-existent path under public root: the parent-walk resolves up to
+        // the existing /public directory, which is within the public root
+        self::assertTrue($this->callMethod($this->processor, 'isPathWithinPublicRoot', $tempDir . '/public/subdir/nonexistent.jpg'));
 
         // Path outside public root (existing)
         $outsideDir = sys_get_temp_dir() . '/nr-pio-outside-' . uniqid('', true);
@@ -985,13 +990,23 @@ class ProcessorTest extends TestCase
         // Non-existent file path: realpath() returns false, and the parent walk loop
         // body is unreachable due to the while-condition assignment pattern
         // (($parent = dirname($parent)) !== $parent always evaluates to false).
-        // This returns false for any non-existent path.
+        // Non-existent paths under the public root should be accepted
+        // (the parent-walk resolves to the existing parent directory).
         $result = $this->callMethod(
             $this->processor,
             'isPathWithinPublicRoot',
             $tempDir . '/public/deep/nested/very/deeply/image.jpg',
         );
-        self::assertFalse($result);
+        self::assertTrue($result);
+
+        // A path completely outside the public root should be rejected
+        $outsidePath   = '/tmp/completely-outside-' . uniqid('', true) . '/image.jpg';
+        $resultOutside = $this->callMethod(
+            $this->processor,
+            'isPathWithinPublicRoot',
+            $outsidePath,
+        );
+        self::assertFalse($resultOutside);
 
         // Cleanup
         rmdir($tempDir . '/public/deep/nested');
@@ -1016,11 +1031,10 @@ class ProcessorTest extends TestCase
     // -------------------------------------------------------------------------
     // generateAndSend: LockCreateException catch
     // -------------------------------------------------------------------------
-
     /**
      * Set up a real temp directory for tests that exercise generateAndSend (needs real filesystem for path validation).
      *
-     * @return array{tempDir: string, prop: \ReflectionProperty} Temp dir path and resolvedPublicPath property
+     * @return array{tempDir: string, prop: ReflectionProperty} Temp dir path and resolvedPublicPath property
      */
     private function setUpRealEnvironment(): array
     {
@@ -1050,12 +1064,12 @@ class ProcessorTest extends TestCase
     /**
      * Clean up the real temp environment after tests.
      */
-    private function tearDownRealEnvironment(string $tempDir, \ReflectionProperty $prop): void
+    private function tearDownRealEnvironment(string $tempDir, ReflectionProperty $prop): void
     {
         // Remove all files recursively
-        $iterator = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($tempDir, \RecursiveDirectoryIterator::SKIP_DOTS),
-            \RecursiveIteratorIterator::CHILD_FIRST,
+        $iterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($tempDir, RecursiveDirectoryIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::CHILD_FIRST,
         );
 
         foreach ($iterator as $item) {
@@ -1093,7 +1107,7 @@ class ProcessorTest extends TestCase
 
         $lockFactory = $this->createMock(LockFactory::class);
         $lockFactory->method('createLocker')
-            ->willThrowException(new \TYPO3\CMS\Core\Locking\Exception\LockCreateException('Cannot create lock'));
+            ->willThrowException(new LockCreateException('Cannot create lock'));
 
         $response = $this->createMock(ResponseInterface::class);
         $stream   = $this->createMock(StreamInterface::class);
@@ -1178,7 +1192,7 @@ class ProcessorTest extends TestCase
     public function acquireLockWithRetryHandlesExceptionsDuringAcquire(): void
     {
         $locker = $this->createMock(LockingStrategyInterface::class);
-        $locker->method('acquire')->willThrowException(new \RuntimeException('Lock error'));
+        $locker->method('acquire')->willThrowException(new RuntimeException('Lock error'));
 
         $response503 = $this->createMock(ResponseInterface::class);
         $stream      = $this->createMock(StreamInterface::class);
@@ -1240,7 +1254,7 @@ class ProcessorTest extends TestCase
         // Use /dev/null as a path prefix - mkdir will fail since /dev/null is a device file
         $dir = '/dev/null/impossible-dir-' . uniqid('', true);
 
-        $this->expectException(\RuntimeException::class);
+        $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('Directory "/dev/null/impossible-dir-');
 
         $this->callMethod($this->processor, 'ensureDirectoryExists', $dir);
@@ -1361,40 +1375,8 @@ class ProcessorTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
-    // generateAndSend: acquireLockWithRetry returns 503
+    // (generateAndSend 400 for non-matching URL is tested above at line 756)
     // -------------------------------------------------------------------------
-
-    #[Test]
-    public function generateAndSendReturns400WhenPathValidationFails(): void
-    {
-        ['tempDir' => $tempDir, 'prop' => $prop] = $this->setUpRealEnvironment();
-
-        // pathOriginal exists, but pathVariant does NOT exist on disk.
-        // Since isPathWithinPublicRoot returns false for non-existent paths,
-        // generateAndSend returns 400.
-        file_put_contents($tempDir . '/public/images/photo.jpg', 'original');
-
-        $response400 = $this->createMock(ResponseInterface::class);
-
-        $responseFactory = $this->createMock(ResponseFactoryInterface::class);
-        $responseFactory->method('createResponse')
-            ->with(400)
-            ->willReturn($response400);
-
-        $processor = $this->createProcessor(responseFactory: $responseFactory);
-
-        $uri = $this->createMock(UriInterface::class);
-        $uri->method('getPath')->willReturn('/processed/images/photo.w100h50m0q80.jpg');
-
-        $request = $this->createMock(RequestInterface::class);
-        $request->method('getUri')->willReturn($uri);
-
-        $result = $processor->generateAndSend($request);
-
-        self::assertSame($response400, $result);
-
-        $this->tearDownRealEnvironment($tempDir, $prop);
-    }
 
     // -------------------------------------------------------------------------
     // generateAndSend: Throwable catch (500 response)
