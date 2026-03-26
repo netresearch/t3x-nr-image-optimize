@@ -9,12 +9,6 @@ Maintenance
 The extension provides a backend module accessible via
 :guilabel:`Admin Tools > Processed Images Maintenance`.
 
-..  todo::
-
-    Add screenshot of the backend maintenance module overview.
-    Dimensions: cropped to relevant area.
-    Settings: Light mode, default user, clean installation.
-
 ..  _maintenance-overview:
 
 Overview
@@ -41,12 +35,6 @@ Verify all technical prerequisites and tool availability:
 -   TYPO3 version compatibility.
 -   CLI tools (``magick``, ``convert``, ``identify``, ``gm``
     -- optional).
-
-..  todo::
-
-    Add screenshot of the system requirements check view.
-    Dimensions: cropped to relevant area.
-    Settings: Light mode, default user, clean installation.
 
 ..  _maintenance-clear:
 
