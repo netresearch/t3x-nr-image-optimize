@@ -35,7 +35,8 @@ final class ImageManagerFactory
      *
      * @return ImageManager Configured image manager
      *
-     * @throws RuntimeException If neither imagick nor gd extension is loaded
+     * @throws RuntimeException         If neither imagick nor gd extension is loaded
+     * @throws \Intervention\Image\Exceptions\DriverException If the selected driver fails to initialize
      */
     public function create(): ImageManager
     {
