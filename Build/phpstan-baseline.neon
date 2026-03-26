@@ -9,5 +9,5 @@ parameters:
 		-
 			message: '#^Dynamic call to static method PHPUnit\\Framework\\TestCase\:\:createStub\(\)\.$#'
 			identifier: staticMethod.dynamicCall
-			count: 20
+			count: 33
 			path: ../Tests/Unit/ProcessorTest.php
