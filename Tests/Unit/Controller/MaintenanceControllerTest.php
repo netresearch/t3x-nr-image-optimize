@@ -505,4 +505,23 @@ class MaintenanceControllerTest extends TestCase
         self::assertSame(200, $result[0]['size']);
         self::assertSame(100, $result[1]['size']);
     }
+
+    #[Test]
+    public function getDirectoryStatsSkipsNonRegularFiles(): void
+    {
+        $testDir = $this->tempDir . '/nonfile-test';
+        mkdir($testDir, 0o777, true);
+
+        file_put_contents($testDir . '/real.jpg', str_repeat('x', 100));
+
+        // Create a dangling symlink (not a dir, not a regular file)
+        symlink('/nonexistent-target-' . uniqid('', true), $testDir . '/dangling-link');
+
+        /** @var array<string, mixed> $result */
+        $result = $this->callMethod('getDirectoryStats', $testDir);
+
+        // Only the real file should be counted (dangling symlink is skipped)
+        self::assertSame(1, $result['count']);
+        self::assertSame(100, $result['size']);
+    }
 }

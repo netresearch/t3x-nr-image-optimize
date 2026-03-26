@@ -11,8 +11,8 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Tests\Unit;
 
-use Intervention\Image\Drivers\Gd\Driver as GdDriver;
 use Intervention\Image\ImageManager;
+use Intervention\Image\Interfaces\DriverInterface;
 use Intervention\Image\Interfaces\EncodedImageInterface;
 use Intervention\Image\Interfaces\ImageInterface;
 use Netresearch\NrImageOptimize\Processor;
@@ -1754,135 +1754,620 @@ class ProcessorTest extends TestCase
     }
 
     // =========================================================================
-    // generateAndSend: full processing path with real GD driver (lines 340-387)
-    // Covers processAndRespond, clampDimension re-clamp, variant generation,
-    // buildOutputResponse, and the complete happy path.
+    // processAndRespond: full path with mock DriverInterface (lines 332-387)
+    // Uses a real ImageManager with a mocked DriverInterface to avoid needing
+    // GD or Imagick extensions.
     // =========================================================================
 
+    /**
+     * Create a Processor with a real ImageManager backed by a mock driver.
+     *
+     * @return array{processor: Processor, image: MockObject&ImageInterface}
+     */
+    private function createProcessorWithImageManager(
+        ?object $lockFactory = null,
+        ?object $responseFactory = null,
+        ?object $streamFactory = null,
+    ): array {
+        $image = $this->createMock(ImageInterface::class);
+
+        $driver = $this->createMock(DriverInterface::class);
+        $driver->method('handleInput')->willReturn($image);
+
+        $imageManager = new ImageManager($driver);
+
+        $reflection = new ReflectionClass(Processor::class);
+        $instance   = $reflection->newInstanceWithoutConstructor();
+
+        $this->setProperty($instance, 'imageManager', $imageManager);
+        $this->setProperty($instance, 'lockFactory', $lockFactory ?? $this->createMock(LockFactory::class));
+        $this->setProperty($instance, 'responseFactory', $responseFactory ?? $this->createMock(ResponseFactoryInterface::class));
+        $this->setProperty($instance, 'streamFactory', $streamFactory ?? $this->createMock(StreamFactoryInterface::class));
+
+        return ['processor' => $instance, 'image' => $image];
+    }
+
     #[Test]
-    public function generateAndSendProcessesImageWithGdDriver(): void
+    public function processAndRespondProcessesImageAndBuildsResponse(): void
     {
-        if (!extension_loaded('gd')) {
-            self::markTestSkipped('GD extension not available');
-        }
+        $tempDir = sys_get_temp_dir() . '/nr-pio-process-' . uniqid('', true);
+        mkdir($tempDir . '/processed', 0o777, true);
 
-        ['tempDir' => $tempDir, 'prop' => $prop] = $this->setUpRealEnvironment();
+        $originalPath = $tempDir . '/original.jpg';
+        file_put_contents($originalPath, 'fake-jpeg-data');
+        $variantPath = $tempDir . '/processed/original.w400h200m0q80.jpg';
 
-        // Create a real tiny PNG image (1x1 red pixel)
-        $img = imagecreatetruecolor(200, 100);
-        imagefill($img, 0, 0, (int) imagecolorallocate($img, 255, 0, 0));
-        imagepng($img, $tempDir . '/public/photo.png');
-        imagedestroy($img);
-
-        // Set up real response/stream factories via mocks
-        $stream = $this->createMock(StreamInterface::class);
-        $stream->method('getSize')->willReturn(100);
-
-        $response = $this->createMock(ResponseInterface::class);
-        $response->method('withHeader')->willReturn($response);
-        $response->method('withBody')->willReturn($response);
+        $response200 = $this->createMock(ResponseInterface::class);
+        $response200->method('withHeader')->willReturn($response200);
+        $response200->method('withBody')->willReturn($response200);
 
         $responseFactory = $this->createMock(ResponseFactoryInterface::class);
-        $responseFactory->method('createResponse')->willReturn($response);
+        $responseFactory->method('createResponse')->willReturn($response200);
 
+        $stream = $this->createMock(StreamInterface::class);
         $streamFactory = $this->createMock(StreamFactoryInterface::class);
         $streamFactory->method('createStreamFromFile')->willReturn($stream);
 
-        $locker = $this->createMock(LockingStrategyInterface::class);
-        $locker->method('acquire')->willReturn(true);
+        $encoded = $this->createMock(EncodedImageInterface::class);
 
-        $lockFactory = $this->createMock(LockFactory::class);
-        $lockFactory->method('createLocker')->willReturn($locker);
+        ['processor' => $processor, 'image' => $image] = $this->createProcessorWithImageManager(
+            responseFactory: $responseFactory,
+            streamFactory: $streamFactory,
+        );
 
-        // Create a real Processor with ImageManager(GD)
-        $processor = new Processor(
-            new ImageManager(new GdDriver()),
-            $lockFactory,
-            $responseFactory,
-            $streamFactory,
+        $image->method('width')->willReturn(800);
+        $image->method('height')->willReturn(400);
+        $image->method('cover')->willReturn($image);
+        $image->method('save')->willReturnCallback(
+            static function (string $path) use ($image): ImageInterface {
+                file_put_contents($path, 'processed-image');
+
+                return $image;
+            },
+        );
+        $image->method('toWebp')->willReturn($encoded);
+        $image->method('toAvif')->willReturn($encoded);
+        $encoded->method('save')->willReturnCallback(
+            static function (string $path) use ($encoded): EncodedImageInterface {
+                file_put_contents($path, 'encoded-variant');
+
+                return $encoded;
+            },
         );
 
         $uri = $this->createMock(UriInterface::class);
-        $uri->method('getPath')->willReturn('/processed/photo.w100h50m0q80.png');
+        $uri->method('getQuery')->willReturn('');
+        $request = $this->createMock(RequestInterface::class);
+        $request->method('getUri')->willReturn($uri);
+
+        $urlInfo = [
+            'pathVariant'    => $variantPath,
+            'pathOriginal'   => $originalPath,
+            'extension'      => 'jpg',
+            'targetWidth'    => 400,
+            'targetHeight'   => 200,
+            'targetQuality'  => 80,
+            'processingMode' => 0,
+        ];
+
+        $prevLog = ini_set('error_log', '/dev/null');
+        $result  = $this->callMethod($processor, 'processAndRespond', $request, $urlInfo);
+        ini_set('error_log', $prevLog !== false ? $prevLog : '');
+
+        self::assertSame($response200, $result);
+
+        $files = glob($tempDir . '/processed/*');
+
+        if ($files !== false) {
+            foreach ($files as $f) {
+                unlink($f);
+            }
+        }
+
+        unlink($originalPath);
+        rmdir($tempDir . '/processed');
+        rmdir($tempDir);
+    }
+
+    #[Test]
+    public function processAndRespondSkipsWebpWhenExtensionIsWebp(): void
+    {
+        $tempDir = sys_get_temp_dir() . '/nr-pio-webp-skip-proc-' . uniqid('', true);
+        mkdir($tempDir . '/processed', 0o777, true);
+
+        $originalPath = $tempDir . '/original.webp';
+        file_put_contents($originalPath, 'fake-webp');
+        $variantPath = $tempDir . '/processed/original.w400h200m0q80.webp';
+
+        $response200 = $this->createMock(ResponseInterface::class);
+        $response200->method('withHeader')->willReturn($response200);
+        $response200->method('withBody')->willReturn($response200);
+
+        $responseFactory = $this->createMock(ResponseFactoryInterface::class);
+        $responseFactory->method('createResponse')->willReturn($response200);
+
+        $stream = $this->createMock(StreamInterface::class);
+        $streamFactory = $this->createMock(StreamFactoryInterface::class);
+        $streamFactory->method('createStreamFromFile')->willReturn($stream);
+
+        $encoded = $this->createMock(EncodedImageInterface::class);
+
+        ['processor' => $processor, 'image' => $image] = $this->createProcessorWithImageManager(
+            responseFactory: $responseFactory,
+            streamFactory: $streamFactory,
+        );
+
+        $image->method('width')->willReturn(400);
+        $image->method('height')->willReturn(200);
+        $image->method('cover')->willReturn($image);
+        $image->method('save')->willReturnCallback(
+            static function (string $path) use ($image): ImageInterface {
+                file_put_contents($path, 'processed');
+
+                return $image;
+            },
+        );
+        $image->expects(self::never())->method('toWebp');
+        $image->method('toAvif')->willReturn($encoded);
+        $encoded->method('save')->willReturnCallback(
+            static function (string $path) use ($encoded): EncodedImageInterface {
+                file_put_contents($path, 'avif-data');
+
+                return $encoded;
+            },
+        );
+
+        $uri = $this->createMock(UriInterface::class);
+        $uri->method('getQuery')->willReturn('');
+        $request = $this->createMock(RequestInterface::class);
+        $request->method('getUri')->willReturn($uri);
+
+        $urlInfo = [
+            'pathVariant'    => $variantPath,
+            'pathOriginal'   => $originalPath,
+            'extension'      => 'webp',
+            'targetWidth'    => 400,
+            'targetHeight'   => 200,
+            'targetQuality'  => 80,
+            'processingMode' => 0,
+        ];
+
+        $prevLog = ini_set('error_log', '/dev/null');
+        $result  = $this->callMethod($processor, 'processAndRespond', $request, $urlInfo);
+        ini_set('error_log', $prevLog !== false ? $prevLog : '');
+
+        self::assertSame($response200, $result);
+
+        $files = glob($tempDir . '/processed/*');
+
+        if ($files !== false) {
+            foreach ($files as $f) {
+                unlink($f);
+            }
+        }
+
+        unlink($originalPath);
+        rmdir($tempDir . '/processed');
+        rmdir($tempDir);
+    }
+
+    #[Test]
+    public function processAndRespondSkipsAvifWhenExtensionIsAvif(): void
+    {
+        $tempDir = sys_get_temp_dir() . '/nr-pio-avif-skip-proc-' . uniqid('', true);
+        mkdir($tempDir . '/processed', 0o777, true);
+
+        $originalPath = $tempDir . '/original.avif';
+        file_put_contents($originalPath, 'fake-avif');
+        $variantPath = $tempDir . '/processed/original.w400h200m0q80.avif';
+
+        $response200 = $this->createMock(ResponseInterface::class);
+        $response200->method('withHeader')->willReturn($response200);
+        $response200->method('withBody')->willReturn($response200);
+
+        $responseFactory = $this->createMock(ResponseFactoryInterface::class);
+        $responseFactory->method('createResponse')->willReturn($response200);
+
+        $stream = $this->createMock(StreamInterface::class);
+        $streamFactory = $this->createMock(StreamFactoryInterface::class);
+        $streamFactory->method('createStreamFromFile')->willReturn($stream);
+
+        $encoded = $this->createMock(EncodedImageInterface::class);
+
+        ['processor' => $processor, 'image' => $image] = $this->createProcessorWithImageManager(
+            responseFactory: $responseFactory,
+            streamFactory: $streamFactory,
+        );
+
+        $image->method('width')->willReturn(400);
+        $image->method('height')->willReturn(200);
+        $image->method('cover')->willReturn($image);
+        $image->method('save')->willReturnCallback(
+            static function (string $path) use ($image): ImageInterface {
+                file_put_contents($path, 'processed');
+
+                return $image;
+            },
+        );
+        $image->method('toWebp')->willReturn($encoded);
+        $image->expects(self::never())->method('toAvif');
+        $encoded->method('save')->willReturnCallback(
+            static function (string $path) use ($encoded): EncodedImageInterface {
+                file_put_contents($path, 'webp-data');
+
+                return $encoded;
+            },
+        );
+
+        $uri = $this->createMock(UriInterface::class);
+        $uri->method('getQuery')->willReturn('');
+        $request = $this->createMock(RequestInterface::class);
+        $request->method('getUri')->willReturn($uri);
+
+        $urlInfo = [
+            'pathVariant'    => $variantPath,
+            'pathOriginal'   => $originalPath,
+            'extension'      => 'avif',
+            'targetWidth'    => 400,
+            'targetHeight'   => 200,
+            'targetQuality'  => 80,
+            'processingMode' => 0,
+        ];
+
+        $prevLog = ini_set('error_log', '/dev/null');
+        $result  = $this->callMethod($processor, 'processAndRespond', $request, $urlInfo);
+        ini_set('error_log', $prevLog !== false ? $prevLog : '');
+
+        self::assertSame($response200, $result);
+
+        $files = glob($tempDir . '/processed/*');
+
+        if ($files !== false) {
+            foreach ($files as $f) {
+                unlink($f);
+            }
+        }
+
+        unlink($originalPath);
+        rmdir($tempDir . '/processed');
+        rmdir($tempDir);
+    }
+
+    #[Test]
+    public function processAndRespondSkipsBothVariantsViaQueryParams(): void
+    {
+        $tempDir = sys_get_temp_dir() . '/nr-pio-skip-both-' . uniqid('', true);
+        mkdir($tempDir . '/processed', 0o777, true);
+
+        $originalPath = $tempDir . '/original.jpg';
+        file_put_contents($originalPath, 'fake-jpg');
+        $variantPath = $tempDir . '/processed/original.w400h200m0q80.jpg';
+
+        $response200 = $this->createMock(ResponseInterface::class);
+        $response200->method('withHeader')->willReturn($response200);
+        $response200->method('withBody')->willReturn($response200);
+
+        $responseFactory = $this->createMock(ResponseFactoryInterface::class);
+        $responseFactory->method('createResponse')->willReturn($response200);
+
+        $stream = $this->createMock(StreamInterface::class);
+        $streamFactory = $this->createMock(StreamFactoryInterface::class);
+        $streamFactory->method('createStreamFromFile')->willReturn($stream);
+
+        ['processor' => $processor, 'image' => $image] = $this->createProcessorWithImageManager(
+            responseFactory: $responseFactory,
+            streamFactory: $streamFactory,
+        );
+
+        $image->method('width')->willReturn(400);
+        $image->method('height')->willReturn(200);
+        $image->method('cover')->willReturn($image);
+        $image->method('save')->willReturnCallback(
+            static function (string $path) use ($image): ImageInterface {
+                file_put_contents($path, 'processed');
+
+                return $image;
+            },
+        );
+        $image->expects(self::never())->method('toWebp');
+        $image->expects(self::never())->method('toAvif');
+
+        $uri = $this->createMock(UriInterface::class);
         $uri->method('getQuery')->willReturn('skipWebP=1&skipAvif=1');
-
         $request = $this->createMock(RequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
-        $result = $processor->generateAndSend($request);
-        self::assertSame($response, $result);
+        $urlInfo = [
+            'pathVariant'    => $variantPath,
+            'pathOriginal'   => $originalPath,
+            'extension'      => 'jpg',
+            'targetWidth'    => 400,
+            'targetHeight'   => 200,
+            'targetQuality'  => 80,
+            'processingMode' => 0,
+        ];
 
-        // Verify the variant file was created
-        self::assertFileExists($tempDir . '/public/processed/photo.w100h50m0q80.png');
+        $result = $this->callMethod($processor, 'processAndRespond', $request, $urlInfo);
+        self::assertSame($response200, $result);
 
-        $this->tearDownRealEnvironment($tempDir, $prop);
-    }
+        $files = glob($tempDir . '/processed/*');
 
-    // =========================================================================
-    // generateAndSend: WebP/AVIF variant generation with GD (lines 371-383)
-    // =========================================================================
-
-    #[Test]
-    public function generateAndSendCreatesWebpVariantWithGd(): void
-    {
-        if (!extension_loaded('gd')) {
-            self::markTestSkipped('GD extension not available');
+        if ($files !== false) {
+            foreach ($files as $f) {
+                unlink($f);
+            }
         }
 
-        ['tempDir' => $tempDir, 'prop' => $prop] = $this->setUpRealEnvironment();
+        unlink($originalPath);
+        rmdir($tempDir . '/processed');
+        rmdir($tempDir);
+    }
 
-        $img = imagecreatetruecolor(50, 50);
-        imagefill($img, 0, 0, (int) imagecolorallocate($img, 0, 255, 0));
-        imagejpeg($img, $tempDir . '/public/test.jpg');
-        imagedestroy($img);
+    #[Test]
+    public function processAndRespondHandlesWebpAndAvifGenerationFailure(): void
+    {
+        $tempDir = sys_get_temp_dir() . '/nr-pio-gen-fail-' . uniqid('', true);
+        mkdir($tempDir . '/processed', 0o777, true);
 
-        $stream = $this->createMock(StreamInterface::class);
-        $stream->method('getSize')->willReturn(100);
-        $response = $this->createMock(ResponseInterface::class);
-        $response->method('withHeader')->willReturn($response);
-        $response->method('withBody')->willReturn($response);
+        $originalPath = $tempDir . '/original.jpg';
+        file_put_contents($originalPath, 'fake-jpg');
+        $variantPath = $tempDir . '/processed/original.w400h200m0q80.jpg';
+
+        $response200 = $this->createMock(ResponseInterface::class);
+        $response200->method('withHeader')->willReturn($response200);
+        $response200->method('withBody')->willReturn($response200);
 
         $responseFactory = $this->createMock(ResponseFactoryInterface::class);
-        $responseFactory->method('createResponse')->willReturn($response);
+        $responseFactory->method('createResponse')->willReturn($response200);
+
+        $stream = $this->createMock(StreamInterface::class);
         $streamFactory = $this->createMock(StreamFactoryInterface::class);
         $streamFactory->method('createStreamFromFile')->willReturn($stream);
 
-        $locker = $this->createMock(LockingStrategyInterface::class);
-        $locker->method('acquire')->willReturn(true);
-        $lockFactory = $this->createMock(LockFactory::class);
-        $lockFactory->method('createLocker')->willReturn($locker);
-
-        $processor = new Processor(
-            new ImageManager(new GdDriver()),
-            $lockFactory,
-            $responseFactory,
-            $streamFactory,
+        ['processor' => $processor, 'image' => $image] = $this->createProcessorWithImageManager(
+            responseFactory: $responseFactory,
+            streamFactory: $streamFactory,
         );
 
-        $uri = $this->createMock(UriInterface::class);
-        $uri->method('getPath')->willReturn('/processed/test.w25h25m0q80.jpg');
-        $uri->method('getQuery')->willReturn('skipAvif=1');
+        $image->method('width')->willReturn(400);
+        $image->method('height')->willReturn(200);
+        $image->method('cover')->willReturn($image);
+        $image->method('save')->willReturnCallback(
+            static function (string $path) use ($image): ImageInterface {
+                file_put_contents($path, 'processed');
 
+                return $image;
+            },
+        );
+        $image->method('toWebp')->willThrowException(new RuntimeException('WebP encoding failed'));
+        $image->method('toAvif')->willThrowException(new RuntimeException('AVIF encoding failed'));
+
+        $uri = $this->createMock(UriInterface::class);
+        $uri->method('getQuery')->willReturn('');
         $request = $this->createMock(RequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
-        $result = $processor->generateAndSend($request);
-        self::assertSame($response, $result);
+        $urlInfo = [
+            'pathVariant'    => $variantPath,
+            'pathOriginal'   => $originalPath,
+            'extension'      => 'jpg',
+            'targetWidth'    => 400,
+            'targetHeight'   => 200,
+            'targetQuality'  => 80,
+            'processingMode' => 0,
+        ];
 
-        // WebP variant should have been created
-        self::assertFileExists($tempDir . '/public/processed/test.w25h25m0q80.jpg.webp');
+        $prevLog = ini_set('error_log', '/dev/null');
+        $result  = $this->callMethod($processor, 'processAndRespond', $request, $urlInfo);
+        ini_set('error_log', $prevLog !== false ? $prevLog : '');
+
+        self::assertSame($response200, $result);
+
+        $files = glob($tempDir . '/processed/*');
+
+        if ($files !== false) {
+            foreach ($files as $f) {
+                unlink($f);
+            }
+        }
+
+        unlink($originalPath);
+        rmdir($tempDir . '/processed');
+        rmdir($tempDir);
+    }
+
+    #[Test]
+    public function processAndRespondUsesScaleModeWithDerivedHeight(): void
+    {
+        $tempDir = sys_get_temp_dir() . '/nr-pio-scale-' . uniqid('', true);
+        mkdir($tempDir . '/processed', 0o777, true);
+
+        $originalPath = $tempDir . '/original.jpg';
+        file_put_contents($originalPath, 'fake-jpg');
+        $variantPath = $tempDir . '/processed/original.w400m1q80.jpg';
+
+        $response200 = $this->createMock(ResponseInterface::class);
+        $response200->method('withHeader')->willReturn($response200);
+        $response200->method('withBody')->willReturn($response200);
+
+        $responseFactory = $this->createMock(ResponseFactoryInterface::class);
+        $responseFactory->method('createResponse')->willReturn($response200);
+
+        $stream = $this->createMock(StreamInterface::class);
+        $streamFactory = $this->createMock(StreamFactoryInterface::class);
+        $streamFactory->method('createStreamFromFile')->willReturn($stream);
+
+        ['processor' => $processor, 'image' => $image] = $this->createProcessorWithImageManager(
+            responseFactory: $responseFactory,
+            streamFactory: $streamFactory,
+        );
+
+        $image->method('width')->willReturn(800);
+        $image->method('height')->willReturn(400);
+        $image->method('scale')->willReturn($image);
+        $image->method('save')->willReturnCallback(
+            static function (string $path) use ($image): ImageInterface {
+                file_put_contents($path, 'processed');
+
+                return $image;
+            },
+        );
+
+        $uri = $this->createMock(UriInterface::class);
+        $uri->method('getQuery')->willReturn('skipWebP=1&skipAvif=1');
+        $request = $this->createMock(RequestInterface::class);
+        $request->method('getUri')->willReturn($uri);
+
+        $urlInfo = [
+            'pathVariant'    => $variantPath,
+            'pathOriginal'   => $originalPath,
+            'extension'      => 'jpg',
+            'targetWidth'    => 400,
+            'targetHeight'   => null,
+            'targetQuality'  => 80,
+            'processingMode' => 1,
+        ];
+
+        $result = $this->callMethod($processor, 'processAndRespond', $request, $urlInfo);
+        self::assertSame($response200, $result);
+
+        $files = glob($tempDir . '/processed/*');
+
+        if ($files !== false) {
+            foreach ($files as $f) {
+                unlink($f);
+            }
+        }
+
+        unlink($originalPath);
+        rmdir($tempDir . '/processed');
+        rmdir($tempDir);
+    }
+
+    // =========================================================================
+    // generateAndSend: re-check after lock via file creation during lock wait
+    // =========================================================================
+
+    #[Test]
+    public function generateAndSendReturnsReCheckedCachedVariantAfterLock(): void
+    {
+        ['tempDir' => $tempDir, 'prop' => $prop] = $this->setUpRealEnvironment();
+
+        // Create original but NOT the variant before lock acquisition
+        file_put_contents($tempDir . '/public/img.jpg', 'fake-original');
+        $variantPath = $tempDir . '/public/processed/img.w100h50m0q80.jpg';
+
+        $response200 = $this->createMock(ResponseInterface::class);
+        $response200->method('withHeader')->willReturn($response200);
+        $response200->method('withBody')->willReturn($response200);
+
+        $responseFactory = $this->createMock(ResponseFactoryInterface::class);
+        $responseFactory->method('createResponse')->with(200)->willReturn($response200);
+
+        // Simulate another process creating the file during lock wait
+        $locker = $this->createMock(LockingStrategyInterface::class);
+        $locker->method('acquire')->willReturnCallback(
+            static function () use ($variantPath): bool {
+                file_put_contents($variantPath, 'created-during-lock-wait');
+
+                return true;
+            },
+        );
+        $locker->expects(self::once())->method('release');
+
+        $lockFactory = $this->createMock(LockFactory::class);
+        $lockFactory->method('createLocker')->willReturn($locker);
+
+        $stream = $this->createMock(StreamInterface::class);
+        $streamFactory = $this->createMock(StreamFactoryInterface::class);
+        $streamFactory->method('createStreamFromFile')->willReturn($stream);
+
+        $processor = $this->createProcessor(
+            lockFactory: $lockFactory,
+            responseFactory: $responseFactory,
+            streamFactory: $streamFactory,
+        );
+
+        $uri = $this->createMock(UriInterface::class);
+        $uri->method('getPath')->willReturn('/processed/img.w100h50m0q80.jpg');
+        $request = $this->createMock(RequestInterface::class);
+        $request->method('getUri')->willReturn($uri);
+
+        // This covers line 223: return $cachedResponse after lock re-check
+        $result = $processor->generateAndSend($request);
+        self::assertSame($response200, $result);
 
         $this->tearDownRealEnvironment($tempDir, $prop);
     }
 
     // =========================================================================
-    // MaintenanceController: clearProcessedImagesAction (lines 119-155)
-    // Needs TYPO3 ActionController infrastructure — tested via functional tests.
-    // Coverage will be provided by CI's functional test suite.
+    // generateAndSend: path validation failure returns 400 (line 194)
     // =========================================================================
 
-    // =========================================================================
-    // SystemRequirementsService: checkImagick/checkGd when loaded (lines 187-258)
-    // Covered by tests that skip when extension not available — CI has both.
-    // =========================================================================
+    #[Test]
+    public function generateAndSendReturns400WhenVariantPathOutsidePublicRoot(): void
+    {
+        $tempDir = sys_get_temp_dir() . '/nr-pio-pathval-' . uniqid('', true);
+        mkdir($tempDir . '/public/processed', 0o777, true);
+        mkdir($tempDir . '/outside', 0o777, true);
+
+        $refClass = new ReflectionClass(Processor::class);
+        $prop     = $refClass->getProperty('resolvedPublicPath');
+        $prop->setValue(null, null);
+
+        Environment::initialize(
+            new ApplicationContext('Testing'),
+            true,
+            true,
+            $tempDir,
+            $tempDir . '/public',
+            $tempDir . '/var',
+            $tempDir . '/config',
+            $tempDir . '/public/index.php',
+            'UNIX',
+        );
+
+        // Create a symlink inside /public/processed that points outside public root
+        $symlinkTarget = $tempDir . '/outside';
+        $symlinkPath   = $tempDir . '/public/processed/escape';
+        symlink($symlinkTarget, $symlinkPath);
+
+        // Create the original file at the symlink destination
+        file_put_contents($tempDir . '/outside/photo.jpg', 'image-data');
+
+        $response400 = $this->createMock(ResponseInterface::class);
+        $responseFactory = $this->createMock(ResponseFactoryInterface::class);
+        $responseFactory->method('createResponse')->with(400)->willReturn($response400);
+
+        $processor = $this->createProcessor(responseFactory: $responseFactory);
+
+        $uri = $this->createMock(UriInterface::class);
+        $uri->method('getPath')->willReturn('/processed/escape/photo.w100h50m0q80.jpg');
+        $request = $this->createMock(RequestInterface::class);
+        $request->method('getUri')->willReturn($uri);
+
+        $result = $processor->generateAndSend($request);
+        self::assertSame($response400, $result);
+
+        // Cleanup
+        unlink($symlinkPath);
+        unlink($tempDir . '/outside/photo.jpg');
+        rmdir($tempDir . '/outside');
+        rmdir($tempDir . '/public/processed');
+        rmdir($tempDir . '/public');
+        rmdir($tempDir);
+
+        $prop->setValue(null, null);
+        Environment::initialize(
+            new ApplicationContext('Testing'),
+            true,
+            true,
+            '/var/www/html',
+            '/var/www/html/public',
+            '/var/www/html/var',
+            '/var/www/html/config',
+            '/var/www/html/public/index.php',
+            'UNIX',
+        );
+    }
 }
