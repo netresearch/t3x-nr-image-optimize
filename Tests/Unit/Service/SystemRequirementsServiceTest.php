@@ -295,6 +295,17 @@ class SystemRequirementsServiceTest extends TestCase
         // Check intervention/gif
         $interventionGif = $result['items'][1];
         self::assertSame('intervention/gif', $interventionGif['label']);
+
+        // Verify status reflects actual installation state
+        foreach ($result['items'] as $item) {
+            if ($item['status'] === 'success') {
+                self::assertNotNull($item['current'], 'Installed packages should have a version');
+                self::assertNull($item['currentKey'], 'Installed packages should not have a currentKey');
+            } else {
+                self::assertSame('error', $item['status']);
+                self::assertSame('sysreq.notInstalled', $item['currentKey']);
+            }
+        }
     }
 
     #[Test]
@@ -333,6 +344,50 @@ class SystemRequirementsServiceTest extends TestCase
         self::assertContains('CLI: convert', $labels);
         self::assertContains('CLI: identify', $labels);
         self::assertContains('CLI: gm (GraphicsMagick)', $labels);
+    }
+
+    #[Test]
+    public function makeFormatSupportItemReturnsCorrectStructureWhenSupported(): void
+    {
+        /** @var array<string, mixed> $result */
+        $result = $this->callMethod('makeFormatSupportItem', 'sysreq.webpSupport', true);
+
+        self::assertSame('sysreq.webpSupport', $result['labelKey']);
+        self::assertSame('success', $result['status']);
+        self::assertSame('sysreq.yes', $result['currentKey']);
+        self::assertSame('sysreq.optional', $result['requiredKey']);
+    }
+
+    #[Test]
+    public function makeFormatSupportItemReturnsCorrectStructureWhenNotSupported(): void
+    {
+        /** @var array<string, mixed> $result */
+        $result = $this->callMethod('makeFormatSupportItem', 'sysreq.avifSupport', false);
+
+        self::assertSame('sysreq.avifSupport', $result['labelKey']);
+        self::assertSame('warning', $result['status']);
+        self::assertSame('sysreq.no', $result['currentKey']);
+        self::assertSame('sysreq.optional', $result['requiredKey']);
+    }
+
+    #[Test]
+    public function checkBinaryAvailabilityReturnsNullAvailableWhenExecNotAllowed(): void
+    {
+        /** @var array<string, mixed> $result */
+        $result = $this->callMethod('checkBinaryAvailability', 'magick', false);
+
+        self::assertNull($result['available']);
+        self::assertSame('n/a', $result['version']);
+    }
+
+    #[Test]
+    public function checkBinaryAvailabilityReturnsFalseForNonexistentBinary(): void
+    {
+        /** @var array<string, mixed> $result */
+        $result = $this->callMethod('checkBinaryAvailability', 'nonexistent_binary_xyz_' . uniqid('', true), true);
+
+        self::assertFalse($result['available']);
+        self::assertNull($result['version']);
     }
 
     #[Test]

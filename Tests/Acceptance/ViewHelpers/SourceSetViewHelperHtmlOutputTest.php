@@ -127,7 +127,7 @@ class SourceSetViewHelperHtmlOutputTest extends TestCase
         self::assertNotNull($img);
 
         $srcset = $img->getAttribute('srcset');
-        self::assertStringContainsString('/processed/fileadmin/hero.w800h600m0q100.jpg x2', $srcset);
+        self::assertStringContainsString('/processed/fileadmin/hero.w800h600m0q100.jpg 2x', $srcset);
     }
 
     #[Test]
@@ -256,7 +256,7 @@ class SourceSetViewHelperHtmlOutputTest extends TestCase
         // 1x candidate
         self::assertStringContainsString('/processed/fileadmin/product.w300h200m0q100.jpg', $srcset);
         // 2x candidate
-        self::assertStringContainsString('/processed/fileadmin/product.w600h400m0q100.jpg x2', $srcset);
+        self::assertStringContainsString('/processed/fileadmin/product.w600h400m0q100.jpg 2x', $srcset);
     }
 
     // ──────────────────────────────────────────────────

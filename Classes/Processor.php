@@ -15,7 +15,6 @@ use function dirname;
 use function file_exists;
 use function file_get_contents;
 use function filemtime;
-use function filesize;
 use function gmdate;
 
 use Intervention\Image\ImageManager;

@@ -95,7 +95,7 @@ class SourceSetViewHelperTest extends TestCase
         $result = $this->viewHelper->render();
 
         // Test legacy 2x density output
-        self::assertStringContainsString('srcset="/processed/path/to/image.w200h200m0q100.jpg x2"', $result);
+        self::assertStringContainsString('srcset="/processed/path/to/image.w200h200m0q100.jpg 2x"', $result);
         self::assertStringContainsString('width="100"', $result);
         self::assertStringContainsString('height="100"', $result);
         self::assertStringContainsString('alt="Test Image"', $result);
@@ -453,7 +453,7 @@ class SourceSetViewHelperTest extends TestCase
 
         $expected = '<source media="(max-width: 480px)" '
             . 'srcset="/processed/images/picture.w200h120m0q100.jpg, '
-            . '/processed/images/picture.w400h240m0q100.jpg x2" />' . PHP_EOL;
+            . '/processed/images/picture.w400h240m0q100.jpg 2x" />' . PHP_EOL;
 
         self::assertSame($expected, $result);
     }

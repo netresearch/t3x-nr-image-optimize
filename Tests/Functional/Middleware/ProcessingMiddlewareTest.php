@@ -63,12 +63,8 @@ final class ProcessingMiddlewareTest extends FunctionalTestCase
     {
         $request = new ServerRequest(new Uri('https://example.com/processed/fileadmin/test.w100h75m0q80.png'));
 
-        $handlerCalled = false;
-
-        $handler = new class ($handlerCalled) implements RequestHandlerInterface {
-            public function __construct(
-                private bool &$called,
-            ) {}
+        $handler = new class implements RequestHandlerInterface {
+            public bool $called = false;
 
             public function handle(ServerRequestInterface $request): ResponseInterface
             {
@@ -81,7 +77,7 @@ final class ProcessingMiddlewareTest extends FunctionalTestCase
         $middleware = $this->get(ProcessingMiddleware::class);
         $response   = $middleware->process($request, $handler);
 
-        self::assertFalse($handlerCalled, 'Next handler should not be called for /processed/ paths');
+        self::assertFalse($handler->called, 'Next handler should not be called for /processed/ paths');
         self::assertContains(
             $response->getStatusCode(),
             [200, 400, 404, 500, 503],

@@ -186,7 +186,7 @@ class SourceSetViewHelper extends AbstractViewHelper
         $path   = $this->getArgPath();
         $jsLazy = $this->useJsLazyLoad();
 
-        $srcSet  = $this->getResourcePath($path, $width * self::RETINA_MULTIPLIER, $height * self::RETINA_MULTIPLIER) . ' x2';
+        $srcSet  = $this->getResourcePath($path, $width * self::RETINA_MULTIPLIER, $height * self::RETINA_MULTIPLIER) . ' 2x';
         $srcPath = $this->getResourcePath($path, $width, $height);
 
         $props = $this->buildImageAttributes($srcPath, $srcSet, $width, $height, $jsLazy);
@@ -230,15 +230,17 @@ class SourceSetViewHelper extends AbstractViewHelper
      *
      * @param array<string, int|string|null> $props Attribute map
      *
-     * @return array<string, int|string> Filtered attribute map
+     * @return array<string, int|string|null> Filtered attribute map
      */
     private function filterEmptyAttributes(array $props): array
     {
         return array_filter(
             $props,
-            static fn (int|string|null $value, string|int $key): bool => $key === 'alt'
-                ? $value !== null
-                : ($value !== null) && ($value !== ''),
+            static fn (int|string|null $value, string|int $key): bool => match (true) {
+                $key === 'alt' => $value !== null,
+                $key === 'width', $key === 'height' => !in_array($value, [null, '', 0], true),
+                default => $value !== null && $value !== '',
+            },
             ARRAY_FILTER_USE_BOTH,
         );
     }
@@ -386,7 +388,7 @@ class SourceSetViewHelper extends AbstractViewHelper
         foreach ($this->getArgSet() as $maxWidth => $dimensions) {
             $dimensionHeight = $dimensions['height'] ?? 0;
             $srcSet          = sprintf(
-                '%s, %s x2',
+                '%s, %s 2x',
                 $this->getResourcePath($path, $dimensions['width'], $dimensionHeight),
                 $this->getResourcePath($path, $dimensions['width'] * self::RETINA_MULTIPLIER, $dimensionHeight * self::RETINA_MULTIPLIER),
             );
@@ -410,7 +412,7 @@ class SourceSetViewHelper extends AbstractViewHelper
      * Render a self-closing HTML tag with given attributes and global attributes/lazyload applied.
      *
      * @param string                               $tag        Tag name (e.g., 'img' or 'source')
-     * @param array<string, int|string|float|bool> $properties Attribute map to render into the tag
+     * @param array<string, int|string|float|bool|null> $properties Attribute map to render into the tag
      *
      * @return string The HTML string ending with a newline
      */

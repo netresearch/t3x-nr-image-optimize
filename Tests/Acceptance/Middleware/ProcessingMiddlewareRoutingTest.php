@@ -13,7 +13,6 @@ namespace Netresearch\NrImageOptimize\Tests\Acceptance\Middleware;
 
 use function base64_decode;
 use function file_put_contents;
-
 use function is_dir;
 use function mkdir;
 
@@ -76,6 +75,11 @@ class ProcessingMiddlewareRoutingTest extends TestCase
         if (!is_dir($this->publicPath)) {
             mkdir($this->publicPath, 0o777, true);
         }
+
+        // Create fileadmin and processed/fileadmin directories so that
+        // isPathWithinPublicRoot can resolve parent paths via realpath().
+        mkdir($this->publicPath . '/fileadmin', 0o777, true);
+        mkdir($this->publicPath . '/processed/fileadmin', 0o777, true);
 
         Environment::initialize(
             new ApplicationContext('Testing'),

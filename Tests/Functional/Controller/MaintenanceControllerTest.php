@@ -18,9 +18,7 @@ use function mkdir;
 use Netresearch\NrImageOptimize\Controller\MaintenanceController;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
-use TYPO3\CMS\Backend\Template\ModuleTemplateFactory;
 use TYPO3\CMS\Core\Core\Environment;
-use TYPO3\CMS\Core\Localization\LanguageServiceFactory;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
 
@@ -43,22 +41,12 @@ final class MaintenanceControllerTest extends FunctionalTestCase
     #[Test]
     public function maintenanceControllerIsRegisteredInContainer(): void
     {
-        $controller = $this->get(MaintenanceController::class);
-        self::assertInstanceOf(MaintenanceController::class, $controller);
-    }
-
-    #[Test]
-    public function moduleTemplateFactoryIsAvailable(): void
-    {
-        $factory = $this->get(ModuleTemplateFactory::class);
-        self::assertInstanceOf(ModuleTemplateFactory::class, $factory);
-    }
-
-    #[Test]
-    public function languageServiceFactoryIsAvailable(): void
-    {
-        $factory = $this->get(LanguageServiceFactory::class);
-        self::assertInstanceOf(LanguageServiceFactory::class, $factory);
+        // Verifies that the DI container can resolve the controller with all its dependencies
+        // (ModuleTemplateFactory, SystemRequirementsService, LanguageServiceFactory).
+        // A ContainerExceptionInterface is thrown if any dependency is missing.
+        // The expectation is implicit: no exception = success.
+        $this->get(MaintenanceController::class);
+        $this->addToAssertionCount(1);
     }
 
     #[Test]
