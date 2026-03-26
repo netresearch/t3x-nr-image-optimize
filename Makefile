@@ -1,4 +1,4 @@
-.PHONY: help cgl cgl-fix phpstan rector fractor lint test test-unit test-fuzz
+.PHONY: help cgl cgl-fix phpstan rector fractor lint test test-unit test-fuzz mutation
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -28,5 +28,8 @@ test-unit: ## Run unit tests
 
 test-fuzz: ## Run fuzz tests
 	composer ci:test:php:fuzz
+
+mutation: ## Run mutation tests with Infection
+	composer ci:test:php:mutation
 
 .DEFAULT_GOAL := help

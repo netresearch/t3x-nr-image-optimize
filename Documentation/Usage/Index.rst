@@ -90,6 +90,13 @@ Custom width variants
 Output comparison
 =================
 
+..  todo::
+
+    Add screenshot showing a side-by-side comparison of the
+    original image versus the optimized output (e.g. PNG
+    original vs WebP optimized at different widths).
+    Dimensions: cropped to show file size difference.
+
 **Legacy mode** (``responsiveSrcset=false`` or not set):
 
 ..  code-block:: html

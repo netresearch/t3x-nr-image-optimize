@@ -94,8 +94,15 @@
             "@putenv XDEBUG_MODE=coverage",
             "phpunit --configuration Build/UnitTests.xml --coverage-html .build/coverage/"
         ],
+        "ci:test:php:acceptance": [
+            "phpunit --configuration Build/AcceptanceTests.xml"
+        ],
         "ci:test:php:fuzz": [
             "phpunit --configuration Build/FuzzTests.xml --no-coverage"
+        ],
+        "ci:test:php:mutation": [
+            "@putenv XDEBUG_MODE=coverage",
+            "infection --configuration=infection.json5 --threads=4 --no-progress --show-mutations"
         ],
         "ci:test:php:phpstan": [
             "phpstan analyze --configuration Build/phpstan.neon --memory-limit=-1"

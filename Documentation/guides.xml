@@ -6,6 +6,7 @@
         vendor/phpdocumentor/guides-cli/resources/schema/guides.xsd"
     theme="typo3docs"
     default-code-language="html"
+    links-are-relative="true"
 >
     <project
         title="Image Optimization for TYPO3"
@@ -25,10 +26,7 @@
         edit-on-github="netresearch/t3x-nr-image-optimize"
         edit-on-github-branch="main"
         edit-on-github-directory="Documentation"
+        project-discussions="https://github.com/netresearch/t3x-nr-image-optimize/discussions"
     />
 
-    <inventory
-        id="t3coreapi"
-        url="https://docs.typo3.org/m/typo3/reference-coreapi/main/en-us/"
-    />
 </guides>

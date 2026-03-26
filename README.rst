@@ -3,8 +3,11 @@
 ..  |license| image:: https://img.shields.io/github/license/netresearch/t3x-nr-image-optimize
     :target: https://github.com/netresearch/t3x-nr-image-optimize/blob/main/LICENSE
 ..  |ci| image:: https://github.com/netresearch/t3x-nr-image-optimize/actions/workflows/ci.yml/badge.svg
+    :target: https://github.com/netresearch/t3x-nr-image-optimize/actions/workflows/ci.yml
 ..  |php| image:: https://img.shields.io/badge/PHP-8.2%20|%208.3%20|%208.4%20|%208.5-blue.svg
+    :target: https://www.php.net/
 ..  |typo3| image:: https://img.shields.io/badge/TYPO3-13.4%20|%2014-orange.svg
+    :target: https://typo3.org/
 
 |php| |typo3| |license| |ci| |release|
 
