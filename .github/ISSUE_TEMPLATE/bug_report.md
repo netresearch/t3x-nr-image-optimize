@@ -24,9 +24,11 @@ What is the expected behavior?
 If helpful, add screenshots or error logs to clarify your problem.
 
 **Environment**
- - TYPO3 version: 
- - PHP version: 
- - Extension version: 
+ - TYPO3 version:
+ - PHP version:
+ - Extension version:
+ - Intervention Image version:
+ - Image driver (Imagick/GD):
 
 **Documentation**
 Have you checked the readme/documentation?

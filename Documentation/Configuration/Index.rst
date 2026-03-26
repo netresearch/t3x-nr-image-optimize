@@ -41,7 +41,17 @@ Parameters
     :type: object
     :required: true
 
-    Image file resource (FAL file reference).
+    Image file resource (FAL file reference). Either ``file``
+    or ``path`` must be provided.
+
+..  confval:: path
+    :name: confval-path
+    :type: string
+
+    URI string path to the image, typically generated via
+    ``f:uri.image()``. Use ``path`` instead of ``file`` when
+    passing a pre-resolved image URI. Either ``file`` or
+    ``path`` must be provided.
 
 ..  confval:: width
     :name: confval-width

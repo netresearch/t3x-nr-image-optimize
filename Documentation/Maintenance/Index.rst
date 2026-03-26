@@ -21,13 +21,6 @@ View statistics about processed images:
 -   Largest files.
 -   File type distribution.
 
-..  todo::
-
-    Add screenshot of the maintenance module overview showing
-    file count, total size, and file type distribution.
-    Dimensions: cropped to relevant area.
-    Settings: Light mode, j.doe user, clean installation.
-
 ..  _maintenance-system-requirements:
 
 System requirements check
@@ -42,14 +35,6 @@ Verify all technical prerequisites and tool availability:
 -   TYPO3 version compatibility.
 -   CLI tools (``magick``, ``convert``, ``identify``, ``gm``
     -- optional).
-
-..  todo::
-
-    Add screenshot of the system requirements view showing
-    the checklist of PHP extensions, image library
-    capabilities, and TYPO3 compatibility status.
-    Dimensions: cropped to relevant area.
-    Settings: Light mode, j.doe user, clean installation.
 
 ..  _maintenance-clear:
 

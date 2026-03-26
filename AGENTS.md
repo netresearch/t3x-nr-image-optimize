@@ -44,7 +44,7 @@ Welcome! This repository contains the TYPO3 extension **`nr_image_optimize`**, w
 
 ## Contribution Tips
 - Explain how new features affect image processing (e.g., new query flags, formats, or ViewHelper attributes).
-- Keep documentation (`README.rst`, changelog) in sync with code changes.
+- Keep documentation (`Documentation/` directory, changelog) in sync with code changes.
 - For new services/middleware, wire them up via `Configuration/Services.yaml` or `Configuration/RequestMiddlewares.php`.
 - Avoid committing generated files under `.build/` or TYPO3 caches.
 
