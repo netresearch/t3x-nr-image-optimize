@@ -759,10 +759,125 @@ class ProcessorTest extends TestCase
         $request->method('getUri')->willReturn($uri);
 
         $response = $this->createMock(ResponseInterface::class);
-        $this->responseFactory->method('createResponse')->willReturn($response);
+        $this->responseFactory->expects(self::once())
+            ->method('createResponse')
+            ->with(400)
+            ->willReturn($response);
 
         $result = $this->processor->generateAndSend($request);
 
         self::assertSame($response, $result);
+    }
+
+    #[Test]
+    public function buildFileResponseSetsCorrectStatusAndHeaders(): void
+    {
+        $base = sys_get_temp_dir() . '/nr-image-optimize-headers-' . uniqid('', true);
+        file_put_contents($base, 'header-test-content');
+
+        $response = $this->createMock(ResponseInterface::class);
+        $stream   = $this->createMock(StreamInterface::class);
+
+        $this->responseFactory->expects(self::once())
+            ->method('createResponse')
+            ->with(200)
+            ->willReturn($response);
+
+        $response->method('withHeader')->willReturn($response);
+        $this->streamFactory->method('createStream')->willReturn($stream);
+        $response->method('withBody')->willReturn($response);
+
+        $result = $this->callMethod($this->processor, 'buildFileResponse', $base, 'image/jpeg');
+
+        self::assertNotNull($result);
+
+        unlink($base);
+    }
+
+    #[Test]
+    public function buildOutputResponseReturns500WhenAllVariantsFail(): void
+    {
+        $base = sys_get_temp_dir() . '/nr-image-optimize-500-' . uniqid('', true);
+        // No files exist at all — all buildFileResponse calls return null
+
+        $response500 = $this->createMock(ResponseInterface::class);
+        $this->responseFactory->expects(self::once())
+            ->method('createResponse')
+            ->with(500)
+            ->willReturn($response500);
+
+        $result = $this->callMethod($this->processor, 'buildOutputResponse', 'jpg', $base);
+
+        self::assertSame($response500, $result);
+    }
+
+    #[Test]
+    public function serveCachedVariantSkipsAvifCheckWhenExtensionIsAvif(): void
+    {
+        $base = sys_get_temp_dir() . '/nr-image-optimize-avif-skip-' . uniqid('', true);
+        // Create webp and primary files but no .avif — extension is avif so avif check should be skipped
+        file_put_contents($base . '.webp', 'webp-data');
+        file_put_contents($base, 'primary-data');
+
+        $response = $this->createMock(ResponseInterface::class);
+        $stream   = $this->createMock(StreamInterface::class);
+
+        $this->responseFactory->method('createResponse')->willReturn($response);
+        $response->method('withHeader')->willReturn($response);
+        $this->streamFactory->method('createStream')->willReturn($stream);
+        $response->method('withBody')->willReturn($response);
+
+        // When extension is 'avif', the avif check is skipped, webp check is skipped (not webp ext), falls to primary
+        $result = $this->callMethod($this->processor, 'serveCachedVariant', $base, 'avif');
+
+        self::assertNotNull($result);
+
+        unlink($base . '.webp');
+        unlink($base);
+    }
+
+    #[Test]
+    public function serveCachedVariantSkipsWebpCheckWhenExtensionIsWebp(): void
+    {
+        $base = sys_get_temp_dir() . '/nr-image-optimize-webp-skip-' . uniqid('', true);
+        file_put_contents($base, 'primary-data');
+
+        $response = $this->createMock(ResponseInterface::class);
+        $stream   = $this->createMock(StreamInterface::class);
+
+        $this->responseFactory->method('createResponse')->willReturn($response);
+        $response->method('withHeader')->willReturn($response);
+        $this->streamFactory->method('createStream')->willReturn($stream);
+        $response->method('withBody')->willReturn($response);
+
+        // When extension is 'webp', both avif and webp upgrade checks are skipped, falls to primary
+        $result = $this->callMethod($this->processor, 'serveCachedVariant', $base, 'webp');
+
+        self::assertNotNull($result);
+
+        unlink($base);
+    }
+
+    #[Test]
+    public function serveCachedVariantPrefersWebpOverPrimaryWhenNoAvif(): void
+    {
+        $base = sys_get_temp_dir() . '/nr-image-optimize-webp-pref-' . uniqid('', true);
+        file_put_contents($base . '.webp', 'webp-data');
+        file_put_contents($base, 'jpg-data');
+
+        $response = $this->createMock(ResponseInterface::class);
+        $stream   = $this->createMock(StreamInterface::class);
+
+        $this->responseFactory->method('createResponse')->willReturn($response);
+        $response->method('withHeader')->willReturn($response);
+        $this->streamFactory->method('createStream')->with('webp-data')->willReturn($stream);
+        $response->method('withBody')->willReturn($response);
+
+        $result = $this->callMethod($this->processor, 'serveCachedVariant', $base, 'jpg');
+
+        self::assertNotNull($result);
+
+        unlink($base . '.webp');
+        unlink($base);
     }
 }

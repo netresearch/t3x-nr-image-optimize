@@ -11,6 +11,8 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Tests\Functional;
 
+use function getimagesize;
+
 use Netresearch\NrImageOptimize\Processor;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
@@ -18,10 +20,6 @@ use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Http\ServerRequest;
 use TYPO3\CMS\Core\Http\Uri;
 use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
-
-use function file_exists;
-use function file_get_contents;
-use function getimagesize;
 
 /**
  * Functional tests for the Processor with real image fixtures.

@@ -12,7 +12,6 @@ declare(strict_types=1);
 namespace Netresearch\NrImageOptimize\Tests\Functional\Middleware;
 
 use Netresearch\NrImageOptimize\Middleware\ProcessingMiddleware;
-use Netresearch\NrImageOptimize\Processor;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use Psr\Http\Message\ResponseInterface;
@@ -95,7 +94,7 @@ final class ProcessingMiddlewareTest extends FunctionalTestCase
     {
         $request = new ServerRequest(new Uri('https://example.com/processed/'));
 
-        $handler = new class () implements RequestHandlerInterface {
+        $handler = new class implements RequestHandlerInterface {
             public function handle(ServerRequestInterface $request): ResponseInterface
             {
                 return new Response();
@@ -115,7 +114,7 @@ final class ProcessingMiddlewareTest extends FunctionalTestCase
             new Uri('https://example.com/processed/fileadmin/nonexistent.w100h75m0q80.png'),
         );
 
-        $handler = new class () implements RequestHandlerInterface {
+        $handler = new class implements RequestHandlerInterface {
             public function handle(ServerRequestInterface $request): ResponseInterface
             {
                 return new Response();

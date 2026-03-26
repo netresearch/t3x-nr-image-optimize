@@ -11,25 +11,18 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Tests\Acceptance\ViewHelpers;
 
-use function implode;
-use function preg_match;
-use function preg_match_all;
-use function str_contains;
-use function substr_count;
-use function trim;
-
 use DOMDocument;
 use DOMElement;
-use DOMXPath;
 use Netresearch\NrImageOptimize\ViewHelpers\SourceSetViewHelper;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
-use TYPO3\CMS\Core\Core\ApplicationContext;
-use TYPO3\CMS\Core\Core\Environment;
 
 use function sys_get_temp_dir;
+
+use TYPO3\CMS\Core\Core\ApplicationContext;
+use TYPO3\CMS\Core\Core\Environment;
 
 /**
  * Acceptance tests that verify the rendered HTML output of the SourceSetViewHelper.
@@ -379,10 +372,10 @@ class SourceSetViewHelperHtmlOutputTest extends TestCase
      */
     public static function fetchpriorityRenderProvider(): iterable
     {
-        yield 'high renders as high'   => ['high', 'high'];
-        yield 'low renders as low'     => ['low', 'low'];
-        yield 'auto renders as auto'   => ['auto', 'auto'];
-        yield 'empty omits attribute'  => ['', null];
+        yield 'high renders as high' => ['high', 'high'];
+        yield 'low renders as low' => ['low', 'low'];
+        yield 'auto renders as auto' => ['auto', 'auto'];
+        yield 'empty omits attribute' => ['', null];
         yield 'invalid omits attribute' => ['urgent', null];
     }
 

@@ -197,7 +197,11 @@ class Processor
             return $cachedResponse;
         }
 
-        $locker = $this->getLocker($variantUrl . '-process');
+        try {
+            $locker = $this->getLocker($variantUrl . '-process');
+        } catch (LockCreateException) {
+            return $this->responseFactory->createResponse(503);
+        }
 
         $lockResponse = $this->acquireLockWithRetry($locker);
 
@@ -215,7 +219,15 @@ class Processor
             }
 
             return $this->processAndRespond($request, $urlInfo);
-        } catch (Throwable) {
+        } catch (Throwable $exception) {
+            error_log(sprintf(
+                'nr_image_optimize: Processing failed for "%s": %s in %s:%d',
+                $variantUrl,
+                $exception->getMessage(),
+                $exception->getFile(),
+                $exception->getLine(),
+            ));
+
             return $this->responseFactory->createResponse(500);
         } finally {
             $locker->release();
@@ -273,17 +285,13 @@ class Processor
             return null;
         }
 
-        $fileSize  = @filesize($filePath);
         $fileMtime = @filemtime($filePath);
 
         $response = $this->responseFactory->createResponse(200)
             ->withHeader('Content-Type', $mimeType)
             ->withHeader('Cache-Control', 'public, max-age=' . self::CACHE_MAX_AGE . ', immutable')
+            ->withHeader('Content-Length', (string) strlen($contents))
             ->withBody($this->streamFactory->createStream($contents));
-
-        if ($fileSize !== false) {
-            $response = $response->withHeader('Content-Length', (string) $fileSize);
-        }
 
         if ($fileMtime !== false) {
             return $response
@@ -353,11 +361,19 @@ class Processor
         $queryParams = $this->parseQueryParams($request);
 
         if (!$this->isWebpImage($extension) && !$queryParams['skipWebP']) {
-            $this->generateWebpVariant($image, $targetQuality, $pathVariant);
+            try {
+                $this->generateWebpVariant($image, $targetQuality, $pathVariant);
+            } catch (Throwable $e) {
+                error_log('nr_image_optimize: WebP variant failed: ' . $e->getMessage());
+            }
         }
 
         if (!$this->isAvifImage($extension) && !$queryParams['skipAvif']) {
-            $this->generateAvifVariant($image, $targetQuality, $pathVariant);
+            try {
+                $this->generateAvifVariant($image, $targetQuality, $pathVariant);
+            } catch (Throwable $e) {
+                error_log('nr_image_optimize: AVIF variant failed: ' . $e->getMessage());
+            }
         }
 
         return $this->buildOutputResponse($extension, $pathVariant);
@@ -567,22 +583,22 @@ class Processor
      */
     private function acquireLockWithRetry(LockingStrategyInterface $locker): ?ResponseInterface
     {
-        $retryCount = 0;
-
-        while ($locker->acquire() === false) {
-            usleep(self::LOCK_RETRY_INTERVAL_USEC);
-
-            ++$retryCount;
-
-            if ($retryCount === self::LOCK_MAX_RETRIES) {
-                return $this->responseFactory->createResponse(503)
-                    ->withBody($this->streamFactory->createStream(
-                        'Image is currently being processed',
-                    ));
+        for ($attempt = 0; $attempt < self::LOCK_MAX_RETRIES; ++$attempt) {
+            try {
+                if ($locker->acquire() !== false) {
+                    return null;
+                }
+            } catch (Throwable) {
+                // Lock infrastructure failure — treat as lock-not-acquired
             }
+
+            usleep(self::LOCK_RETRY_INTERVAL_USEC);
         }
 
-        return null;
+        return $this->responseFactory->createResponse(503)
+            ->withBody($this->streamFactory->createStream(
+                'Image is currently being processed',
+            ));
     }
 
     /**

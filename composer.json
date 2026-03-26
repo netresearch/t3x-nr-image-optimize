@@ -97,6 +97,9 @@
         "ci:test:php:acceptance": [
             "phpunit --configuration Build/AcceptanceTests.xml"
         ],
+        "ci:test:php:functional": [
+            "phpunit --configuration Build/FunctionalTests.xml"
+        ],
         "ci:test:php:fuzz": [
             "phpunit --configuration Build/FuzzTests.xml --no-coverage"
         ],

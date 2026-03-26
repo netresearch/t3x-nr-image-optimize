@@ -143,7 +143,14 @@ final class MaintenanceController extends ActionController
                 '',
                 ContextualFeedbackSeverity::OK,
             );
-        } catch (Throwable) {
+        } catch (Throwable $exception) {
+            error_log(sprintf(
+                'nr_image_optimize: clearProcessedImages failed: %s in %s:%d',
+                $exception->getMessage(),
+                $exception->getFile(),
+                $exception->getLine(),
+            ));
+
             $this->addFlashMessage(
                 $this->getLanguageService()->sL('LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:flash.clear.error'),
                 '',
@@ -319,6 +326,6 @@ final class MaintenanceController extends ActionController
      */
     private function getLanguageService(): LanguageService
     {
-        return $this->languageServiceFactory->createFromUserPreferences($GLOBALS['BE_USER']);
+        return $this->languageServiceFactory->createFromUserPreferences($GLOBALS['BE_USER'] ?? null);
     }
 }

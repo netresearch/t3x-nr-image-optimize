@@ -12,16 +12,11 @@ declare(strict_types=1);
 namespace Netresearch\NrImageOptimize\Tests\Acceptance\Middleware;
 
 use function base64_decode;
-use function dirname;
 use function file_put_contents;
+
 use function is_dir;
 use function mkdir;
-use function rmdir;
-use function sys_get_temp_dir;
-use function unlink;
 
-use Intervention\Image\Drivers\Gd\Driver as GdDriver;
-use Intervention\Image\ImageManager;
 use Netresearch\NrImageOptimize\Middleware\ProcessingMiddleware;
 use Netresearch\NrImageOptimize\Processor;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -29,20 +24,25 @@ use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseFactoryInterface;
-use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\StreamFactoryInterface;
-use Psr\Http\Message\StreamInterface;
 use Psr\Http\Message\UriInterface;
 use Psr\Http\Server\RequestHandlerInterface;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
+use ReflectionClass;
+
+use function rmdir;
+use function sys_get_temp_dir;
+
 use TYPO3\CMS\Core\Core\ApplicationContext;
 use TYPO3\CMS\Core\Core\Environment;
-use TYPO3\CMS\Core\Http\Response;
 use TYPO3\CMS\Core\Http\ResponseFactory;
-use TYPO3\CMS\Core\Http\Stream;
 use TYPO3\CMS\Core\Http\StreamFactory;
 use TYPO3\CMS\Core\Locking\LockFactory;
 use TYPO3\CMS\Core\Locking\LockingStrategyInterface;
+
+use function unlink;
 
 /**
  * Acceptance tests for the ProcessingMiddleware routing and the Processor
@@ -364,22 +364,36 @@ class ProcessingMiddlewareRoutingTest extends TestCase
         return $request;
     }
 
+    /**
+     * Create a Processor instance using reflection to bypass the final ImageManager.
+     *
+     * ImageManager is declared final and cannot be mocked. We use
+     * newInstanceWithoutConstructor and inject dependencies via reflection,
+     * matching the approach in the existing ProcessorTest.
+     */
     private function createProcessor(): Processor
     {
-        $imageManager = $this->createMock(ImageManager::class);
-
         $lockFactory = $this->createMock(LockFactory::class);
         $locker      = $this->createMock(LockingStrategyInterface::class);
         $locker->method('acquire')->willReturn(true);
         $locker->method('release')->willReturn(true);
         $lockFactory->method('createLocker')->willReturn($locker);
 
-        return new Processor(
-            $imageManager,
-            $lockFactory,
-            $this->responseFactory,
-            $this->streamFactory,
-        );
+        $reflection = new ReflectionClass(Processor::class);
+        $instance   = $reflection->newInstanceWithoutConstructor();
+
+        $this->setProperty($instance, 'lockFactory', $lockFactory);
+        $this->setProperty($instance, 'responseFactory', $this->responseFactory);
+        $this->setProperty($instance, 'streamFactory', $this->streamFactory);
+
+        return $instance;
+    }
+
+    private function setProperty(object $object, string $property, mixed $value): void
+    {
+        $reflection = new ReflectionClass($object);
+        $prop       = $reflection->getProperty($property);
+        $prop->setValue($object, $value);
     }
 
     /**
@@ -411,9 +425,9 @@ class ProcessingMiddlewareRoutingTest extends TestCase
             return;
         }
 
-        $items = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($dir, \RecursiveDirectoryIterator::SKIP_DOTS),
-            \RecursiveIteratorIterator::CHILD_FIRST,
+        $items = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($dir, RecursiveDirectoryIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::CHILD_FIRST,
         );
 
         foreach ($items as $item) {
