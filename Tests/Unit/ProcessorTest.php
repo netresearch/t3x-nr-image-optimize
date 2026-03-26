@@ -804,7 +804,7 @@ class ProcessorTest extends TestCase
 
         $response->method('withHeader')->willReturn($response);
 
-        $streamFactory = $this->createStub(StreamFactoryInterface::class);
+        $streamFactory = $this->createMock(StreamFactoryInterface::class);
         $streamFactory->method('createStreamFromFile')->willReturn($stream);
 
         $response->method('withBody')->willReturn($response);
@@ -827,13 +827,16 @@ class ProcessorTest extends TestCase
         $base = sys_get_temp_dir() . '/nr-image-optimize-500-' . uniqid('', true);
         // No files exist at all — all buildFileResponse calls return null
 
-        $response500 = $this->createMock(ResponseInterface::class);
-        $this->responseFactory->expects(self::once())
+        $response500     = $this->createMock(ResponseInterface::class);
+        $responseFactory = $this->createMock(ResponseFactoryInterface::class);
+        $responseFactory->expects(self::once())
             ->method('createResponse')
             ->with(500)
             ->willReturn($response500);
 
-        $result = $this->callMethod($this->processor, 'buildOutputResponse', 'jpg', $base);
+        $processor = $this->createProcessor(responseFactory: $responseFactory);
+
+        $result = $this->callMethod($processor, 'buildOutputResponse', 'jpg', $base);
 
         self::assertSame($response500, $result);
     }
