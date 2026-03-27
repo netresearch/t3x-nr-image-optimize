@@ -25,12 +25,8 @@ return static function (RectorConfig $rectorConfig): void {
         __DIR__ . '/../Classes',
         __DIR__ . '/../Configuration',
         __DIR__ . '/../Resources',
-        __DIR__ . '/../ext_*.php',
-    ]);
-
-    $rectorConfig->skip([
-        __DIR__ . '/../ext_emconf.php',
-        __DIR__ . '/../ext_*.sql',
+        __DIR__ . '/../Tests',
+        __DIR__ . '/../ext_*',
     ]);
 
     $rectorConfig->phpstanConfig('Build/phpstan.neon');
@@ -58,8 +54,10 @@ return static function (RectorConfig $rectorConfig): void {
         Typo3LevelSetList::UP_TO_TYPO3_12,
     ]);
 
-    // Skip some rules
+    // Skip paths and rules
     $rectorConfig->skip([
+        __DIR__ . '/../ext_emconf.php',
+        __DIR__ . '/../ext_*.sql',
         CatchExceptionNameMatchingTypeRector::class,
         ClassPropertyAssignToConstructorPromotionRector::class,
         RemoveUselessParamTagRector::class,

@@ -1,0 +1,38 @@
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 1%
+    patch:
+      default:
+        target: 100%
+
+flags:
+  unit:
+    paths:
+      - Classes/
+    carryforward: true
+
+component_management:
+  individual_components:
+    - component_id: controller
+      name: Controller
+      paths:
+        - Classes/Controller/**
+    - component_id: middleware
+      name: Middleware
+      paths:
+        - Classes/Middleware/**
+    - component_id: processor
+      name: Processor
+      paths:
+        - Classes/Processor.php
+    - component_id: service
+      name: Service
+      paths:
+        - Classes/Service/**
+    - component_id: viewhelpers
+      name: ViewHelpers
+      paths:
+        - Classes/ViewHelpers/**
