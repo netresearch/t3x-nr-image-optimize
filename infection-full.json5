@@ -1,0 +1,27 @@
+{
+    "$schema": ".build/vendor/infection/infection/resources/schema.json",
+    // Full mutation testing: includes unit + functional + acceptance tests.
+    // Requires Docker (via runTests.sh -s mutation-full) because functional
+    // tests need GD/Imagick which are only available in the container images.
+    "source": {
+        "directories": [
+            "Classes"
+        ]
+    },
+    "timeout": 60,
+    "phpUnit": {
+        "configDir": "Build/Infection",
+        "customPath": ".build/bin/phpunit"
+    },
+    "logs": {
+        "text": ".build/infection/infection-full.log",
+        "html": ".build/infection/infection-full.html",
+        "summary": ".build/infection/summary-full.log"
+    },
+    "tmpDir": ".build/infection/tmp",
+    "mutators": {
+        "@default": true
+    },
+    "minMsi": 90,
+    "minCoveredMsi": 90
+}
