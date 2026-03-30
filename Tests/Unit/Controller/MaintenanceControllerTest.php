@@ -12,7 +12,6 @@ declare(strict_types=1);
 namespace Netresearch\NrImageOptimize\Tests\Unit\Controller;
 
 use Netresearch\NrImageOptimize\Controller\MaintenanceController;
-use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
@@ -20,6 +19,7 @@ use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use ReflectionClass;
 use ReflectionMethod;
+use SplFileInfo;
 use TYPO3\CMS\Core\Core\ApplicationContext;
 use TYPO3\CMS\Core\Core\Environment;
 
@@ -29,8 +29,10 @@ use TYPO3\CMS\Core\Core\Environment;
  * The controller depends on final TYPO3 classes (ModuleTemplateFactory) which cannot
  * be mocked, so we use ReflectionClass::newInstanceWithoutConstructor() to test the
  * private helper methods (getDirectoryStats, formatBytes) in isolation.
+ *
+ * No CoversClass attribute: final classes cannot be instrumented
+ * by PCOV on PHP 8.5, causing PHPUnit coverage warnings.
  */
-#[CoversClass(MaintenanceController::class)]
 class MaintenanceControllerTest extends TestCase
 {
     private MaintenanceController $controller;
@@ -81,6 +83,7 @@ class MaintenanceControllerTest extends TestCase
         );
 
         foreach ($items as $item) {
+            /** @var SplFileInfo $item */
             if ($item->isDir()) {
                 rmdir($item->getPathname());
             } else {
@@ -200,6 +203,7 @@ class MaintenanceControllerTest extends TestCase
         /** @var array<string, mixed> $result */
         $result = $this->callMethod('getDirectoryStats', $testDir);
 
+        assert(is_array($result['largestFiles']));
         self::assertCount(5, $result['largestFiles']);
         // Should be sorted by size descending
         self::assertSame(700, $result['largestFiles'][0]['size']);
@@ -223,6 +227,7 @@ class MaintenanceControllerTest extends TestCase
         /** @var array<string, mixed> $result */
         $result = $this->callMethod('getDirectoryStats', $testDir);
 
+        assert(is_array($result['fileTypes']));
         $keys = array_keys($result['fileTypes']);
         self::assertSame('jpg', $keys[0], 'Larger file type should come first');
         self::assertSame('png', $keys[1]);
@@ -331,6 +336,96 @@ class MaintenanceControllerTest extends TestCase
         yield 'exactly 1 TB' => [1024 * 1024 * 1024 * 1024, '1 TB'];
         yield '1.5 TB' => [(int) (1.5 * 1024 * 1024 * 1024 * 1024), '1.5 TB'];
         yield 'fractional KB truncated to 2 decimals' => [1075, '1.05 KB'];
+        yield '5 TB uses TB unit not beyond' => [5 * 1024 * 1024 * 1024 * 1024, '5 TB'];
+        yield '999 TB stays in TB' => [999 * 1024 * 1024 * 1024 * 1024, '999 TB'];
+    }
+
+    #[Test]
+    public function formatBytesUsesExactlyTwoDecimalPlaces(): void
+    {
+        // 1536 bytes = 1.5 KB (must NOT be '1.50 KB' or '1.500 KB')
+        $result = $this->callMethod('formatBytes', 1536);
+        self::assertSame('1.5 KB', $result);
+        assert(is_string($result)); // @phpstan-ignore function.alreadyNarrowedType
+        self::assertStringNotContainsString('.50', $result);
+
+        // 1075 bytes = 1.05 KB (must NOT be '1.050 KB')
+        $result2 = $this->callMethod('formatBytes', 1075);
+        self::assertSame('1.05 KB', $result2);
+        assert(is_string($result2)); // @phpstan-ignore function.alreadyNarrowedType
+        self::assertStringNotContainsString('.050', $result2);
+    }
+
+    #[Test]
+    public function formatBytesTbBoundaryUsesLastUnit(): void
+    {
+        // Value large enough that floor(log($bytes, 1024)) would exceed the units array index.
+        // 5 TB should still show as TB (the last unit), not cause an out-of-bounds error.
+        $fiveTb = 5 * 1024 * 1024 * 1024 * 1024;
+        $result = $this->callMethod('formatBytes', $fiveTb);
+        self::assertSame('5 TB', $result);
+
+        // Verify it ends with ' TB' and not ' GB' or any other unit
+        assert(is_string($result)); // @phpstan-ignore function.alreadyNarrowedType
+        self::assertStringEndsWith(' TB', $result);
+    }
+
+    #[Test]
+    public function formatBytesIntCastOnFloorMatters(): void
+    {
+        // Verify the (int) cast on floor(log($bytes, 1024)) produces correct results.
+        // 1024 bytes: log(1024, 1024) = 1.0, floor = 1.0, (int) = 1 => "1 KB"
+        self::assertSame('1 KB', $this->callMethod('formatBytes', 1024));
+
+        // Exact power boundaries: ensure the unit index is an integer
+        self::assertSame('1 MB', $this->callMethod('formatBytes', 1024 * 1024));
+        self::assertSame('1 GB', $this->callMethod('formatBytes', 1024 * 1024 * 1024));
+        self::assertSame('1 TB', $this->callMethod('formatBytes', 1024 * 1024 * 1024 * 1024));
+
+        // Verify the (int) cast is required: without it, floor() returns float and
+        // the exponentiation/division would produce a float-keyed result.
+        // Use a value near a boundary where floating-point log may not be exact.
+        // 1023*1024 = 1047552 is just under 1 MB; should still be KB.
+        self::assertSame('1023 KB', $this->callMethod('formatBytes', 1023 * 1024));
+    }
+
+    #[Test]
+    public function formatBytesClampsPowToLastUnitIndex(): void
+    {
+        // When bytes exceed TB range, pow would be > 4 (beyond units array).
+        // count($units) - 1 = 4 clamps it. Mutating to count($units) - 0 = 5
+        // or count($units) + 1 = 6 would cause undefined array index.
+        // 1 PB = 1024^5 bytes. floor(log(1024^5, 1024)) = 5, min(5, 4) = 4 => TB.
+        $onePb  = (int) (1024 ** 5); // @phpstan-ignore cast.useless
+        $result = $this->callMethod('formatBytes', $onePb);
+        self::assertSame('1024 TB', $result);
+
+        // 10 PB
+        $tenPb   = (int) (10 * 1024 ** 4) * 1024; // @phpstan-ignore cast.useless
+        $result2 = $this->callMethod('formatBytes', $tenPb);
+        assert(is_string($result2));
+        self::assertStringEndsWith(' TB', $result2);
+    }
+
+    #[Test]
+    public function formatBytesRoundsPrecisionToExactlyTwoDecimals(): void
+    {
+        // 1025 bytes: round(1025/1024, 2) = round(1.0009765625, 2) = 1.0 => "1 KB"
+        // If mutated to round(..., 3), result would be 1.001 => "1.001 KB"
+        self::assertSame('1 KB', $this->callMethod('formatBytes', 1025));
+
+        // 1126 bytes: round(1126/1024, 2) = round(1.099609375, 2) = 1.1 => "1.1 KB"
+        // If mutated to round(..., 3), result would be 1.1 => same. Need better value.
+        // 2049 bytes: round(2049/1024, 2) = round(2.0009765625, 2) = 2.0 => "2 KB"
+        // If mutated to round(..., 3), result would be 2.001 => "2.001 KB"
+        self::assertSame('2 KB', $this->callMethod('formatBytes', 2049));
+
+        // 1048577 bytes (1 MB + 1 byte): round(1048577/1048576, 2) = round(1.00000095367..., 2) = 1.0 => "1 MB"
+        // If mutated to round(..., 3), result would be 1.0 => "1 MB" (same, too small)
+        // Better: 1049600 = 1048576 + 1024 = 1 MB + 1 KB
+        // round(1049600/1048576, 2) = round(1.0009765625, 2) = 1.0 => "1 MB"
+        // If mutated to round(..., 3): 1.001 => "1.001 MB"
+        self::assertSame('1 MB', $this->callMethod('formatBytes', 1049600));
     }
 
     #[Test]
@@ -346,6 +441,7 @@ class MaintenanceControllerTest extends TestCase
         /** @var array<string, mixed> $result */
         $result = $this->callMethod('getDirectoryStats', $testDir);
 
+        assert(is_array($result['fileTypes']));
         $keys = array_keys($result['fileTypes']);
         self::assertSame('jpg', $keys[0]);
         self::assertSame('png', $keys[1]);
@@ -447,6 +543,7 @@ class MaintenanceControllerTest extends TestCase
         self::assertSame(1, $result['count']);
         self::assertSame(500, $result['size']);
         self::assertSame(0, $result['directories']);
+        assert(is_array($result['largestFiles']));
         self::assertCount(1, $result['largestFiles']);
         self::assertSame('only.webp', $result['oldestFile']['name']);
         self::assertSame('only.webp', $result['newestFile']['name']);
