@@ -12,6 +12,9 @@ services:
       - '@Netresearch\NrImageOptimize\Service\ImageManagerFactory'
       - 'create'
 
+  Netresearch\NrImageOptimize\Service\ImageReaderInterface:
+    alias: Netresearch\NrImageOptimize\Service\ImageManagerAdapter
+
   Netresearch\NrImageOptimize\ProcessorInterface:
     alias: Netresearch\NrImageOptimize\Processor
 
