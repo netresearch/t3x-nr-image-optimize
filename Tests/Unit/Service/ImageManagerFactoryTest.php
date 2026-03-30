@@ -36,8 +36,8 @@ class ImageManagerFactoryTest extends TestCase
     #[Test]
     public function createReturnsManagerCapableOfReadingImages(): void
     {
-        if (!extension_loaded('imagick') && !extension_loaded('gd')) {
-            self::markTestSkipped('Neither imagick nor gd extension is available.');
+        if (!extension_loaded('gd')) {
+            self::markTestSkipped('GD extension is required for this test.');
         }
 
         $imageManager = $this->factory->create();

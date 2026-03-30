@@ -1925,8 +1925,14 @@ class ProcessorTest extends TestCase
         $image->method('width')->willReturn(400);
         $image->method('height')->willReturn(200);
         $image->method('cover')->willReturn($image);
-        $image->method('save')->willReturnCallback(
-            static function (string $path, mixed ...$options) use ($image): ImageInterface {
+
+        // WebP source: save primary (.webp) + AVIF variant, but NOT an extra .webp
+        $image->expects(self::exactly(2))->method('save')->willReturnCallback(
+            static function (string $path, mixed ...$options) use ($image, $variantPath): ImageInterface {
+                self::assertThat($path, self::logicalOr(
+                    self::equalTo($variantPath),
+                    self::equalTo($variantPath . '.avif'),
+                ));
                 file_put_contents($path, 'processed');
 
                 return $image;
@@ -1994,8 +2000,14 @@ class ProcessorTest extends TestCase
         $image->method('width')->willReturn(400);
         $image->method('height')->willReturn(200);
         $image->method('cover')->willReturn($image);
-        $image->method('save')->willReturnCallback(
-            static function (string $path, mixed ...$options) use ($image): ImageInterface {
+
+        // AVIF source: save primary (.avif) + WebP variant, but NOT an extra .avif
+        $image->expects(self::exactly(2))->method('save')->willReturnCallback(
+            static function (string $path, mixed ...$options) use ($image, $variantPath): ImageInterface {
+                self::assertThat($path, self::logicalOr(
+                    self::equalTo($variantPath),
+                    self::equalTo($variantPath . '.webp'),
+                ));
                 file_put_contents($path, 'processed');
 
                 return $image;
@@ -2063,7 +2075,9 @@ class ProcessorTest extends TestCase
         $image->method('width')->willReturn(400);
         $image->method('height')->willReturn(200);
         $image->method('cover')->willReturn($image);
-        $image->method('save')->willReturnCallback(
+
+        // Both variants skipped: save() called exactly once for the primary file only
+        $image->expects(self::once())->method('save')->with($variantPath, 80)->willReturnCallback(
             static function (string $path, mixed ...$options) use ($image): ImageInterface {
                 file_put_contents($path, 'processed');
 
