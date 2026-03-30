@@ -173,7 +173,8 @@ class SourceSetViewHelper extends AbstractViewHelper
         $srcSet  = implode(', ', $srcsetEntries);
         $srcPath = $this->getResourcePath($path, $width, $height);
 
-        $sizesValue = $this->arguments['sizes'] ?? self::DEFAULT_SIZES;
+        $sizes      = $this->arguments['sizes'] ?? self::DEFAULT_SIZES;
+        $sizesValue = is_string($sizes) ? $sizes : self::DEFAULT_SIZES;
 
         $props          = $this->buildImageAttributes($srcPath, $srcSet, $width, $height, $jsLazy);
         $props['sizes'] = $sizesValue;
@@ -236,9 +237,9 @@ class SourceSetViewHelper extends AbstractViewHelper
             'srcset'        => $srcSet,
             'width'         => $width,
             'height'        => $height,
-            'alt'           => trim($this->arguments['alt'] ?? ''),
-            'title'         => trim($this->arguments['title'] ?? ''),
-            'class'         => trim($this->arguments['class'] ?? ''),
+            'alt'           => $this->getStringArgument('alt'),
+            'title'         => $this->getStringArgument('title'),
+            'class'         => $this->getStringArgument('class'),
             'fetchpriority' => $this->getArgFetchpriority(),
         ];
     }
@@ -301,9 +302,10 @@ class SourceSetViewHelper extends AbstractViewHelper
         $variants = $this->arguments['widthVariants'] ?? self::DEFAULT_WIDTH_VARIANTS;
 
         if (is_array($variants)) {
-            $widths = array_map(intval(...), $variants);
+            $widths = array_map(static fn (mixed $v): int => is_numeric($v) ? (int) $v : 0, $variants);
         } else {
-            $widths = array_map(intval(...), array_map(trim(...), explode(',', (string) $variants)));
+            $variantString = is_string($variants) ? $variants : '';
+            $widths        = array_map(intval(...), array_map(trim(...), explode(',', $variantString)));
         }
 
         $widths = $this->validateWidthVariants($widths);
@@ -333,7 +335,9 @@ class SourceSetViewHelper extends AbstractViewHelper
      */
     private function useJsLazyLoad(): bool
     {
-        return str_contains($this->arguments['class'] ?? '', 'lazyload');
+        $class = $this->arguments['class'] ?? '';
+
+        return is_string($class) && str_contains($class, 'lazyload');
     }
 
     /**
@@ -492,7 +496,9 @@ class SourceSetViewHelper extends AbstractViewHelper
      */
     private function getArgWidth(): int
     {
-        return (int) floor($this->arguments['width'] ?? 0);
+        $width = $this->arguments['width'] ?? 0;
+
+        return (int) floor(is_numeric($width) ? (float) $width : 0);
     }
 
     /**
@@ -502,7 +508,9 @@ class SourceSetViewHelper extends AbstractViewHelper
      */
     private function getArgHeight(): int
     {
-        return (int) floor($this->arguments['height'] ?? 0);
+        $height = $this->arguments['height'] ?? 0;
+
+        return (int) floor(is_numeric($height) ? (float) $height : 0);
     }
 
     /**
@@ -512,7 +520,9 @@ class SourceSetViewHelper extends AbstractViewHelper
      */
     private function getArgPath(): string
     {
-        return $this->arguments['path'];
+        $path = $this->arguments['path'] ?? '';
+
+        return is_string($path) ? $path : '';
     }
 
     /**
@@ -522,7 +532,14 @@ class SourceSetViewHelper extends AbstractViewHelper
      */
     private function getArgSet(): array
     {
-        return $this->arguments['set'] ?? [];
+        $set = $this->arguments['set'] ?? [];
+
+        if (!is_array($set)) {
+            return [];
+        }
+
+        /** @var array<array-key, array<string, int>> $set */
+        return $set;
     }
 
     /**
@@ -554,6 +571,7 @@ class SourceSetViewHelper extends AbstractViewHelper
             return [];
         }
 
+        /** @var array<string, string|int|float|bool> */
         return $this->arguments['attributes'];
     }
 
@@ -575,7 +593,8 @@ class SourceSetViewHelper extends AbstractViewHelper
      */
     private function getArgFetchpriority(): string
     {
-        $value = trim((string) ($this->arguments['fetchpriority'] ?? ''));
+        $raw   = $this->arguments['fetchpriority'] ?? '';
+        $value = is_string($raw) ? trim($raw) : '';
 
         if ($value === '') {
             return '';
@@ -587,6 +606,20 @@ class SourceSetViewHelper extends AbstractViewHelper
             'high', 'low', 'auto' => $value,
             default => '',
         };
+    }
+
+    /**
+     * Get a trimmed string value from a ViewHelper argument.
+     *
+     * @param string $name Argument name
+     *
+     * @return string Trimmed value or empty string
+     */
+    private function getStringArgument(string $name): string
+    {
+        $value = $this->arguments[$name] ?? '';
+
+        return is_string($value) ? trim($value) : '';
     }
 
     /**

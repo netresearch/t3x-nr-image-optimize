@@ -1,12 +1,18 @@
 includes:
-    - %currentWorkingDirectory%/Build/phpstan-baseline.neon
+    - phpstan-baseline.neon
 
 parameters:
-    # You can currently choose from 11 levels (0 is the loosest and 10 is the strictest).
-    level: 8
+    # Level 10 (maximum strictness) — matches typo3-ci-workflows shared config
+    level: 10
 
     # PHP Version to check against (PHP 8.2 as minimum target)
     phpVersion: 80200
+
+    treatPhpDocTypesAsCertain: false
+    inferPrivatePropertyTypeFromConstructor: true
+    checkMissingCallableSignature: true
+    checkUninitializedProperties: true
+    reportUnmatchedIgnoredErrors: true
 
     paths:
         - %currentWorkingDirectory%/Classes/
@@ -17,3 +23,36 @@ parameters:
     excludePaths:
         - %currentWorkingDirectory%/.build/*
         - %currentWorkingDirectory%/ext_emconf.php
+
+    tmpDir: %currentWorkingDirectory%/.build/var/phpstan
+
+    ignoreErrors:
+        # --- Test infrastructure (from shared config) ---
+        - identifier: offsetAccess.nonOffsetAccessible
+          path: %currentWorkingDirectory%/Tests/Unit/*
+          reportUnmatched: false
+        - identifier: argument.type
+          path: %currentWorkingDirectory%/Tests/Unit/*
+          message: '#Parameter \#2 \$array of static method PHPUnit\\Framework\\Assert::#'
+          reportUnmatched: false
+        - identifier: cast.int
+          path: %currentWorkingDirectory%/Tests/Functional/*
+          reportUnmatched: false
+        - identifier: argument.type
+          path: %currentWorkingDirectory%/Tests/Functional/*
+          message: '#mixed#'
+          reportUnmatched: false
+        - identifier: assign.propertyType
+          path: %currentWorkingDirectory%/Tests/Functional/*
+          message: '#mixed#'
+          reportUnmatched: false
+        - identifier: method.nonObject
+          path: %currentWorkingDirectory%/Tests/Functional/*
+          message: '#mixed#'
+          reportUnmatched: false
+
+services:
+    -
+        class: Netresearch\NrImageOptimize\Tests\Architecture\ArchitectureTest
+        tags:
+            - phpat.test

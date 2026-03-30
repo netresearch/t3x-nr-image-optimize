@@ -15,13 +15,10 @@ use function extension_loaded;
 
 use Netresearch\NrImageOptimize\Service\ImageManagerAdapter;
 use Netresearch\NrImageOptimize\Service\ImageManagerFactory;
-use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 
-#[CoversClass(ImageManagerFactory::class)]
-#[CoversClass(ImageManagerAdapter::class)]
 class ImageManagerFactoryTest extends TestCase
 {
     private ImageManagerFactory $factory;

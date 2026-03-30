@@ -35,6 +35,7 @@ use RecursiveIteratorIterator;
 use function round;
 
 use RuntimeException;
+use SplFileInfo;
 
 use function str_replace;
 use function strtolower;
@@ -208,6 +209,7 @@ final class MaintenanceController extends ActionController implements LoggerAwar
             RecursiveIteratorIterator::SELF_FIRST,
         );
 
+        /** @var SplFileInfo $file */
         foreach ($iterator as $file) {
             if ($file->isDir()) {
                 ++$directories;
@@ -331,7 +333,11 @@ final class MaintenanceController extends ActionController implements LoggerAwar
      */
     private function getLanguageService(): LanguageService
     {
-        return $this->languageServiceFactory->createFromUserPreferences($GLOBALS['BE_USER'] ?? null);
+        $backendUser = $GLOBALS['BE_USER'] ?? null;
+
+        return $this->languageServiceFactory->createFromUserPreferences(
+            $backendUser instanceof \TYPO3\CMS\Core\Authentication\AbstractUserAuthentication ? $backendUser : null,
+        );
     }
 
     /**

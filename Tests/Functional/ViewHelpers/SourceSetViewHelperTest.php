@@ -176,6 +176,9 @@ final class SourceSetViewHelperTest extends FunctionalTestCase
 
         $view = new TemplateView($renderingContext);
 
-        return (string) $view->render();
+        $rendered = $view->render();
+        assert(is_string($rendered));
+
+        return $rendered;
     }
 }

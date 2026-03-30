@@ -34,6 +34,9 @@ use ReflectionClass;
 use ReflectionMethod;
 
 use function rmdir;
+
+use SplFileInfo;
+
 use function sys_get_temp_dir;
 
 use TYPO3\CMS\Core\Core\ApplicationContext;
@@ -267,6 +270,7 @@ class ProcessingMiddlewareRoutingTest extends TestCase
             'processingMode' => 0,
         ]);
 
+        assert($response instanceof \Psr\Http\Message\ResponseInterface);
         self::assertSame(404, $response->getStatusCode());
     }
 
@@ -375,6 +379,7 @@ class ProcessingMiddlewareRoutingTest extends TestCase
 
         self::assertNotNull($response);
 
+        assert($response instanceof \Psr\Http\Message\ResponseInterface);
         $etag = $response->getHeaderLine('ETag');
         self::assertMatchesRegularExpression('/^"[a-f0-9]{32}"$/', $etag, 'ETag should be a quoted MD5 hash.');
 
@@ -394,6 +399,7 @@ class ProcessingMiddlewareRoutingTest extends TestCase
 
         self::assertNotNull($response);
 
+        assert($response instanceof \Psr\Http\Message\ResponseInterface);
         $lastModified = $response->getHeaderLine('Last-Modified');
         self::assertStringContainsString('GMT', $lastModified);
 
@@ -483,6 +489,7 @@ class ProcessingMiddlewareRoutingTest extends TestCase
         );
 
         foreach ($items as $item) {
+            /** @var SplFileInfo $item */
             if ($item->isDir()) {
                 @rmdir($item->getRealPath());
             } else {

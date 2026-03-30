@@ -13,7 +13,6 @@ namespace Netresearch\NrImageOptimize\Tests\Unit\Middleware;
 
 use Netresearch\NrImageOptimize\Middleware\ProcessingMiddleware;
 use Netresearch\NrImageOptimize\ProcessorInterface;
-use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
@@ -22,7 +21,6 @@ use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\UriInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 
-#[CoversClass(ProcessingMiddleware::class)]
 class ProcessingMiddlewareTest extends TestCase
 {
     #[Test]
