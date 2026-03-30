@@ -11,13 +11,12 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Tests\Unit;
 
-use Intervention\Image\ImageManager;
-use Intervention\Image\Interfaces\DriverInterface;
-use Intervention\Image\Interfaces\EncodedImageInterface;
 use Intervention\Image\Interfaces\ImageInterface;
 use Netresearch\NrImageOptimize\Event\ImageProcessedEvent;
 use Netresearch\NrImageOptimize\Event\VariantServedEvent;
 use Netresearch\NrImageOptimize\Processor;
+use Netresearch\NrImageOptimize\Service\ImageManagerAdapter;
+use Netresearch\NrImageOptimize\Service\ImageReaderInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
@@ -46,6 +45,7 @@ use TYPO3\CMS\Core\Locking\LockingStrategyInterface;
 #[CoversClass(Processor::class)]
 #[UsesClass(ImageProcessedEvent::class)]
 #[UsesClass(VariantServedEvent::class)]
+#[UsesClass(ImageManagerAdapter::class)]
 class ProcessorTest extends TestCase
 {
     private MockObject $lockFactory;
@@ -440,13 +440,11 @@ class ProcessorTest extends TestCase
     #[Test]
     public function generateWebpVariantEncodesAndSavesImage(): void
     {
-        $image   = $this->createMock(ImageInterface::class);
-        $encoded = $this->createMock(EncodedImageInterface::class);
+        $image = $this->createMock(ImageInterface::class);
 
         $variantBase = sys_get_temp_dir() . '/nr-image-optimize-' . uniqid('variant', true);
 
-        $image->expects(self::once())->method('toWebp')->with(90)->willReturn($encoded);
-        $encoded->expects(self::once())->method('save')->with($variantBase . '.webp')->willReturnSelf();
+        $image->expects(self::once())->method('save')->with($variantBase . '.webp', 90)->willReturnSelf();
 
         $this->callMethod($this->processor, 'generateWebpVariant', $image, 90, $variantBase);
     }
@@ -454,13 +452,11 @@ class ProcessorTest extends TestCase
     #[Test]
     public function generateAvifVariantEncodesAndSavesImage(): void
     {
-        $image   = $this->createMock(ImageInterface::class);
-        $encoded = $this->createMock(EncodedImageInterface::class);
+        $image = $this->createMock(ImageInterface::class);
 
         $variantBase = sys_get_temp_dir() . '/nr-image-optimize-' . uniqid('variant', true);
 
-        $image->expects(self::once())->method('toAvif')->with(75)->willReturn($encoded);
-        $encoded->expects(self::once())->method('save')->with($variantBase . '.avif')->willReturnSelf();
+        $image->expects(self::once())->method('save')->with($variantBase . '.avif', 75)->willReturnSelf();
 
         $this->callMethod($this->processor, 'generateAvifVariant', $image, 75, $variantBase);
     }
@@ -1798,17 +1794,17 @@ class ProcessorTest extends TestCase
     }
 
     // =========================================================================
-    // processAndRespond: full path with mock DriverInterface (lines 332-387)
-    // Uses a real ImageManager with a mocked DriverInterface to avoid needing
-    // GD or Imagick extensions.
+    // processAndRespond: full path with mock ImageReaderInterface
+    // Uses a mocked ImageReaderInterface to avoid needing GD or Imagick
+    // extensions.
     // =========================================================================
 
     /**
-     * Create a Processor with a real ImageManager backed by a mock driver.
+     * Create a Processor with a mock ImageReaderInterface.
      *
      * @return array{processor: Processor, image: MockObject&ImageInterface}
      */
-    private function createProcessorWithImageManager(
+    private function createProcessorWithImageReader(
         ?object $lockFactory = null,
         ?object $responseFactory = null,
         ?object $streamFactory = null,
@@ -1816,15 +1812,13 @@ class ProcessorTest extends TestCase
     ): array {
         $image = $this->createMock(ImageInterface::class);
 
-        $driver = $this->createMock(DriverInterface::class);
-        $driver->method('handleInput')->willReturn($image);
-
-        $imageManager = new ImageManager($driver);
+        $imageReader = $this->createMock(ImageReaderInterface::class);
+        $imageReader->method('read')->willReturn($image);
 
         $reflection = new ReflectionClass(Processor::class);
         $instance   = $reflection->newInstanceWithoutConstructor();
 
-        $this->setProperty($instance, 'imageManager', $imageManager);
+        $this->setProperty($instance, 'imageReader', $imageReader);
         $this->setProperty($instance, 'lockFactory', $lockFactory ?? $this->createMock(LockFactory::class));
         $this->setProperty($instance, 'responseFactory', $responseFactory ?? $this->createMock(ResponseFactoryInterface::class));
         $this->setProperty($instance, 'streamFactory', $streamFactory ?? $this->createMock(StreamFactoryInterface::class));
@@ -1854,9 +1848,7 @@ class ProcessorTest extends TestCase
         $streamFactory = $this->createMock(StreamFactoryInterface::class);
         $streamFactory->method('createStreamFromFile')->willReturn($stream);
 
-        $encoded = $this->createMock(EncodedImageInterface::class);
-
-        ['processor' => $processor, 'image' => $image] = $this->createProcessorWithImageManager(
+        ['processor' => $processor, 'image' => $image] = $this->createProcessorWithImageReader(
             responseFactory: $responseFactory,
             streamFactory: $streamFactory,
         );
@@ -1865,19 +1857,10 @@ class ProcessorTest extends TestCase
         $image->method('height')->willReturn(400);
         $image->method('cover')->willReturn($image);
         $image->method('save')->willReturnCallback(
-            static function (string $path) use ($image): ImageInterface {
+            static function (string $path, mixed ...$options) use ($image): ImageInterface {
                 file_put_contents($path, 'processed-image');
 
                 return $image;
-            },
-        );
-        $image->method('toWebp')->willReturn($encoded);
-        $image->method('toAvif')->willReturn($encoded);
-        $encoded->method('save')->willReturnCallback(
-            static function (string $path) use ($encoded): EncodedImageInterface {
-                file_put_contents($path, 'encoded-variant');
-
-                return $encoded;
             },
         );
 
@@ -1934,9 +1917,7 @@ class ProcessorTest extends TestCase
         $streamFactory = $this->createMock(StreamFactoryInterface::class);
         $streamFactory->method('createStreamFromFile')->willReturn($stream);
 
-        $encoded = $this->createMock(EncodedImageInterface::class);
-
-        ['processor' => $processor, 'image' => $image] = $this->createProcessorWithImageManager(
+        ['processor' => $processor, 'image' => $image] = $this->createProcessorWithImageReader(
             responseFactory: $responseFactory,
             streamFactory: $streamFactory,
         );
@@ -1945,19 +1926,10 @@ class ProcessorTest extends TestCase
         $image->method('height')->willReturn(200);
         $image->method('cover')->willReturn($image);
         $image->method('save')->willReturnCallback(
-            static function (string $path) use ($image): ImageInterface {
+            static function (string $path, mixed ...$options) use ($image): ImageInterface {
                 file_put_contents($path, 'processed');
 
                 return $image;
-            },
-        );
-        $image->expects(self::never())->method('toWebp');
-        $image->method('toAvif')->willReturn($encoded);
-        $encoded->method('save')->willReturnCallback(
-            static function (string $path) use ($encoded): EncodedImageInterface {
-                file_put_contents($path, 'avif-data');
-
-                return $encoded;
             },
         );
 
@@ -2014,9 +1986,7 @@ class ProcessorTest extends TestCase
         $streamFactory = $this->createMock(StreamFactoryInterface::class);
         $streamFactory->method('createStreamFromFile')->willReturn($stream);
 
-        $encoded = $this->createMock(EncodedImageInterface::class);
-
-        ['processor' => $processor, 'image' => $image] = $this->createProcessorWithImageManager(
+        ['processor' => $processor, 'image' => $image] = $this->createProcessorWithImageReader(
             responseFactory: $responseFactory,
             streamFactory: $streamFactory,
         );
@@ -2025,19 +1995,10 @@ class ProcessorTest extends TestCase
         $image->method('height')->willReturn(200);
         $image->method('cover')->willReturn($image);
         $image->method('save')->willReturnCallback(
-            static function (string $path) use ($image): ImageInterface {
+            static function (string $path, mixed ...$options) use ($image): ImageInterface {
                 file_put_contents($path, 'processed');
 
                 return $image;
-            },
-        );
-        $image->method('toWebp')->willReturn($encoded);
-        $image->expects(self::never())->method('toAvif');
-        $encoded->method('save')->willReturnCallback(
-            static function (string $path) use ($encoded): EncodedImageInterface {
-                file_put_contents($path, 'webp-data');
-
-                return $encoded;
             },
         );
 
@@ -2094,7 +2055,7 @@ class ProcessorTest extends TestCase
         $streamFactory = $this->createMock(StreamFactoryInterface::class);
         $streamFactory->method('createStreamFromFile')->willReturn($stream);
 
-        ['processor' => $processor, 'image' => $image] = $this->createProcessorWithImageManager(
+        ['processor' => $processor, 'image' => $image] = $this->createProcessorWithImageReader(
             responseFactory: $responseFactory,
             streamFactory: $streamFactory,
         );
@@ -2103,14 +2064,12 @@ class ProcessorTest extends TestCase
         $image->method('height')->willReturn(200);
         $image->method('cover')->willReturn($image);
         $image->method('save')->willReturnCallback(
-            static function (string $path) use ($image): ImageInterface {
+            static function (string $path, mixed ...$options) use ($image): ImageInterface {
                 file_put_contents($path, 'processed');
 
                 return $image;
             },
         );
-        $image->expects(self::never())->method('toWebp');
-        $image->expects(self::never())->method('toAvif');
 
         $uri = $this->createMock(UriInterface::class);
         $uri->method('getQuery')->willReturn('skipWebP=1&skipAvif=1');
@@ -2164,7 +2123,7 @@ class ProcessorTest extends TestCase
         $streamFactory = $this->createMock(StreamFactoryInterface::class);
         $streamFactory->method('createStreamFromFile')->willReturn($stream);
 
-        ['processor' => $processor, 'image' => $image] = $this->createProcessorWithImageManager(
+        ['processor' => $processor, 'image' => $image] = $this->createProcessorWithImageReader(
             responseFactory: $responseFactory,
             streamFactory: $streamFactory,
         );
@@ -2173,14 +2132,20 @@ class ProcessorTest extends TestCase
         $image->method('height')->willReturn(200);
         $image->method('cover')->willReturn($image);
         $image->method('save')->willReturnCallback(
-            static function (string $path) use ($image): ImageInterface {
+            static function (string $path, mixed ...$options) use ($image): ImageInterface {
+                if (str_ends_with($path, '.webp')) {
+                    throw new RuntimeException('WebP encoding failed');
+                }
+
+                if (str_ends_with($path, '.avif')) {
+                    throw new RuntimeException('AVIF encoding failed');
+                }
+
                 file_put_contents($path, 'processed');
 
                 return $image;
             },
         );
-        $image->method('toWebp')->willThrowException(new RuntimeException('WebP encoding failed'));
-        $image->method('toAvif')->willThrowException(new RuntimeException('AVIF encoding failed'));
 
         $uri = $this->createMock(UriInterface::class);
         $uri->method('getQuery')->willReturn('');
@@ -2235,7 +2200,7 @@ class ProcessorTest extends TestCase
         $streamFactory = $this->createMock(StreamFactoryInterface::class);
         $streamFactory->method('createStreamFromFile')->willReturn($stream);
 
-        ['processor' => $processor, 'image' => $image] = $this->createProcessorWithImageManager(
+        ['processor' => $processor, 'image' => $image] = $this->createProcessorWithImageReader(
             responseFactory: $responseFactory,
             streamFactory: $streamFactory,
         );
@@ -2244,7 +2209,7 @@ class ProcessorTest extends TestCase
         $image->method('height')->willReturn(400);
         $image->method('scale')->willReturn($image);
         $image->method('save')->willReturnCallback(
-            static function (string $path) use ($image): ImageInterface {
+            static function (string $path, mixed ...$options) use ($image): ImageInterface {
                 file_put_contents($path, 'processed');
 
                 return $image;
@@ -2500,33 +2465,20 @@ class ProcessorTest extends TestCase
         $lockFactory = $this->createMock(LockFactory::class);
         $lockFactory->method('createLocker')->willReturn($locker);
 
-        $encoded = $this->createMock(EncodedImageInterface::class);
-
         $image = $this->createMock(ImageInterface::class);
         $image->method('width')->willReturn(200);
         $image->method('height')->willReturn(100);
         $image->method('cover')->willReturn($image);
         $image->method('save')->willReturnCallback(
-            static function (string $path) use ($image): ImageInterface {
+            static function (string $path, mixed ...$options) use ($image): ImageInterface {
                 file_put_contents($path, 'processed');
 
                 return $image;
             },
         );
-        $image->method('toWebp')->willReturn($encoded);
-        $image->method('toAvif')->willReturn($encoded);
-        $encoded->method('save')->willReturnCallback(
-            static function (string $path) use ($encoded): EncodedImageInterface {
-                file_put_contents($path, 'encoded');
 
-                return $encoded;
-            },
-        );
-
-        $driver = $this->createMock(DriverInterface::class);
-        $driver->method('handleInput')->willReturn($image);
-
-        $imageManager = new ImageManager($driver);
+        $imageReader = $this->createMock(ImageReaderInterface::class);
+        $imageReader->method('read')->willReturn($image);
 
         $dispatchedEvents = [];
         $eventDispatcher  = $this->createMock(EventDispatcherInterface::class);
@@ -2541,7 +2493,7 @@ class ProcessorTest extends TestCase
         $reflection = new ReflectionClass(Processor::class);
         $instance   = $reflection->newInstanceWithoutConstructor();
 
-        $this->setProperty($instance, 'imageManager', $imageManager);
+        $this->setProperty($instance, 'imageReader', $imageReader);
         $this->setProperty($instance, 'lockFactory', $lockFactory);
         $this->setProperty($instance, 'responseFactory', $responseFactory);
         $this->setProperty($instance, 'streamFactory', $streamFactory);
@@ -2600,8 +2552,6 @@ class ProcessorTest extends TestCase
         $streamFactory = $this->createMock(StreamFactoryInterface::class);
         $streamFactory->method('createStreamFromFile')->willReturn($stream);
 
-        $encoded = $this->createMock(EncodedImageInterface::class);
-
         $eventDispatcher = $this->createMock(EventDispatcherInterface::class);
         $eventDispatcher->expects(self::once())
             ->method('dispatch')
@@ -2621,7 +2571,7 @@ class ProcessorTest extends TestCase
                     && $event->avifGenerated;
             }));
 
-        ['processor' => $processor, 'image' => $image] = $this->createProcessorWithImageManager(
+        ['processor' => $processor, 'image' => $image] = $this->createProcessorWithImageReader(
             responseFactory: $responseFactory,
             streamFactory: $streamFactory,
             eventDispatcher: $eventDispatcher,
@@ -2631,19 +2581,10 @@ class ProcessorTest extends TestCase
         $image->method('height')->willReturn(400);
         $image->method('cover')->willReturn($image);
         $image->method('save')->willReturnCallback(
-            static function (string $path) use ($image): ImageInterface {
+            static function (string $path, mixed ...$options) use ($image): ImageInterface {
                 file_put_contents($path, 'processed-image');
 
                 return $image;
-            },
-        );
-        $image->method('toWebp')->willReturn($encoded);
-        $image->method('toAvif')->willReturn($encoded);
-        $encoded->method('save')->willReturnCallback(
-            static function (string $path) use ($encoded): EncodedImageInterface {
-                file_put_contents($path, 'encoded-variant');
-
-                return $encoded;
             },
         );
 
@@ -2714,7 +2655,7 @@ class ProcessorTest extends TestCase
                     && $event->avifGenerated === false;
             }));
 
-        ['processor' => $processor, 'image' => $image] = $this->createProcessorWithImageManager(
+        ['processor' => $processor, 'image' => $image] = $this->createProcessorWithImageReader(
             responseFactory: $responseFactory,
             streamFactory: $streamFactory,
             eventDispatcher: $eventDispatcher,
@@ -2724,14 +2665,20 @@ class ProcessorTest extends TestCase
         $image->method('height')->willReturn(400);
         $image->method('cover')->willReturn($image);
         $image->method('save')->willReturnCallback(
-            static function (string $path) use ($image): ImageInterface {
+            static function (string $path, mixed ...$options) use ($image): ImageInterface {
+                if (str_ends_with($path, '.webp')) {
+                    throw new RuntimeException('WebP failed');
+                }
+
+                if (str_ends_with($path, '.avif')) {
+                    throw new RuntimeException('AVIF failed');
+                }
+
                 file_put_contents($path, 'processed-image');
 
                 return $image;
             },
         );
-        $image->method('toWebp')->willThrowException(new RuntimeException('WebP failed'));
-        $image->method('toAvif')->willThrowException(new RuntimeException('AVIF failed'));
 
         $uri = $this->createMock(UriInterface::class);
         $uri->method('getQuery')->willReturn('');

@@ -13,6 +13,7 @@ namespace Netresearch\NrImageOptimize\Tests\Unit\Service;
 
 use function extension_loaded;
 
+use Netresearch\NrImageOptimize\Service\ImageManagerAdapter;
 use Netresearch\NrImageOptimize\Service\ImageManagerFactory;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
@@ -20,6 +21,7 @@ use PHPUnit\Framework\TestCase;
 use RuntimeException;
 
 #[CoversClass(ImageManagerFactory::class)]
+#[CoversClass(ImageManagerAdapter::class)]
 class ImageManagerFactoryTest extends TestCase
 {
     private ImageManagerFactory $factory;
@@ -39,8 +41,9 @@ class ImageManagerFactoryTest extends TestCase
         }
 
         $imageManager = $this->factory->create();
+        $adapter      = new ImageManagerAdapter($imageManager);
 
-        // Create a real PNG via GD to verify the manager can read images
+        // Create a real PNG via GD to verify the adapter can read images
         $tmpFile = sys_get_temp_dir() . '/nr-pio-factory-test-' . uniqid('', true) . '.png';
         $gd      = imagecreatetruecolor(1, 1);
         self::assertNotFalse($gd);
@@ -48,7 +51,7 @@ class ImageManagerFactoryTest extends TestCase
         imagedestroy($gd);
 
         try {
-            $image = $imageManager->read($tmpFile);
+            $image = $adapter->read($tmpFile);
             self::assertSame(1, $image->width());
             self::assertSame(1, $image->height());
         } finally {

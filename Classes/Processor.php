@@ -18,7 +18,6 @@ use function filemtime;
 use function filesize;
 use function gmdate;
 
-use Intervention\Image\ImageManager;
 use Intervention\Image\Interfaces\ImageInterface;
 
 use function is_dir;
@@ -30,6 +29,7 @@ use function mkdir;
 
 use Netresearch\NrImageOptimize\Event\ImageProcessedEvent;
 use Netresearch\NrImageOptimize\Event\VariantServedEvent;
+use Netresearch\NrImageOptimize\Service\ImageReaderInterface;
 
 use function parse_str;
 use function preg_match;
@@ -155,14 +155,14 @@ class Processor implements LoggerAwareInterface, ProcessorInterface
     /**
      * Initialize the image processor with all required dependencies.
      *
-     * @param ImageManager             $imageManager    Intervention Image manager used to read/encode images
+     * @param ImageReaderInterface     $imageReader     Adapter for loading images (v3/v4 compatible)
      * @param LockFactory              $lockFactory     TYPO3 lock factory for concurrent processing coordination
      * @param ResponseFactoryInterface $responseFactory PSR-17 response factory
      * @param StreamFactoryInterface   $streamFactory   PSR-17 stream factory
      * @param EventDispatcherInterface $eventDispatcher PSR-14 event dispatcher for post-processing hooks
      */
     public function __construct(
-        private readonly ImageManager $imageManager,
+        private readonly ImageReaderInterface $imageReader,
         private readonly LockFactory $lockFactory,
         private readonly ResponseFactoryInterface $responseFactory,
         private readonly StreamFactoryInterface $streamFactory,
@@ -390,7 +390,7 @@ class Processor implements LoggerAwareInterface, ProcessorInterface
             return $this->responseFactory->createResponse(404);
         }
 
-        $image = $this->imageManager->read($urlInfo['pathOriginal']);
+        $image = $this->imageReader->read($urlInfo['pathOriginal']);
 
         $targetWidth  = $urlInfo['targetWidth'];
         $targetHeight = $urlInfo['targetHeight'];
@@ -805,7 +805,7 @@ class Processor implements LoggerAwareInterface, ProcessorInterface
      */
     private function generateWebpVariant(ImageInterface $image, int $targetQuality, string $pathVariant): void
     {
-        $image->toWebp($targetQuality)->save($pathVariant . '.webp');
+        $image->save($pathVariant . '.webp', $targetQuality);
     }
 
     /**
@@ -817,7 +817,7 @@ class Processor implements LoggerAwareInterface, ProcessorInterface
      */
     private function generateAvifVariant(ImageInterface $image, int $targetQuality, string $pathVariant): void
     {
-        $image->toAvif($targetQuality)->save($pathVariant . '.avif');
+        $image->save($pathVariant . '.avif', $targetQuality);
     }
 
     /**
