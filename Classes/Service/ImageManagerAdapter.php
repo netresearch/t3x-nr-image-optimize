@@ -36,9 +36,12 @@ final readonly class ImageManagerAdapter implements ImageReaderInterface
 
     public function __construct(ImageManager $imageManager)
     {
-        $this->readCallback = method_exists($imageManager, 'read')
-            ? $imageManager->read(...)
-            : $imageManager->decode(...);
+        // v3 provides read(), v4 replaced it with decode(). Use a variable
+        // method name so PHPStan does not evaluate the call statically against
+        // a single installed version.
+        $method = method_exists($imageManager, 'read') ? 'read' : 'decode';
+
+        $this->readCallback = $imageManager->{$method}(...); // @phpstan-ignore method.dynamicName
     }
 
     public function read(string $path): ImageInterface
