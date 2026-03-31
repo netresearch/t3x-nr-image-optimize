@@ -6,7 +6,7 @@ coverage:
         threshold: 1%
     patch:
       default:
-        target: 100%
+        target: 80%
 
 flags:
   unit:

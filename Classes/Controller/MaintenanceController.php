@@ -42,6 +42,7 @@ use function strtolower;
 
 use Throwable;
 use TYPO3\CMS\Backend\Template\ModuleTemplateFactory;
+use TYPO3\CMS\Core\Authentication\AbstractUserAuthentication;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Localization\LanguageServiceFactory;
@@ -226,14 +227,14 @@ final class MaintenanceController extends ActionController implements LoggerAwar
             $size += $fileSize;
             $mtime = $file->getMTime();
 
-            $extension = strtolower((string) $file->getExtension());
+            $extension = strtolower($file->getExtension());
             $fileTypes[$extension] ??= ['count' => 0, 'size' => 0];
             ++$fileTypes[$extension]['count'];
             $fileTypes[$extension]['size'] += $fileSize;
 
             $files[] = [
                 'name' => $file->getFilename(),
-                'path' => str_replace($path . '/', '', (string) $file->getPathname()),
+                'path' => str_replace($path . '/', '', $file->getPathname()),
                 'size' => $fileSize,
             ];
 
@@ -336,7 +337,7 @@ final class MaintenanceController extends ActionController implements LoggerAwar
         $backendUser = $GLOBALS['BE_USER'] ?? null;
 
         return $this->languageServiceFactory->createFromUserPreferences(
-            $backendUser instanceof \TYPO3\CMS\Core\Authentication\AbstractUserAuthentication ? $backendUser : null,
+            $backendUser instanceof AbstractUserAuthentication ? $backendUser : null,
         );
     }
 

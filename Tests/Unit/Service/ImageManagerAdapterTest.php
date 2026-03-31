@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Tests\Unit\Service;
 
+use Intervention\Image\Drivers\Gd\Driver;
 use Intervention\Image\ImageManager;
 use Intervention\Image\Interfaces\ImageInterface;
 use Netresearch\NrImageOptimize\Service\ImageManagerAdapter;
@@ -32,8 +33,7 @@ class ImageManagerAdapterTest extends TestCase
     #[Test]
     public function implementsImageReaderInterface(): void
     {
-        $imageManager = $this->createMock(ImageManager::class);
-        $adapter      = new ImageManagerAdapter($imageManager);
+        $adapter = new ImageManagerAdapter(new ImageManager(Driver::class));
 
         self::assertInstanceOf(ImageReaderInterface::class, $adapter); // @phpstan-ignore staticMethod.alreadyNarrowedType
     }
@@ -41,11 +41,6 @@ class ImageManagerAdapterTest extends TestCase
     #[Test]
     public function readDelegatesToImageManager(): void
     {
-        if (!extension_loaded('gd')) {
-            self::markTestSkipped('GD extension is required for this test.');
-        }
-
-        // Create a real tiny PNG via GD
         $tmpFile = sys_get_temp_dir() . '/nr-pio-adapter-test-' . uniqid('', true) . '.png';
         $gd      = imagecreatetruecolor(2, 3);
         self::assertNotFalse($gd);
@@ -53,7 +48,7 @@ class ImageManagerAdapterTest extends TestCase
         imagedestroy($gd);
 
         try {
-            $imageManager = new ImageManager(\Intervention\Image\Drivers\Gd\Driver::class);
+            $imageManager = new ImageManager(Driver::class);
             $adapter      = new ImageManagerAdapter($imageManager);
             $image        = $adapter->read($tmpFile);
 

@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Tests\Unit\Service;
 
+use Composer\InstalledVersions;
 use Netresearch\NrImageOptimize\Service\SystemRequirementsService;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
@@ -1051,14 +1052,14 @@ class SystemRequirementsServiceTest extends TestCase
             $loaded     = extension_loaded($ext);
 
             if ($loaded) {
-                self::assertSame('success', $item['status'], "Loaded extension {$ext} should have status 'success'");
-                self::assertSame('sysreq.loaded', $item['currentKey'], "Loaded extension {$ext} should have currentKey 'sysreq.loaded'");
+                self::assertSame('success', $item['status'], sprintf("Loaded extension %s should have status 'success'", $ext));
+                self::assertSame('sysreq.loaded', $item['currentKey'], sprintf("Loaded extension %s should have currentKey 'sysreq.loaded'", $ext));
             } elseif ($isOptional) {
-                self::assertSame('warning', $item['status'], "Missing optional extension {$ext} should have status 'warning', not 'error'");
-                self::assertSame('sysreq.notLoaded', $item['currentKey'], "Missing optional extension {$ext} should have currentKey 'sysreq.notLoaded'");
+                self::assertSame('warning', $item['status'], sprintf("Missing optional extension %s should have status 'warning', not 'error'", $ext));
+                self::assertSame('sysreq.notLoaded', $item['currentKey'], sprintf("Missing optional extension %s should have currentKey 'sysreq.notLoaded'", $ext));
             } else {
-                self::assertSame('error', $item['status'], "Missing required extension {$ext} should have status 'error', not 'warning'");
-                self::assertSame('sysreq.notLoaded', $item['currentKey'], "Missing required extension {$ext} should have currentKey 'sysreq.notLoaded'");
+                self::assertSame('error', $item['status'], sprintf("Missing required extension %s should have status 'error', not 'warning'", $ext));
+                self::assertSame('sysreq.notLoaded', $item['currentKey'], sprintf("Missing required extension %s should have currentKey 'sysreq.notLoaded'", $ext));
             }
         }
     }
@@ -1081,7 +1082,7 @@ class SystemRequirementsServiceTest extends TestCase
 
         // The status must match the version comparison — 'success' when ok, 'error' when not
         $expectedStatus = $ok ? 'success' : 'error';
-        self::assertSame($expectedStatus, $item['status'], "TYPO3 version {$typo3} should map to status '{$expectedStatus}'");
+        self::assertSame($expectedStatus, $item['status'], sprintf("TYPO3 version %s should map to status '%s'", $typo3, $expectedStatus));
 
         // Also verify the icon/badge are consistent
         if ($ok) {
@@ -1134,10 +1135,10 @@ class SystemRequirementsServiceTest extends TestCase
             self::assertSame('sysreq.optional', $item['requiredKey']);
 
             if ($item['status'] === 'success') {
-                self::assertSame('sysreq.found', $item['currentKey'], "Tool {$item['label']} with status 'success' must have currentKey 'sysreq.found'");
+                self::assertSame('sysreq.found', $item['currentKey'], sprintf("Tool %s with status 'success' must have currentKey 'sysreq.found'", $item['label']));
             } else {
-                self::assertSame('warning', $item['status'], "Tool {$item['label']} with non-success status must be 'warning'");
-                self::assertSame('sysreq.notFound', $item['currentKey'], "Tool {$item['label']} with status 'warning' must have currentKey 'sysreq.notFound'");
+                self::assertSame('warning', $item['status'], sprintf("Tool %s with non-success status must be 'warning'", $item['label']));
+                self::assertSame('sysreq.notFound', $item['currentKey'], sprintf("Tool %s with status 'warning' must have currentKey 'sysreq.notFound'", $item['label']));
             }
         }
     }
@@ -1277,9 +1278,9 @@ class SystemRequirementsServiceTest extends TestCase
             assert(is_string($item['label']));
             if ($item['status'] === 'success') {
                 // Installed packages must have a version string
-                self::assertNotNull($item['current'], "Package {$item['label']} with success status must have a version");
+                self::assertNotNull($item['current'], sprintf('Package %s with success status must have a version', $item['label']));
                 self::assertIsString($item['current']);
-                self::assertNull($item['currentKey'], "Package {$item['label']} with success status must have null currentKey");
+                self::assertNull($item['currentKey'], sprintf('Package %s with success status must have null currentKey', $item['label']));
             } else {
                 self::assertSame('error', $item['status'], "Non-success package status must be 'error'");
                 self::assertSame('sysreq.notInstalled', $item['currentKey']);
@@ -1320,8 +1321,8 @@ class SystemRequirementsServiceTest extends TestCase
         foreach ($result['items'] as $item) {
             assert(is_array($item));
             assert(is_string($item['label']));
-            self::assertSame('success', $item['status'], "Package {$item['label']} should be found");
-            self::assertNotNull($item['current'], "Package {$item['label']} should have a version");
+            self::assertSame('success', $item['status'], sprintf('Package %s should be found', $item['label']));
+            self::assertNotNull($item['current'], sprintf('Package %s should have a version', $item['label']));
         }
 
         // Cleanup
@@ -1442,8 +1443,11 @@ class SystemRequirementsServiceTest extends TestCase
 
         foreach ($result['items'] as $item) {
             assert(is_array($item));
+            if ($item['status'] !== 'success') {
+                continue;
+            }
 
-            if ($item['status'] !== 'success' || $item['current'] === null) {
+            if ($item['current'] === null) {
                 continue;
             }
 
@@ -1451,14 +1455,14 @@ class SystemRequirementsServiceTest extends TestCase
             assert(is_string($name));
 
             // If InstalledVersions knows this package, verify getPrettyVersion is used
-            if (class_exists(\Composer\InstalledVersions::class) && \Composer\InstalledVersions::isInstalled($name)) {
-                $prettyVersion = \Composer\InstalledVersions::getPrettyVersion($name);
+            if (class_exists(InstalledVersions::class) && InstalledVersions::isInstalled($name)) {
+                $prettyVersion = InstalledVersions::getPrettyVersion($name);
 
                 if ($prettyVersion !== null) {
-                    self::assertSame($prettyVersion, $item['current'], "Package {$name} should use getPrettyVersion ({$prettyVersion})");
+                    self::assertSame($prettyVersion, $item['current'], sprintf('Package %s should use getPrettyVersion (%s)', $name, $prettyVersion));
                 } else {
-                    $rawVersion = \Composer\InstalledVersions::getVersion($name);
-                    self::assertSame($rawVersion, $item['current'], "Package {$name} should fall back to getVersion");
+                    $rawVersion = InstalledVersions::getVersion($name);
+                    self::assertSame($rawVersion, $item['current'], sprintf('Package %s should fall back to getVersion', $name));
                 }
             }
         }
@@ -1779,7 +1783,7 @@ class SystemRequirementsServiceTest extends TestCase
                 self::assertMatchesRegularExpression(
                     '/^[0-9v]/',
                     $item['current'],
-                    "Package {$item['label']} version must look like a real version",
+                    sprintf('Package %s version must look like a real version', $item['label']),
                 );
             }
         }

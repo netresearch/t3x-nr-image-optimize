@@ -396,12 +396,12 @@ class MaintenanceControllerTest extends TestCase
         // count($units) - 1 = 4 clamps it. Mutating to count($units) - 0 = 5
         // or count($units) + 1 = 6 would cause undefined array index.
         // 1 PB = 1024^5 bytes. floor(log(1024^5, 1024)) = 5, min(5, 4) = 4 => TB.
-        $onePb  = (int) (1024 ** 5); // @phpstan-ignore cast.useless
+        $onePb  = 1024 ** 5;
         $result = $this->callMethod('formatBytes', $onePb);
         self::assertSame('1024 TB', $result);
 
         // 10 PB
-        $tenPb   = (int) (10 * 1024 ** 4) * 1024; // @phpstan-ignore cast.useless
+        $tenPb   = 10 * 1024 ** 4 * 1024;
         $result2 = $this->callMethod('formatBytes', $tenPb);
         assert(is_string($result2));
         self::assertStringEndsWith(' TB', $result2);

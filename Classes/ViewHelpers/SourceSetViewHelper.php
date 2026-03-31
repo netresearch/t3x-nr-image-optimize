@@ -571,8 +571,10 @@ class SourceSetViewHelper extends AbstractViewHelper
             return [];
         }
 
-        /** @var array<string, string|int|float|bool> */
-        return $this->arguments['attributes'];
+        /** @var array<string, bool|float|int|string> $attributes */
+        $attributes = $this->arguments['attributes'];
+
+        return $attributes;
     }
 
     /**

@@ -42,6 +42,8 @@ use function sys_get_temp_dir;
 
 use TYPO3\CMS\Core\Core\ApplicationContext;
 use TYPO3\CMS\Core\Core\Environment;
+use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper;
+use TYPO3Fluid\Fluid\Core\ViewHelper\ArgumentDefinition;
 
 use function uniqid;
 use function unlink;
@@ -1005,8 +1007,8 @@ class SourceSetViewHelperTest extends TestCase
         $viewHelper = new SourceSetViewHelper();
         $viewHelper->initializeArguments();
 
-        $reflection = new ReflectionProperty(\TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper::class, 'argumentDefinitions');
-        /** @var array<string, \TYPO3Fluid\Fluid\Core\ViewHelper\ArgumentDefinition> $definitions */
+        $reflection = new ReflectionProperty(AbstractViewHelper::class, 'argumentDefinitions');
+        /** @var array<string, ArgumentDefinition> $definitions */
         $definitions = $reflection->getValue($viewHelper);
 
         $expectedArgs = [
@@ -1016,7 +1018,7 @@ class SourceSetViewHelperTest extends TestCase
         ];
 
         foreach ($expectedArgs as $argName) {
-            self::assertArrayHasKey($argName, $definitions, "Argument '{$argName}' must be registered.");
+            self::assertArrayHasKey($argName, $definitions, sprintf("Argument '%s' must be registered.", $argName));
         }
     }
 
@@ -1027,8 +1029,8 @@ class SourceSetViewHelperTest extends TestCase
         $viewHelper = new SourceSetViewHelper();
         $viewHelper->initializeArguments();
 
-        $reflection = new ReflectionProperty(\TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper::class, 'argumentDefinitions');
-        /** @var array<string, \TYPO3Fluid\Fluid\Core\ViewHelper\ArgumentDefinition> $definitions */
+        $reflection = new ReflectionProperty(AbstractViewHelper::class, 'argumentDefinitions');
+        /** @var array<string, ArgumentDefinition> $definitions */
         $definitions = $reflection->getValue($viewHelper);
 
         self::assertTrue($definitions['path']->isRequired(), "'path' must be required.");
@@ -1041,8 +1043,8 @@ class SourceSetViewHelperTest extends TestCase
         $viewHelper = new SourceSetViewHelper();
         $viewHelper->initializeArguments();
 
-        $reflection = new ReflectionProperty(\TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper::class, 'argumentDefinitions');
-        /** @var array<string, \TYPO3Fluid\Fluid\Core\ViewHelper\ArgumentDefinition> $definitions */
+        $reflection = new ReflectionProperty(AbstractViewHelper::class, 'argumentDefinitions');
+        /** @var array<string, ArgumentDefinition> $definitions */
         $definitions = $reflection->getValue($viewHelper);
 
         self::assertSame(0, $definitions['width']->getDefaultValue());
@@ -1065,8 +1067,8 @@ class SourceSetViewHelperTest extends TestCase
         $viewHelper = new SourceSetViewHelper();
         $viewHelper->initializeArguments();
 
-        $reflection = new ReflectionProperty(\TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper::class, 'argumentDefinitions');
-        /** @var array<string, \TYPO3Fluid\Fluid\Core\ViewHelper\ArgumentDefinition> $definitions */
+        $reflection = new ReflectionProperty(AbstractViewHelper::class, 'argumentDefinitions');
+        /** @var array<string, ArgumentDefinition> $definitions */
         $definitions = $reflection->getValue($viewHelper);
 
         self::assertFalse($definitions['widthVariants']->isRequired(), "'widthVariants' must be optional.");
@@ -1710,8 +1712,8 @@ class SourceSetViewHelperTest extends TestCase
         $viewHelper = new SourceSetViewHelper();
         $viewHelper->initializeArguments();
 
-        $reflection = new ReflectionProperty(\TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper::class, 'argumentDefinitions');
-        /** @var array<string, \TYPO3Fluid\Fluid\Core\ViewHelper\ArgumentDefinition> $definitions */
+        $reflection = new ReflectionProperty(AbstractViewHelper::class, 'argumentDefinitions');
+        /** @var array<string, ArgumentDefinition> $definitions */
         $definitions = $reflection->getValue($viewHelper);
 
         self::assertSame('auto, (min-width: 992px) 991px, 100vw', $definitions['sizes']->getDefaultValue());

@@ -33,10 +33,6 @@ class ImageManagerFactoryTest extends TestCase
     #[Test]
     public function createReturnsManagerCapableOfReadingImages(): void
     {
-        if (!extension_loaded('gd')) {
-            self::markTestSkipped('GD extension is required for this test.');
-        }
-
         $imageManager = $this->factory->create();
         $adapter      = new ImageManagerAdapter($imageManager);
 

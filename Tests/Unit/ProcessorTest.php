@@ -2871,9 +2871,7 @@ class ProcessorTest extends TestCase
             ->method('warning')
             ->with(
                 'VariantServedEvent listener failed',
-                self::callback(static function (array $context) use ($listenerException): bool {
-                    return isset($context['exception']) && $context['exception'] === $listenerException;
-                }),
+                self::callback(static fn (array $context): bool => isset($context['exception']) && $context['exception'] === $listenerException),
             );
 
         $processor = $this->createProcessor(
@@ -2913,11 +2911,9 @@ class ProcessorTest extends TestCase
             ->method('error')
             ->with(
                 'Failed to create image processing lock for "{url}"',
-                self::callback(static function (array $context) use ($lockException): bool {
-                    return isset($context['url'], $context['exception'])
-                        && $context['url'] === '/processed/img.w100h50m0q80.jpg'
-                        && $context['exception'] === $lockException;
-                }),
+                self::callback(static fn (array $context): bool => isset($context['url'], $context['exception'])
+                    && $context['url'] === '/processed/img.w100h50m0q80.jpg'
+                    && $context['exception'] === $lockException),
             );
 
         $processor = $this->createProcessor(
@@ -2959,11 +2955,9 @@ class ProcessorTest extends TestCase
             ->method('error')
             ->with(
                 'Processing failed for "{url}"',
-                self::callback(static function (array $context): bool {
-                    return isset($context['url'], $context['exception'])
-                        && $context['url'] === '/processed/img.w100h50m0q80.jpg'
-                        && $context['exception'] instanceof Throwable;
-                }),
+                self::callback(static fn (array $context): bool => isset($context['url'], $context['exception'])
+                    && $context['url'] === '/processed/img.w100h50m0q80.jpg'
+                    && $context['exception'] instanceof Throwable),
             );
 
         $processor = $this->createProcessor(
@@ -3047,9 +3041,7 @@ class ProcessorTest extends TestCase
             ->method('error')
             ->with(
                 'Lock acquisition exhausted after {retries} retries',
-                self::callback(static function (array $context): bool {
-                    return isset($context['retries']) && $context['retries'] === 10;
-                }),
+                self::callback(static fn (array $context): bool => isset($context['retries']) && $context['retries'] === 10),
             );
 
         $processor = $this->createProcessor(
@@ -3185,11 +3177,9 @@ class ProcessorTest extends TestCase
             ->method('error')
             ->with(
                 'buildOutputResponse: all file response attempts failed for "{path}"',
-                self::callback(static function (array $context) use ($base): bool {
-                    return isset($context['path'], $context['extension'])
-                        && $context['path'] === $base
-                        && $context['extension'] === 'jpg';
-                }),
+                self::callback(static fn (array $context): bool => isset($context['path'], $context['extension'])
+                    && $context['path'] === $base
+                    && $context['extension'] === 'jpg'),
             );
 
         $processor = $this->createProcessor(responseFactory: $responseFactory);

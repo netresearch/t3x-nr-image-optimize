@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Tests\Architecture;
 
+use Netresearch\NrImageOptimize\Processor;
+use Netresearch\NrImageOptimize\ProcessorInterface;
+use Netresearch\NrImageOptimize\Service\ImageManagerAdapter;
+use Netresearch\NrImageOptimize\Service\ImageReaderInterface;
 use PHPat\Selector\Selector;
 use PHPat\Test\Builder\Rule;
 use PHPat\Test\PHPat;
@@ -88,9 +92,9 @@ final class ArchitectureTest
     public function testProcessorImplementsInterface(): Rule
     {
         return PHPat::rule()
-            ->classes(Selector::classname('Netresearch\NrImageOptimize\Processor'))
+            ->classes(Selector::classname(Processor::class))
             ->should()->implement()
-            ->classes(Selector::classname('Netresearch\NrImageOptimize\ProcessorInterface'));
+            ->classes(Selector::classname(ProcessorInterface::class));
     }
 
     /**
@@ -100,8 +104,8 @@ final class ArchitectureTest
     public function testImageManagerAdapterImplementsInterface(): Rule
     {
         return PHPat::rule()
-            ->classes(Selector::classname('Netresearch\NrImageOptimize\Service\ImageManagerAdapter'))
+            ->classes(Selector::classname(ImageManagerAdapter::class))
             ->should()->implement()
-            ->classes(Selector::classname('Netresearch\NrImageOptimize\Service\ImageReaderInterface'));
+            ->classes(Selector::classname(ImageReaderInterface::class));
     }
 }
