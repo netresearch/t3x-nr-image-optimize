@@ -19,7 +19,6 @@ jobs:
         php-versions: '["8.2","8.3","8.4","8.5"]'
         typo3-versions: '["^13.4","^14.0"]'
         upload-coverage: true
-    secrets:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   security:
@@ -27,8 +26,6 @@ jobs:
     permissions:
       contents: read
       security-events: write
-    secrets:
-      GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
 
   fuzz:
     uses: netresearch/typo3-ci-workflows/.github/workflows/fuzz.yml@main
@@ -78,3 +75,10 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+  gitleaks:
+    permissions:
+      contents: read
+      security-events: write
+    uses: netresearch/.github/.github/workflows/gitleaks.yml@main
+    secrets:
+      GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
