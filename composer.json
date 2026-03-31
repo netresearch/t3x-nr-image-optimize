@@ -107,6 +107,11 @@
             "@putenv XDEBUG_MODE=coverage",
             "infection --configuration=infection.json5 --threads=4 --no-progress --show-mutations"
         ],
+        "ci:test:php:mutation:full": [
+            "@putenv XDEBUG_MODE=coverage",
+            "@putenv typo3DatabaseDriver=pdo_sqlite",
+            "infection --configuration=infection-full.json5 --threads=4 --no-progress --show-mutations"
+        ],
         "ci:test:php:phpstan": [
             "phpstan analyze --configuration Build/phpstan.neon --memory-limit=-1"
         ],

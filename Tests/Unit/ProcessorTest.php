@@ -15,12 +15,9 @@ use Intervention\Image\Interfaces\ImageInterface;
 use Netresearch\NrImageOptimize\Event\ImageProcessedEvent;
 use Netresearch\NrImageOptimize\Event\VariantServedEvent;
 use Netresearch\NrImageOptimize\Processor;
-use Netresearch\NrImageOptimize\Service\ImageManagerAdapter;
 use Netresearch\NrImageOptimize\Service\ImageReaderInterface;
-use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
-use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\EventDispatcher\EventDispatcherInterface;
@@ -30,22 +27,22 @@ use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\StreamFactoryInterface;
 use Psr\Http\Message\StreamInterface;
 use Psr\Http\Message\UriInterface;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use ReflectionClass;
 use ReflectionMethod;
 use ReflectionProperty;
 use RuntimeException;
+use SplFileInfo;
+use Throwable;
 use TYPO3\CMS\Core\Core\ApplicationContext;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Locking\Exception\LockCreateException;
 use TYPO3\CMS\Core\Locking\LockFactory;
 use TYPO3\CMS\Core\Locking\LockingStrategyInterface;
 
-#[CoversClass(Processor::class)]
-#[UsesClass(ImageProcessedEvent::class)]
-#[UsesClass(VariantServedEvent::class)]
-#[UsesClass(ImageManagerAdapter::class)]
 class ProcessorTest extends TestCase
 {
     private MockObject $lockFactory;
@@ -682,6 +679,7 @@ class ProcessorTest extends TestCase
         self::assertSame(300, $result['targetHeight']);
         self::assertSame(90, $result['targetQuality']);
         self::assertSame(0, $result['processingMode']);
+        assert(is_string($result['pathOriginal']));
         self::assertStringContainsString('deep/nested/path', $result['pathOriginal']);
     }
 
@@ -1115,6 +1113,7 @@ class ProcessorTest extends TestCase
         );
 
         foreach ($iterator as $item) {
+            /** @var SplFileInfo $item */
             if ($item->isDir()) {
                 rmdir($item->getPathname());
             } else {
@@ -2837,5 +2836,1512 @@ class ProcessorTest extends TestCase
         self::assertSame($response, $result);
 
         $this->tearDownRealEnvironment($tempDir, $prop);
+    }
+
+    // =========================================================================
+    // Mutation-killing tests: Logger call verification
+    // =========================================================================
+
+    #[Test]
+    public function generateAndSendLogsWarningWhenCachedVariantEventListenerThrows(): void
+    {
+        ['tempDir' => $tempDir, 'prop' => $prop] = $this->setUpRealEnvironment();
+
+        file_put_contents($tempDir . '/public/processed/img.w100h50m0q80.jpg', 'cached');
+        file_put_contents($tempDir . '/public/img.jpg', 'original');
+
+        $response = $this->createMock(ResponseInterface::class);
+        $response->method('withHeader')->willReturn($response);
+        $response->method('withBody')->willReturn($response);
+        $response->method('getStatusCode')->willReturn(200);
+
+        $responseFactory = $this->createMock(ResponseFactoryInterface::class);
+        $responseFactory->method('createResponse')->with(200)->willReturn($response);
+
+        $stream        = $this->createMock(StreamInterface::class);
+        $streamFactory = $this->createMock(StreamFactoryInterface::class);
+        $streamFactory->method('createStreamFromFile')->willReturn($stream);
+
+        $listenerException = new RuntimeException('Listener failed');
+        $eventDispatcher   = $this->createMock(EventDispatcherInterface::class);
+        $eventDispatcher->method('dispatch')->willThrowException($listenerException);
+
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects(self::atLeastOnce())
+            ->method('warning')
+            ->with(
+                'VariantServedEvent listener failed',
+                self::callback(static fn (array $context): bool => isset($context['exception']) && $context['exception'] === $listenerException),
+            );
+
+        $processor = $this->createProcessor(
+            responseFactory: $responseFactory,
+            streamFactory: $streamFactory,
+            eventDispatcher: $eventDispatcher,
+        );
+        $processor->setLogger($logger);
+
+        $uri = $this->createMock(UriInterface::class);
+        $uri->method('getPath')->willReturn('/processed/img.w100h50m0q80.jpg');
+        $request = $this->createMock(ServerRequestInterface::class);
+        $request->method('getUri')->willReturn($uri);
+
+        $processor->generateAndSend($request);
+
+        $this->tearDownRealEnvironment($tempDir, $prop);
+    }
+
+    #[Test]
+    public function generateAndSendLogsErrorWhenLockCreationFails(): void
+    {
+        ['tempDir' => $tempDir, 'prop' => $prop] = $this->setUpRealEnvironment();
+
+        file_put_contents($tempDir . '/public/img.jpg', 'fake-image');
+
+        $response503     = $this->createMock(ResponseInterface::class);
+        $responseFactory = $this->createMock(ResponseFactoryInterface::class);
+        $responseFactory->method('createResponse')->with(503)->willReturn($response503);
+
+        $lockException = new LockCreateException('Lock backend unavailable');
+        $lockFactory   = $this->createMock(LockFactory::class);
+        $lockFactory->method('createLocker')->willThrowException($lockException);
+
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects(self::once())
+            ->method('error')
+            ->with(
+                'Failed to create image processing lock for "{url}"',
+                self::callback(static fn (array $context): bool => isset($context['url'], $context['exception'])
+                    && $context['url'] === '/processed/img.w100h50m0q80.jpg'
+                    && $context['exception'] === $lockException),
+            );
+
+        $processor = $this->createProcessor(
+            lockFactory: $lockFactory,
+            responseFactory: $responseFactory,
+        );
+        $processor->setLogger($logger);
+
+        $uri = $this->createMock(UriInterface::class);
+        $uri->method('getPath')->willReturn('/processed/img.w100h50m0q80.jpg');
+        $request = $this->createMock(ServerRequestInterface::class);
+        $request->method('getUri')->willReturn($uri);
+
+        $result = $processor->generateAndSend($request);
+        self::assertSame($response503, $result);
+
+        $this->tearDownRealEnvironment($tempDir, $prop);
+    }
+
+    #[Test]
+    public function generateAndSendLogsErrorWhenProcessingThrowsWithUrlContext(): void
+    {
+        ['tempDir' => $tempDir, 'prop' => $prop] = $this->setUpRealEnvironment();
+
+        file_put_contents($tempDir . '/public/img.jpg', 'fake-image');
+
+        $response500     = $this->createMock(ResponseInterface::class);
+        $responseFactory = $this->createMock(ResponseFactoryInterface::class);
+        $responseFactory->method('createResponse')->with(500)->willReturn($response500);
+
+        $locker = $this->createMock(LockingStrategyInterface::class);
+        $locker->method('acquire')->willReturn(true);
+
+        $lockFactory = $this->createMock(LockFactory::class);
+        $lockFactory->method('createLocker')->willReturn($locker);
+
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects(self::once())
+            ->method('error')
+            ->with(
+                'Processing failed for "{url}"',
+                self::callback(static fn (array $context): bool => isset($context['url'], $context['exception'])
+                    && $context['url'] === '/processed/img.w100h50m0q80.jpg'
+                    && $context['exception'] instanceof Throwable),
+            );
+
+        $processor = $this->createProcessor(
+            lockFactory: $lockFactory,
+            responseFactory: $responseFactory,
+        );
+        $processor->setLogger($logger);
+
+        $uri = $this->createMock(UriInterface::class);
+        $uri->method('getPath')->willReturn('/processed/img.w100h50m0q80.jpg');
+        $uri->method('getQuery')->willReturn('');
+        $request = $this->createMock(ServerRequestInterface::class);
+        $request->method('getUri')->willReturn($uri);
+
+        $result = $processor->generateAndSend($request);
+        self::assertSame($response500, $result);
+
+        $this->tearDownRealEnvironment($tempDir, $prop);
+    }
+
+    // =========================================================================
+    // Mutation-killing tests: Lock key concatenation (line 233)
+    // =========================================================================
+
+    #[Test]
+    public function getLockerUsesVariantUrlWithProcessSuffix(): void
+    {
+        $locker      = $this->createMock(LockingStrategyInterface::class);
+        $lockFactory = $this->createMock(LockFactory::class);
+
+        $variantUrl  = '/processed/images/photo.w100h50m0q80.jpg';
+        $expectedKey = 'nr_image_optimize-' . md5($variantUrl . '-process');
+
+        $lockFactory->expects(self::once())
+            ->method('createLocker')
+            ->with($expectedKey)
+            ->willReturn($locker);
+
+        $processor = $this->createProcessor(lockFactory: $lockFactory);
+
+        self::assertSame($locker, $this->callMethod($processor, 'getLocker', $variantUrl . '-process'));
+    }
+
+    // =========================================================================
+    // Mutation-killing tests: acquireLockWithRetry logger calls (lines 687-696)
+    // =========================================================================
+
+    #[Test]
+    public function acquireLockWithRetryLogsWarningOnEachFailedAttemptWithCorrectAttemptNumber(): void
+    {
+        $locker    = $this->createMock(LockingStrategyInterface::class);
+        $lockError = new RuntimeException('Lock error');
+        $locker->method('acquire')->willThrowException($lockError);
+
+        $response503 = $this->createMock(ResponseInterface::class);
+        $response503->method('withBody')->willReturn($response503);
+
+        $responseFactory = $this->createMock(ResponseFactoryInterface::class);
+        $responseFactory->method('createResponse')->with(503)->willReturn($response503);
+
+        $stream        = $this->createMock(StreamInterface::class);
+        $streamFactory = $this->createMock(StreamFactoryInterface::class);
+        $streamFactory->method('createStream')->willReturn($stream);
+
+        $logger         = $this->createMock(LoggerInterface::class);
+        $warningCallIdx = 0;
+        $logger->expects(self::exactly(10))
+            ->method('warning')
+            ->with(
+                'Lock acquire attempt failed',
+                self::callback(static function (array $context) use (&$warningCallIdx, $lockError): bool {
+                    ++$warningCallIdx;
+
+                    return isset($context['attempt'], $context['exception'])
+                        && $context['attempt'] === $warningCallIdx
+                        && $context['exception'] === $lockError;
+                }),
+            );
+
+        $logger->expects(self::once())
+            ->method('error')
+            ->with(
+                'Lock acquisition exhausted after {retries} retries',
+                self::callback(static fn (array $context): bool => isset($context['retries']) && $context['retries'] === 10),
+            );
+
+        $processor = $this->createProcessor(
+            responseFactory: $responseFactory,
+            streamFactory: $streamFactory,
+        );
+        $processor->setLogger($logger);
+
+        $this->callMethod($processor, 'acquireLockWithRetry', $locker);
+    }
+
+    // =========================================================================
+    // Mutation-killing tests: WebP/AVIF generation logger warnings (lines 432, 444)
+    // =========================================================================
+
+    #[Test]
+    public function processAndRespondLogsWarningWhenWebpAndAvifGenerationFail(): void
+    {
+        $tempDir = sys_get_temp_dir() . '/nr-pio-webp-log-' . uniqid('', true);
+        mkdir($tempDir . '/processed', 0o777, true);
+
+        $originalPath = $tempDir . '/original.jpg';
+        file_put_contents($originalPath, 'fake-jpg');
+        $variantPath = $tempDir . '/processed/original.w400h200m0q80.jpg';
+
+        $response200 = $this->createMock(ResponseInterface::class);
+        $response200->method('withHeader')->willReturn($response200);
+        $response200->method('withBody')->willReturn($response200);
+
+        $responseFactory = $this->createMock(ResponseFactoryInterface::class);
+        $responseFactory->method('createResponse')->willReturn($response200);
+
+        $stream        = $this->createMock(StreamInterface::class);
+        $streamFactory = $this->createMock(StreamFactoryInterface::class);
+        $streamFactory->method('createStreamFromFile')->willReturn($stream);
+
+        ['processor' => $processor, 'image' => $image] = $this->createProcessorWithImageReader(
+            responseFactory: $responseFactory,
+            streamFactory: $streamFactory,
+        );
+
+        $image->method('width')->willReturn(400);
+        $image->method('height')->willReturn(200);
+        $image->method('cover')->willReturn($image);
+
+        $webpException = new RuntimeException('WebP encoding failed');
+        $avifException = new RuntimeException('AVIF encoding failed');
+        $image->method('save')->willReturnCallback(
+            static function (string $path, mixed ...$options) use ($image, $webpException, $avifException): ImageInterface {
+                if (str_ends_with($path, '.webp')) {
+                    throw $webpException;
+                }
+
+                if (str_ends_with($path, '.avif')) {
+                    throw $avifException;
+                }
+
+                file_put_contents($path, 'processed');
+
+                return $image;
+            },
+        );
+
+        $logger    = $this->createMock(LoggerInterface::class);
+        $loggedMsg = [];
+        $logger->method('warning')
+            ->willReturnCallback(static function (string $msg, array $ctx) use (&$loggedMsg): void {
+                $loggedMsg[] = ['message' => $msg, 'context' => $ctx];
+            });
+
+        $processor->setLogger($logger);
+
+        $uri = $this->createMock(UriInterface::class);
+        $uri->method('getQuery')->willReturn('');
+        $request = $this->createMock(ServerRequestInterface::class);
+        $request->method('getUri')->willReturn($uri);
+
+        $urlInfo = [
+            'pathVariant'    => $variantPath,
+            'pathOriginal'   => $originalPath,
+            'extension'      => 'jpg',
+            'targetWidth'    => 400,
+            'targetHeight'   => 200,
+            'targetQuality'  => 80,
+            'processingMode' => 0,
+        ];
+
+        $this->callMethod($processor, 'processAndRespond', $request, $urlInfo);
+
+        // Verify WebP warning was logged with correct path and exception
+        $webpWarnings = array_filter($loggedMsg, static fn (array $entry): bool => $entry['message'] === 'WebP variant generation failed for "{path}"');
+        self::assertNotEmpty($webpWarnings, 'Expected WebP warning log');
+        $webpWarning = array_values($webpWarnings)[0];
+        self::assertSame($variantPath, $webpWarning['context']['path']);
+        self::assertSame($webpException, $webpWarning['context']['exception']);
+
+        // Verify AVIF warning was logged with correct path and exception
+        $avifWarnings = array_filter($loggedMsg, static fn (array $entry): bool => $entry['message'] === 'AVIF variant generation failed for "{path}"');
+        self::assertNotEmpty($avifWarnings, 'Expected AVIF warning log');
+        $avifWarning = array_values($avifWarnings)[0];
+        self::assertSame($variantPath, $avifWarning['context']['path']);
+        self::assertSame($avifException, $avifWarning['context']['exception']);
+
+        // Cleanup
+        $files = glob($tempDir . '/processed/*');
+
+        if ($files !== false) {
+            foreach ($files as $f) {
+                unlink($f);
+            }
+        }
+
+        unlink($originalPath);
+        rmdir($tempDir . '/processed');
+        rmdir($tempDir);
+    }
+
+    // =========================================================================
+    // Mutation-killing tests: buildOutputResponse logger error (line 863)
+    // =========================================================================
+
+    #[Test]
+    public function buildOutputResponseLogsErrorWhenAllFileResponsesFail(): void
+    {
+        $base = sys_get_temp_dir() . '/nr-pio-log-500-' . uniqid('', true);
+
+        $response500     = $this->createMock(ResponseInterface::class);
+        $responseFactory = $this->createMock(ResponseFactoryInterface::class);
+        $responseFactory->method('createResponse')->with(500)->willReturn($response500);
+
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects(self::once())
+            ->method('error')
+            ->with(
+                'buildOutputResponse: all file response attempts failed for "{path}"',
+                self::callback(static fn (array $context): bool => isset($context['path'], $context['extension'])
+                    && $context['path'] === $base
+                    && $context['extension'] === 'jpg'),
+            );
+
+        $processor = $this->createProcessor(responseFactory: $responseFactory);
+        $processor->setLogger($logger);
+
+        $result = $this->callMethod($processor, 'buildOutputResponse', 'jpg', $base);
+        self::assertSame($response500, $result);
+    }
+
+    // =========================================================================
+    // Mutation-killing tests: parseAllModeValues return value and match indices
+    // =========================================================================
+
+    #[Test]
+    public function parseAllModeValuesEmptyStringReturnsExactEmptyArray(): void
+    {
+        $result = $this->callMethod($this->processor, 'parseAllModeValues', '');
+
+        self::assertIsArray($result);
+        self::assertCount(0, $result);
+    }
+
+    #[Test]
+    public function parseAllModeValuesExtractsCorrectCaptureGroupIndices(): void
+    {
+        /** @var array<string, int> $result */
+        $result = $this->callMethod($this->processor, 'parseAllModeValues', 'w800h400');
+
+        self::assertArrayHasKey('w', $result);
+        self::assertArrayHasKey('h', $result);
+        self::assertSame(800, $result['w']);
+        self::assertSame(400, $result['h']);
+        self::assertArrayNotHasKey(0, $result);
+        self::assertArrayNotHasKey(1, $result);
+    }
+
+    // =========================================================================
+    // Mutation-killing tests: CastBool on parseQueryParams (lines 667, 668)
+    // =========================================================================
+
+    #[Test]
+    public function parseQueryParamsCastBoolDistinguishesTruthyStrings(): void
+    {
+        $uri = $this->createMock(UriInterface::class);
+        $uri->method('getQuery')->willReturn('skipWebP=1&skipAvif=yes');
+
+        $request = $this->createMock(ServerRequestInterface::class);
+        $request->method('getUri')->willReturn($uri);
+
+        /** @var array{skipWebP: bool, skipAvif: bool} $result */
+        $result = $this->callMethod($this->processor, 'parseQueryParams', $request);
+
+        self::assertTrue($result['skipWebP']);
+        self::assertTrue($result['skipAvif']);
+    }
+
+    // =========================================================================
+    // Mutation-killing tests: ensureDirectoryExists return removal (line 720)
+    // =========================================================================
+
+    #[Test]
+    public function ensureDirectoryExistsEarlyReturnsForExistingDir(): void
+    {
+        $dir = sys_get_temp_dir() . '/nr-pio-ensuredir-return-' . uniqid('', true);
+        mkdir($dir, 0o777, true);
+
+        $this->callMethod($this->processor, 'ensureDirectoryExists', $dir);
+        $this->callMethod($this->processor, 'ensureDirectoryExists', $dir);
+
+        self::assertDirectoryExists($dir);
+
+        rmdir($dir);
+    }
+
+    // =========================================================================
+    // Mutation-killing tests: buildOutputResponse instanceof checks (lines 842, 850, 859)
+    // =========================================================================
+
+    #[Test]
+    public function buildOutputResponseReturnsAvifResponseWhenAvifVariantExists(): void
+    {
+        $base = sys_get_temp_dir() . '/nr-pio-avif-instanceof-' . uniqid('', true);
+        file_put_contents($base . '.avif', 'fake-avif-data');
+
+        $avifResponse = $this->createMock(ResponseInterface::class);
+        $stream       = $this->createMock(StreamInterface::class);
+
+        $responseFactory = $this->createMock(ResponseFactoryInterface::class);
+        $responseFactory->method('createResponse')->with(200)->willReturn($avifResponse);
+        $avifResponse->method('withHeader')->willReturn($avifResponse);
+        $avifResponse->method('withBody')->willReturn($avifResponse);
+
+        $streamFactory = $this->createMock(StreamFactoryInterface::class);
+        $streamFactory->method('createStreamFromFile')->willReturn($stream);
+
+        $processor = $this->createProcessor(
+            responseFactory: $responseFactory,
+            streamFactory: $streamFactory,
+        );
+
+        $result = $this->callMethod($processor, 'buildOutputResponse', 'jpg', $base);
+
+        self::assertInstanceOf(ResponseInterface::class, $result);
+        self::assertSame($avifResponse, $result);
+
+        unlink($base . '.avif');
+    }
+
+    #[Test]
+    public function buildOutputResponseReturnsWebpResponseWhenOnlyWebpExists(): void
+    {
+        $base = sys_get_temp_dir() . '/nr-pio-webp-instanceof-' . uniqid('', true);
+        file_put_contents($base . '.webp', 'fake-webp-data');
+
+        $webpResponse = $this->createMock(ResponseInterface::class);
+        $stream       = $this->createMock(StreamInterface::class);
+
+        $responseFactory = $this->createMock(ResponseFactoryInterface::class);
+        $responseFactory->method('createResponse')->with(200)->willReturn($webpResponse);
+        $webpResponse->method('withHeader')->willReturn($webpResponse);
+        $webpResponse->method('withBody')->willReturn($webpResponse);
+
+        $streamFactory = $this->createMock(StreamFactoryInterface::class);
+        $streamFactory->method('createStreamFromFile')->willReturn($stream);
+
+        $processor = $this->createProcessor(
+            responseFactory: $responseFactory,
+            streamFactory: $streamFactory,
+        );
+
+        $result = $this->callMethod($processor, 'buildOutputResponse', 'jpg', $base);
+
+        self::assertInstanceOf(ResponseInterface::class, $result);
+        self::assertSame($webpResponse, $result);
+
+        unlink($base . '.webp');
+    }
+
+    #[Test]
+    public function buildOutputResponseReturnsPrimaryResponseWhenOnlyPrimaryExists(): void
+    {
+        $base = sys_get_temp_dir() . '/nr-pio-primary-instanceof-' . uniqid('', true);
+        file_put_contents($base, 'fake-jpg-data');
+
+        $primaryResponse = $this->createMock(ResponseInterface::class);
+        $stream          = $this->createMock(StreamInterface::class);
+
+        $responseFactory = $this->createMock(ResponseFactoryInterface::class);
+        $responseFactory->method('createResponse')->with(200)->willReturn($primaryResponse);
+        $primaryResponse->method('withHeader')->willReturn($primaryResponse);
+        $primaryResponse->method('withBody')->willReturn($primaryResponse);
+
+        $streamFactory = $this->createMock(StreamFactoryInterface::class);
+        $streamFactory->method('createStreamFromFile')->willReturn($stream);
+
+        $processor = $this->createProcessor(
+            responseFactory: $responseFactory,
+            streamFactory: $streamFactory,
+        );
+
+        $result = $this->callMethod($processor, 'buildOutputResponse', 'jpg', $base);
+
+        self::assertSame($primaryResponse, $result);
+
+        unlink($base);
+    }
+
+    // =========================================================================
+    // Mutation-killing tests: getLogger coalesce (line 941)
+    // =========================================================================
+
+    #[Test]
+    public function getLoggerReturnsInjectedLoggerWhenSet(): void
+    {
+        $logger = $this->createMock(LoggerInterface::class);
+
+        $processor = $this->createProcessor();
+        $processor->setLogger($logger);
+
+        $result = $this->callMethod($processor, 'getLogger');
+
+        self::assertSame($logger, $result);
+    }
+
+    #[Test]
+    public function getLoggerReturnsNullLoggerWhenNoLoggerSet(): void
+    {
+        $processor = $this->createProcessor();
+        $this->setProperty($processor, 'logger', null);
+
+        $result = $this->callMethod($processor, 'getLogger');
+
+        self::assertInstanceOf(NullLogger::class, $result);
+    }
+
+    // =========================================================================
+    // Mutation-killing tests: ensureDirectoryExists called (line 413)
+    // =========================================================================
+
+    #[Test]
+    public function processAndRespondCreatesVariantDirectoryBeforeSaving(): void
+    {
+        $tempDir = sys_get_temp_dir() . '/nr-pio-mkdir-' . uniqid('', true);
+        mkdir($tempDir, 0o777, true);
+
+        $originalPath = $tempDir . '/original.jpg';
+        file_put_contents($originalPath, 'fake-jpg');
+        $variantPath = $tempDir . '/processed/deep/original.w400h200m0q80.jpg';
+
+        $response200 = $this->createMock(ResponseInterface::class);
+        $response200->method('withHeader')->willReturn($response200);
+        $response200->method('withBody')->willReturn($response200);
+
+        $responseFactory = $this->createMock(ResponseFactoryInterface::class);
+        $responseFactory->method('createResponse')->willReturn($response200);
+
+        $stream        = $this->createMock(StreamInterface::class);
+        $streamFactory = $this->createMock(StreamFactoryInterface::class);
+        $streamFactory->method('createStreamFromFile')->willReturn($stream);
+
+        ['processor' => $processor, 'image' => $image] = $this->createProcessorWithImageReader(
+            responseFactory: $responseFactory,
+            streamFactory: $streamFactory,
+        );
+
+        $image->method('width')->willReturn(400);
+        $image->method('height')->willReturn(200);
+        $image->method('cover')->willReturn($image);
+        $image->method('save')->willReturnCallback(
+            static function (string $path, mixed ...$options) use ($image): ImageInterface {
+                self::assertDirectoryExists(dirname($path));
+                file_put_contents($path, 'processed');
+
+                return $image;
+            },
+        );
+
+        $uri = $this->createMock(UriInterface::class);
+        $uri->method('getQuery')->willReturn('skipWebP=1&skipAvif=1');
+        $request = $this->createMock(ServerRequestInterface::class);
+        $request->method('getUri')->willReturn($uri);
+
+        $urlInfo = [
+            'pathVariant'    => $variantPath,
+            'pathOriginal'   => $originalPath,
+            'extension'      => 'jpg',
+            'targetWidth'    => 400,
+            'targetHeight'   => 200,
+            'targetQuality'  => 80,
+            'processingMode' => 0,
+        ];
+
+        $this->callMethod($processor, 'processAndRespond', $request, $urlInfo);
+
+        self::assertDirectoryExists(dirname($variantPath));
+
+        $files = glob($tempDir . '/processed/deep/*');
+
+        if ($files !== false) {
+            foreach ($files as $f) {
+                unlink($f);
+            }
+        }
+
+        unlink($originalPath);
+        rmdir($tempDir . '/processed/deep');
+        rmdir($tempDir . '/processed');
+        rmdir($tempDir);
+    }
+
+    // =========================================================================
+    // Mutation-killing tests: Lock key exact format verification
+    // =========================================================================
+
+    #[Test]
+    public function generateAndSendPassesExactLockKeyWithProcessSuffix(): void
+    {
+        ['tempDir' => $tempDir, 'prop' => $prop] = $this->setUpRealEnvironment();
+
+        file_put_contents($tempDir . '/public/img.jpg', 'fake-image');
+
+        $variantUrl = '/processed/img.w100h50m0q80.jpg';
+
+        $locker = $this->createMock(LockingStrategyInterface::class);
+        $locker->method('acquire')->willReturn(false);
+
+        $response503 = $this->createMock(ResponseInterface::class);
+        $response503->method('withBody')->willReturn($response503);
+
+        $responseFactory = $this->createMock(ResponseFactoryInterface::class);
+        $responseFactory->method('createResponse')->with(503)->willReturn($response503);
+
+        $stream        = $this->createMock(StreamInterface::class);
+        $streamFactory = $this->createMock(StreamFactoryInterface::class);
+        $streamFactory->method('createStream')->willReturn($stream);
+
+        $lockFactory = $this->createMock(LockFactory::class);
+        $lockFactory->expects(self::once())
+            ->method('createLocker')
+            ->with('nr_image_optimize-' . md5($variantUrl . '-process'))
+            ->willReturn($locker);
+
+        $processor = $this->createProcessor(
+            lockFactory: $lockFactory,
+            responseFactory: $responseFactory,
+            streamFactory: $streamFactory,
+        );
+
+        $uri = $this->createMock(UriInterface::class);
+        $uri->method('getPath')->willReturn($variantUrl);
+        $request = $this->createMock(ServerRequestInterface::class);
+        $request->method('getUri')->willReturn($uri);
+
+        $processor->generateAndSend($request);
+
+        $this->tearDownRealEnvironment($tempDir, $prop);
+    }
+
+    // =========================================================================
+    // Mutation-killing: serveCachedVariant exact path and MIME assertions (L309-318)
+    // =========================================================================
+
+    #[Test]
+    public function serveCachedVariantPassesExactAvifPathToStreamFactory(): void
+    {
+        $base = sys_get_temp_dir() . '/nr-pio-avif-path-' . uniqid('', true);
+        file_put_contents($base . '.avif', 'avif-data');
+
+        $response = $this->createMock(ResponseInterface::class);
+        $response->method('withHeader')->willReturn($response);
+        $response->method('withBody')->willReturn($response);
+
+        $responseFactory = $this->createMock(ResponseFactoryInterface::class);
+        $responseFactory->method('createResponse')->with(200)->willReturn($response);
+
+        $streamFactory = $this->createMock(StreamFactoryInterface::class);
+        $streamFactory->expects(self::once())
+            ->method('createStreamFromFile')
+            ->with($base . '.avif')
+            ->willReturn($this->createMock(StreamInterface::class));
+
+        $processor = $this->createProcessor(
+            responseFactory: $responseFactory,
+            streamFactory: $streamFactory,
+        );
+
+        $result = $this->callMethod($processor, 'serveCachedVariant', $base, 'jpg');
+
+        self::assertNotNull($result);
+
+        unlink($base . '.avif');
+    }
+
+    #[Test]
+    public function serveCachedVariantPassesExactWebpPathToStreamFactory(): void
+    {
+        $base = sys_get_temp_dir() . '/nr-pio-webp-path-' . uniqid('', true);
+        // No avif file, only webp
+        file_put_contents($base . '.webp', 'webp-data');
+
+        $response = $this->createMock(ResponseInterface::class);
+        $response->method('withHeader')->willReturn($response);
+        $response->method('withBody')->willReturn($response);
+
+        $responseFactory = $this->createMock(ResponseFactoryInterface::class);
+        $responseFactory->method('createResponse')->with(200)->willReturn($response);
+
+        $streamFactory = $this->createMock(StreamFactoryInterface::class);
+        $streamFactory->expects(self::once())
+            ->method('createStreamFromFile')
+            ->with($base . '.webp')
+            ->willReturn($this->createMock(StreamInterface::class));
+
+        $processor = $this->createProcessor(
+            responseFactory: $responseFactory,
+            streamFactory: $streamFactory,
+        );
+
+        $result = $this->callMethod($processor, 'serveCachedVariant', $base, 'jpg');
+
+        self::assertNotNull($result);
+
+        unlink($base . '.webp');
+    }
+
+    #[Test]
+    public function serveCachedVariantReturnsResponseForAvifVariant(): void
+    {
+        // When extension is NOT avif and avif file exists, must return a response (not null/void)
+        $base = sys_get_temp_dir() . '/nr-pio-avif-return-' . uniqid('', true);
+        file_put_contents($base . '.avif', 'avif-data');
+
+        $response = $this->createMock(ResponseInterface::class);
+        $response->method('withHeader')->willReturn($response);
+        $response->method('withBody')->willReturn($response);
+
+        $this->responseFactory->method('createResponse')->willReturn($response);
+        $this->streamFactory->method('createStreamFromFile')->willReturn($this->createMock(StreamInterface::class));
+
+        $result = $this->callMethod($this->processor, 'serveCachedVariant', $base, 'png');
+
+        self::assertInstanceOf(ResponseInterface::class, $result);
+
+        unlink($base . '.avif');
+    }
+
+    #[Test]
+    public function serveCachedVariantReturnsResponseForWebpVariant(): void
+    {
+        // When extension is NOT webp and webp file exists (no avif), must return a response
+        $base = sys_get_temp_dir() . '/nr-pio-webp-return-' . uniqid('', true);
+        file_put_contents($base . '.webp', 'webp-data');
+
+        $response = $this->createMock(ResponseInterface::class);
+        $response->method('withHeader')->willReturn($response);
+        $response->method('withBody')->willReturn($response);
+
+        $this->responseFactory->method('createResponse')->willReturn($response);
+        $this->streamFactory->method('createStreamFromFile')->willReturn($this->createMock(StreamInterface::class));
+
+        $result = $this->callMethod($this->processor, 'serveCachedVariant', $base, 'png');
+
+        self::assertInstanceOf(ResponseInterface::class, $result);
+
+        unlink($base . '.webp');
+    }
+
+    #[Test]
+    public function serveCachedVariantDoesNotServeAvifWhenOriginalIsAvif(): void
+    {
+        // When extension IS avif, the avif variant check must be skipped even if file exists
+        $base = sys_get_temp_dir() . '/nr-pio-no-avif-upgrade-' . uniqid('', true);
+        file_put_contents($base . '.avif', 'avif-variant');
+        file_put_contents($base, 'primary-avif');
+
+        $response = $this->createMock(ResponseInterface::class);
+        $response->method('withHeader')->willReturn($response);
+        $response->method('withBody')->willReturn($response);
+
+        $responseFactory = $this->createMock(ResponseFactoryInterface::class);
+        $responseFactory->method('createResponse')->with(200)->willReturn($response);
+
+        $streamFactory = $this->createMock(StreamFactoryInterface::class);
+        // The stream factory must receive the primary path (not the .avif path)
+        $streamFactory->expects(self::once())
+            ->method('createStreamFromFile')
+            ->with($base)
+            ->willReturn($this->createMock(StreamInterface::class));
+
+        $processor = $this->createProcessor(
+            responseFactory: $responseFactory,
+            streamFactory: $streamFactory,
+        );
+
+        $result = $this->callMethod($processor, 'serveCachedVariant', $base, 'avif');
+
+        self::assertNotNull($result);
+
+        unlink($base . '.avif');
+        unlink($base);
+    }
+
+    #[Test]
+    public function serveCachedVariantDoesNotServeWebpWhenOriginalIsWebp(): void
+    {
+        // When extension IS webp, the webp variant check must be skipped
+        $base = sys_get_temp_dir() . '/nr-pio-no-webp-upgrade-' . uniqid('', true);
+        file_put_contents($base . '.webp', 'webp-variant');
+        file_put_contents($base, 'primary-webp');
+
+        $response = $this->createMock(ResponseInterface::class);
+        $response->method('withHeader')->willReturn($response);
+        $response->method('withBody')->willReturn($response);
+
+        $responseFactory = $this->createMock(ResponseFactoryInterface::class);
+        $responseFactory->method('createResponse')->with(200)->willReturn($response);
+
+        $streamFactory = $this->createMock(StreamFactoryInterface::class);
+        // Must receive the primary path (not .webp)
+        $streamFactory->expects(self::once())
+            ->method('createStreamFromFile')
+            ->with($base)
+            ->willReturn($this->createMock(StreamInterface::class));
+
+        $processor = $this->createProcessor(
+            responseFactory: $responseFactory,
+            streamFactory: $streamFactory,
+        );
+
+        $result = $this->callMethod($processor, 'serveCachedVariant', $base, 'webp');
+
+        self::assertNotNull($result);
+
+        unlink($base . '.webp');
+        unlink($base);
+    }
+
+    #[Test]
+    public function serveCachedVariantUsesCorrectMimeTypeForKnownExtension(): void
+    {
+        // When falling through to primary variant with a known extension, the MIME type
+        // must come from the map (not 'application/octet-stream')
+        $base = sys_get_temp_dir() . '/nr-pio-mime-map-' . uniqid('', true);
+        file_put_contents($base, 'jpg-data');
+
+        $capturedHeaders = [];
+        $response        = $this->createMock(ResponseInterface::class);
+        $response->method('withHeader')->willReturnCallback(
+            static function (string $name, string $value) use ($response, &$capturedHeaders): ResponseInterface {
+                $capturedHeaders[$name] = $value;
+
+                return $response;
+            },
+        );
+        $response->method('withBody')->willReturn($response);
+
+        $this->responseFactory->method('createResponse')->willReturn($response);
+        $this->streamFactory->method('createStreamFromFile')->willReturn($this->createMock(StreamInterface::class));
+
+        $this->callMethod($this->processor, 'serveCachedVariant', $base, 'jpg');
+
+        self::assertSame('image/jpeg', $capturedHeaders['Content-Type']);
+
+        unlink($base);
+    }
+
+    #[Test]
+    public function serveCachedVariantUsesOctetStreamForUnknownExtension(): void
+    {
+        $base = sys_get_temp_dir() . '/nr-pio-mime-unknown-' . uniqid('', true);
+        file_put_contents($base, 'raw-data');
+
+        $capturedHeaders = [];
+        $response        = $this->createMock(ResponseInterface::class);
+        $response->method('withHeader')->willReturnCallback(
+            static function (string $name, string $value) use ($response, &$capturedHeaders): ResponseInterface {
+                $capturedHeaders[$name] = $value;
+
+                return $response;
+            },
+        );
+        $response->method('withBody')->willReturn($response);
+
+        $this->responseFactory->method('createResponse')->willReturn($response);
+        $this->streamFactory->method('createStreamFromFile')->willReturn($this->createMock(StreamInterface::class));
+
+        $this->callMethod($this->processor, 'serveCachedVariant', $base, 'xyz');
+
+        self::assertSame('application/octet-stream', $capturedHeaders['Content-Type']);
+
+        unlink($base);
+    }
+
+    // =========================================================================
+    // Mutation-killing: buildFileResponse exact header values (L353-360)
+    // =========================================================================
+
+    #[Test]
+    public function buildFileResponseSetsExactCacheControlHeader(): void
+    {
+        $base = sys_get_temp_dir() . '/nr-pio-cc-' . uniqid('', true);
+        file_put_contents($base, 'cache-control-test');
+
+        $capturedHeaders = [];
+        $response        = $this->createMock(ResponseInterface::class);
+        $response->method('withHeader')->willReturnCallback(
+            static function (string $name, string $value) use ($response, &$capturedHeaders): ResponseInterface {
+                $capturedHeaders[$name] = $value;
+
+                return $response;
+            },
+        );
+        $response->method('withBody')->willReturn($response);
+
+        $this->responseFactory->method('createResponse')->willReturn($response);
+        $this->streamFactory->method('createStreamFromFile')->willReturn($this->createMock(StreamInterface::class));
+
+        $this->callMethod($this->processor, 'buildFileResponse', $base, 'image/png');
+
+        self::assertSame('public, max-age=31536000, immutable', $capturedHeaders['Cache-Control']);
+
+        unlink($base);
+    }
+
+    #[Test]
+    public function buildFileResponseSetsExactContentLengthHeader(): void
+    {
+        $base = sys_get_temp_dir() . '/nr-pio-cl-' . uniqid('', true);
+        file_put_contents($base, 'exactly-19-bytes!!');
+
+        $capturedHeaders = [];
+        $response        = $this->createMock(ResponseInterface::class);
+        $response->method('withHeader')->willReturnCallback(
+            static function (string $name, string $value) use ($response, &$capturedHeaders): ResponseInterface {
+                $capturedHeaders[$name] = $value;
+
+                return $response;
+            },
+        );
+        $response->method('withBody')->willReturn($response);
+
+        $this->responseFactory->method('createResponse')->willReturn($response);
+        $this->streamFactory->method('createStreamFromFile')->willReturn($this->createMock(StreamInterface::class));
+
+        $this->callMethod($this->processor, 'buildFileResponse', $base, 'image/jpeg');
+
+        self::assertSame((string) filesize($base), $capturedHeaders['Content-Length']);
+
+        unlink($base);
+    }
+
+    #[Test]
+    public function buildFileResponseSetsExactContentTypeHeader(): void
+    {
+        $base = sys_get_temp_dir() . '/nr-pio-ct-' . uniqid('', true);
+        file_put_contents($base, 'content-type-test');
+
+        $capturedHeaders = [];
+        $response        = $this->createMock(ResponseInterface::class);
+        $response->method('withHeader')->willReturnCallback(
+            static function (string $name, string $value) use ($response, &$capturedHeaders): ResponseInterface {
+                $capturedHeaders[$name] = $value;
+
+                return $response;
+            },
+        );
+        $response->method('withBody')->willReturn($response);
+
+        $this->responseFactory->method('createResponse')->willReturn($response);
+        $this->streamFactory->method('createStreamFromFile')->willReturn($this->createMock(StreamInterface::class));
+
+        $this->callMethod($this->processor, 'buildFileResponse', $base, 'image/webp');
+
+        self::assertSame('image/webp', $capturedHeaders['Content-Type']);
+
+        unlink($base);
+    }
+
+    #[Test]
+    public function buildFileResponseSetsExactLastModifiedHeader(): void
+    {
+        $base = sys_get_temp_dir() . '/nr-pio-lm-' . uniqid('', true);
+        file_put_contents($base, 'last-modified-test');
+
+        $fileMtime = filemtime($base);
+        self::assertNotFalse($fileMtime);
+
+        $expectedLastModified = gmdate('D, d M Y H:i:s', $fileMtime) . ' GMT';
+
+        $capturedHeaders = [];
+        $response        = $this->createMock(ResponseInterface::class);
+        $response->method('withHeader')->willReturnCallback(
+            static function (string $name, string $value) use ($response, &$capturedHeaders): ResponseInterface {
+                $capturedHeaders[$name] = $value;
+
+                return $response;
+            },
+        );
+        $response->method('withBody')->willReturn($response);
+
+        $this->responseFactory->method('createResponse')->willReturn($response);
+        $this->streamFactory->method('createStreamFromFile')->willReturn($this->createMock(StreamInterface::class));
+
+        $this->callMethod($this->processor, 'buildFileResponse', $base, 'image/png');
+
+        self::assertSame($expectedLastModified, $capturedHeaders['Last-Modified']);
+
+        unlink($base);
+    }
+
+    #[Test]
+    public function buildFileResponseSetsExactETagHeader(): void
+    {
+        $base = sys_get_temp_dir() . '/nr-pio-etag-exact-' . uniqid('', true);
+        file_put_contents($base, 'etag-test');
+
+        $fileMtime = filemtime($base);
+        self::assertNotFalse($fileMtime);
+
+        // ETag must be: '"' . md5($filePath . $fileMtime) . '"'
+        // The order is filePath THEN fileMtime, and it must be quoted
+        $expectedETag = '"' . md5($base . $fileMtime) . '"';
+
+        $capturedHeaders = [];
+        $response        = $this->createMock(ResponseInterface::class);
+        $response->method('withHeader')->willReturnCallback(
+            static function (string $name, string $value) use ($response, &$capturedHeaders): ResponseInterface {
+                $capturedHeaders[$name] = $value;
+
+                return $response;
+            },
+        );
+        $response->method('withBody')->willReturn($response);
+
+        $this->responseFactory->method('createResponse')->willReturn($response);
+        $this->streamFactory->method('createStreamFromFile')->willReturn($this->createMock(StreamInterface::class));
+
+        $this->callMethod($this->processor, 'buildFileResponse', $base, 'image/jpeg');
+
+        self::assertSame($expectedETag, $capturedHeaders['ETag']);
+        // Verify it starts with " and ends with "
+        self::assertStringStartsWith('"', $capturedHeaders['ETag']);
+        self::assertStringEndsWith('"', $capturedHeaders['ETag']);
+        // Verify the md5 hash is present (32 hex chars)
+        $inner = substr($capturedHeaders['ETag'], 1, -1);
+        self::assertMatchesRegularExpression('/^[0-9a-f]{32}$/', $inner);
+
+        unlink($base);
+    }
+
+    #[Test]
+    public function buildFileResponseIncludesLastModifiedAndEtagWhenMtimeIsValid(): void
+    {
+        // Ensures the fileMtime !== false branch returns a response WITH Last-Modified and ETag
+        $base = sys_get_temp_dir() . '/nr-pio-mtime-branch-' . uniqid('', true);
+        file_put_contents($base, 'mtime-branch-test');
+
+        $capturedHeaders = [];
+        $response        = $this->createMock(ResponseInterface::class);
+        $response->method('withHeader')->willReturnCallback(
+            static function (string $name, string $value) use ($response, &$capturedHeaders): ResponseInterface {
+                $capturedHeaders[$name] = $value;
+
+                return $response;
+            },
+        );
+        $response->method('withBody')->willReturn($response);
+
+        $this->responseFactory->method('createResponse')->willReturn($response);
+        $this->streamFactory->method('createStreamFromFile')->willReturn($this->createMock(StreamInterface::class));
+
+        $result = $this->callMethod($this->processor, 'buildFileResponse', $base, 'image/png');
+
+        self::assertNotNull($result);
+        self::assertArrayHasKey('Last-Modified', $capturedHeaders);
+        self::assertArrayHasKey('ETag', $capturedHeaders);
+        // Last-Modified must end with ' GMT'
+        self::assertStringEndsWith(' GMT', $capturedHeaders['Last-Modified']);
+        // Last-Modified must contain the date (not just ' GMT')
+        self::assertNotSame(' GMT', $capturedHeaders['Last-Modified']);
+
+        unlink($base);
+    }
+
+    // =========================================================================
+    // Mutation-killing: parseAllModeValues (L553-559)
+    // =========================================================================
+
+    #[Test]
+    public function parseAllModeValuesReturnsEmptyArrayForEmptyString(): void
+    {
+        // Exact return type: must be empty array, not null, not false, not ['']
+        $result = $this->callMethod($this->processor, 'parseAllModeValues', '');
+
+        self::assertIsArray($result);
+        self::assertSame([], $result);
+        self::assertCount(0, $result);
+    }
+
+    #[Test]
+    public function parseAllModeValuesReturnsEmptyArrayForNoMatches(): void
+    {
+        // String that has no mode pattern matches - preg_match_all returns 0
+        // CastBool mutant: (bool)0 is false, removing cast would make 0 truthy via int
+        /** @var array<string, int> $result */
+        $result = $this->callMethod($this->processor, 'parseAllModeValues', 'xyz');
+
+        self::assertSame([], $result);
+    }
+
+    #[Test]
+    public function parseAllModeValuesUsesCorrectCaptureGroups(): void
+    {
+        // This test ensures capture group [1] is used for keys and [2] for values
+        // DecrementInteger: using [0] would give full matches like "w800"
+        // IncrementInteger: using [2] for count would give value digits count
+        /** @var array<string, int> $result */
+        $result = $this->callMethod($this->processor, 'parseAllModeValues', 'w800h400');
+
+        // Keys must be single letters, not full matches like "w800"
+        self::assertArrayHasKey('w', $result);
+        self::assertArrayHasKey('h', $result);
+        self::assertArrayNotHasKey('w800', $result);
+        self::assertArrayNotHasKey('h400', $result);
+
+        // Values must be numeric
+        self::assertSame(800, $result['w']);
+        self::assertSame(400, $result['h']);
+
+        // Count must match number of key-value pairs (2), not some other number
+        self::assertCount(2, $result);
+    }
+
+    #[Test]
+    public function parseAllModeValuesSingleParameterReturnsExactlyOneEntry(): void
+    {
+        // If preg_match_all uses count($matches[0]) vs count($matches[1]) vs count($matches[2]),
+        // single-param should still work correctly
+        /** @var array<string, int> $result */
+        $result = $this->callMethod($this->processor, 'parseAllModeValues', 'q75');
+
+        self::assertCount(1, $result);
+        self::assertSame(75, $result['q']);
+    }
+
+    // =========================================================================
+    // Mutation-killing: parseQueryParams CastBool (L667-668)
+    // =========================================================================
+
+    #[Test]
+    public function parseQueryParamsReturnsFalseForStringZeroValues(): void
+    {
+        // String "0" is falsy: (bool)"0" === false
+        // Without the (bool) cast, "0" as a string is truthy in && context
+        $uri = $this->createMock(UriInterface::class);
+        $uri->method('getQuery')->willReturn('skipWebP=0&skipAvif=0');
+
+        $request = $this->createMock(ServerRequestInterface::class);
+        $request->method('getUri')->willReturn($uri);
+
+        /** @var array{skipWebP: bool, skipAvif: bool} $result */
+        $result = $this->callMethod($this->processor, 'parseQueryParams', $request);
+
+        self::assertFalse($result['skipWebP']);
+        self::assertFalse($result['skipAvif']);
+    }
+
+    #[Test]
+    public function parseQueryParamsReturnsTrueForNonZeroStringValues(): void
+    {
+        // Truthy strings like "1", "yes", "true" should yield true
+        $uri = $this->createMock(UriInterface::class);
+        $uri->method('getQuery')->willReturn('skipWebP=1&skipAvif=yes');
+
+        $request = $this->createMock(ServerRequestInterface::class);
+        $request->method('getUri')->willReturn($uri);
+
+        /** @var array{skipWebP: bool, skipAvif: bool} $result */
+        $result = $this->callMethod($this->processor, 'parseQueryParams', $request);
+
+        self::assertTrue($result['skipWebP']);
+        self::assertTrue($result['skipAvif']);
+    }
+
+    #[Test]
+    public function parseQueryParamsReturnsBoolValues(): void
+    {
+        // Ensure the return is strictly bool, not string
+        $uri = $this->createMock(UriInterface::class);
+        $uri->method('getQuery')->willReturn('skipWebP=1&skipAvif=0');
+
+        $request = $this->createMock(ServerRequestInterface::class);
+        $request->method('getUri')->willReturn($uri);
+
+        /** @var array{skipWebP: bool, skipAvif: bool} $result */
+        $result = $this->callMethod($this->processor, 'parseQueryParams', $request);
+
+        self::assertIsBool($result['skipWebP']);
+        self::assertIsBool($result['skipAvif']);
+        self::assertTrue($result['skipWebP']);
+        self::assertFalse($result['skipAvif']);
+    }
+
+    // =========================================================================
+    // Mutation-killing: ensureDirectoryExists early return (L720)
+    // =========================================================================
+
+    #[Test]
+    public function ensureDirectoryExistsReturnsEarlyForExistingDirectory(): void
+    {
+        // The early return when directory exists means mkdir is NOT called.
+        // Without the return, mkdir would be called on an existing dir.
+        // We verify no exception is thrown and the dir still exists.
+        $dir = sys_get_temp_dir() . '/nr-pio-earlyret-' . uniqid('', true);
+        mkdir($dir, 0o777, true);
+
+        // Call twice - both should succeed without error
+        $this->callMethod($this->processor, 'ensureDirectoryExists', $dir);
+        $this->callMethod($this->processor, 'ensureDirectoryExists', $dir);
+
+        self::assertDirectoryExists($dir);
+
+        rmdir($dir);
+    }
+
+    // =========================================================================
+    // Mutation-killing: ensureDirectoryExists LogicalAnd boundary (L723)
+    // =========================================================================
+
+    #[Test]
+    public function ensureDirectoryExistsDoesNotThrowWhenMkdirFailsButDirectoryExistsDueToRace(): void
+    {
+        // The condition is: !mkdir(...) && !is_dir(...)
+        // If mkdir returns false but is_dir returns true (race condition), no exception.
+        // Mutant changes && to || which would throw even when dir exists.
+        $dir = sys_get_temp_dir() . '/nr-pio-race-' . uniqid('', true);
+        mkdir($dir, 0o777, true);
+
+        // Creating the same dir again: mkdir returns false, but is_dir returns true
+        // So no exception should be thrown
+        $this->callMethod($this->processor, 'ensureDirectoryExists', $dir);
+
+        self::assertDirectoryExists($dir);
+
+        rmdir($dir);
+    }
+
+    // =========================================================================
+    // Mutation-killing: calculateTargetDimensions rounding (L763, L769)
+    // =========================================================================
+
+    #[Test]
+    public function calculateTargetDimensionsUsesRoundNotFloorForHeight(): void
+    {
+        // Image 100x99: aspect ratio = 100/99 ~= 1.0101
+        // targetWidth=150, targetHeight=null
+        // height = round(150 / (100/99)) = round(148.5) = 149
+        // floor would give 148, ceil would give 149
+        // Use dimensions where round != floor
+        $image = $this->createMock(ImageInterface::class);
+        $image->method('width')->willReturn(100);
+        $image->method('height')->willReturn(99);
+
+        /** @var array{0: int|null, 1: int|null} $result */
+        $result = $this->callMethod($this->processor, 'calculateTargetDimensions', $image, 150, null);
+
+        // 150 / (100/99) = 150 * 99/100 = 148.5 -> round = 149, floor = 148
+        self::assertSame(150, $result[0]);
+        self::assertSame(149, $result[1]);
+    }
+
+    #[Test]
+    public function calculateTargetDimensionsUsesRoundNotFloorForWidth(): void
+    {
+        // Image 99x100: aspect ratio = 99/100 = 0.99
+        // targetHeight=150, targetWidth=null
+        // width = round(150 * 0.99) = round(148.5) = 149
+        // floor would give 148
+        $image = $this->createMock(ImageInterface::class);
+        $image->method('width')->willReturn(99);
+        $image->method('height')->willReturn(100);
+
+        /** @var array{0: int|null, 1: int|null} $result */
+        $result = $this->callMethod($this->processor, 'calculateTargetDimensions', $image, null, 150);
+
+        // 150 * (99/100) = 148.5 -> round = 149, floor = 148
+        self::assertSame(149, $result[0]);
+        self::assertSame(150, $result[1]);
+    }
+
+    #[Test]
+    public function calculateTargetDimensionsUsesRoundNotCeilForHeight(): void
+    {
+        // We need round to differ from ceil: use a value where fractional part < 0.5
+        // Image 3x2: aspect ratio = 3/2 = 1.5
+        // targetWidth=10, targetHeight=null
+        // height = round(10 / 1.5) = round(6.666...) = 7
+        // ceil = 7, floor = 6
+        // That won't distinguish round from ceil. Try different dims.
+        // Image 7x5: ratio = 7/5 = 1.4
+        // targetWidth=10: height = round(10 / 1.4) = round(7.142...) = 7
+        // floor = 7, ceil = 8
+        // This distinguishes round from ceil
+        $image = $this->createMock(ImageInterface::class);
+        $image->method('width')->willReturn(7);
+        $image->method('height')->willReturn(5);
+
+        /** @var array{0: int|null, 1: int|null} $result */
+        $result = $this->callMethod($this->processor, 'calculateTargetDimensions', $image, 10, null);
+
+        // 10 / (7/5) = 10 * 5/7 = 7.142... -> round = 7, ceil = 8
+        self::assertSame(10, $result[0]);
+        self::assertSame(7, $result[1]);
+    }
+
+    #[Test]
+    public function calculateTargetDimensionsUsesRoundNotCeilForWidth(): void
+    {
+        // Image 5x7: ratio = 5/7 = 0.7142...
+        // targetHeight=10, targetWidth=null
+        // width = round(10 * (5/7)) = round(7.142...) = 7
+        // ceil = 8, floor = 7
+        $image = $this->createMock(ImageInterface::class);
+        $image->method('width')->willReturn(5);
+        $image->method('height')->willReturn(7);
+
+        /** @var array{0: int|null, 1: int|null} $result */
+        $result = $this->callMethod($this->processor, 'calculateTargetDimensions', $image, null, 10);
+
+        // 10 * (5/7) = 7.142... -> round = 7, ceil = 8
+        self::assertSame(7, $result[0]);
+        self::assertSame(10, $result[1]);
+    }
+
+    // =========================================================================
+    // Mutation-killing: buildOutputResponse LogicalAnd (L839, L847)
+    // =========================================================================
+
+    #[Test]
+    public function buildOutputResponseSkipsAvifBlockWhenExtensionIsAvif(): void
+    {
+        // When extension IS avif, the !isAvifImage check is false, so avif block is skipped.
+        // Mutant changes && to ||, which would enter the block when either condition is true.
+        $base = sys_get_temp_dir() . '/nr-pio-out-avif-skip-' . uniqid('', true);
+        file_put_contents($base . '.avif', 'avif-variant');
+        file_put_contents($base, 'primary-avif');
+
+        $response = $this->createMock(ResponseInterface::class);
+        $response->method('withHeader')->willReturn($response);
+        $response->method('withBody')->willReturn($response);
+
+        $responseFactory = $this->createMock(ResponseFactoryInterface::class);
+        $responseFactory->method('createResponse')->with(200)->willReturn($response);
+
+        $streamFactory = $this->createMock(StreamFactoryInterface::class);
+        // Must serve the primary file, not the .avif variant
+        $streamFactory->expects(self::once())
+            ->method('createStreamFromFile')
+            ->with($base)
+            ->willReturn($this->createMock(StreamInterface::class));
+
+        $processor = $this->createProcessor(
+            responseFactory: $responseFactory,
+            streamFactory: $streamFactory,
+        );
+
+        $result = $this->callMethod($processor, 'buildOutputResponse', 'avif', $base);
+
+        self::assertSame($response, $result);
+
+        unlink($base . '.avif');
+        unlink($base);
+    }
+
+    #[Test]
+    public function buildOutputResponseSkipsWebpBlockWhenExtensionIsWebp(): void
+    {
+        // When extension IS webp, the !isWebpImage check is false, so webp block is skipped.
+        $base = sys_get_temp_dir() . '/nr-pio-out-webp-skip-' . uniqid('', true);
+        file_put_contents($base . '.webp', 'webp-variant');
+        file_put_contents($base, 'primary-webp');
+
+        $response = $this->createMock(ResponseInterface::class);
+        $response->method('withHeader')->willReturn($response);
+        $response->method('withBody')->willReturn($response);
+
+        $responseFactory = $this->createMock(ResponseFactoryInterface::class);
+        $responseFactory->method('createResponse')->with(200)->willReturn($response);
+
+        $streamFactory = $this->createMock(StreamFactoryInterface::class);
+        // Must serve the primary file, not the .webp variant
+        $streamFactory->expects(self::once())
+            ->method('createStreamFromFile')
+            ->with($base)
+            ->willReturn($this->createMock(StreamInterface::class));
+
+        $processor = $this->createProcessor(
+            responseFactory: $responseFactory,
+            streamFactory: $streamFactory,
+        );
+
+        $result = $this->callMethod($processor, 'buildOutputResponse', 'webp', $base);
+
+        self::assertSame($response, $result);
+
+        unlink($base . '.webp');
+        unlink($base);
+    }
+
+    // =========================================================================
+    // Mutation-killing: buildOutputResponse Coalesce (L855)
+    // =========================================================================
+
+    #[Test]
+    public function buildOutputResponseUsesExtensionMimeMapForKnownExtension(): void
+    {
+        // When extension is 'png', MIME should be 'image/png' from the map, not 'application/octet-stream'
+        $base = sys_get_temp_dir() . '/nr-pio-out-mime-' . uniqid('', true);
+        file_put_contents($base, 'png-data');
+
+        $capturedHeaders = [];
+        $response        = $this->createMock(ResponseInterface::class);
+        $response->method('withHeader')->willReturnCallback(
+            static function (string $name, string $value) use ($response, &$capturedHeaders): ResponseInterface {
+                $capturedHeaders[$name] = $value;
+
+                return $response;
+            },
+        );
+        $response->method('withBody')->willReturn($response);
+
+        $responseFactory = $this->createMock(ResponseFactoryInterface::class);
+        $responseFactory->method('createResponse')->with(200)->willReturn($response);
+
+        $streamFactory = $this->createMock(StreamFactoryInterface::class);
+        $streamFactory->method('createStreamFromFile')->willReturn($this->createMock(StreamInterface::class));
+
+        $processor = $this->createProcessor(
+            responseFactory: $responseFactory,
+            streamFactory: $streamFactory,
+        );
+
+        $this->callMethod($processor, 'buildOutputResponse', 'png', $base);
+
+        self::assertSame('image/png', $capturedHeaders['Content-Type']);
+
+        unlink($base);
+    }
+
+    // =========================================================================
+    // Mutation-killing: isPathWithinPublicRoot ConcatOperandRemoval (L628)
+    // =========================================================================
+
+    #[Test]
+    public function isPathWithinPublicRootRequiresDirectorySeparatorInPrefix(): void
+    {
+        // L628: $publicPrefix = $publicPath . DIRECTORY_SEPARATOR
+        // Mutant removes the DIRECTORY_SEPARATOR, making prefix = just $publicPath
+        // Without the separator, /var/www/html/publicXXX would match /var/www/html/public
+        $refClass = new ReflectionClass(Processor::class);
+        $prop     = $refClass->getProperty('resolvedPublicPath');
+        $prop->setValue(null, null);
+
+        $tempDir = sys_get_temp_dir() . '/nr-pio-sep-' . uniqid('', true);
+        mkdir($tempDir . '/public', 0o777, true);
+        // Create a sibling directory that starts with the same prefix but isn't under public
+        mkdir($tempDir . '/publicXXX', 0o777, true);
+
+        Environment::initialize(
+            new ApplicationContext('Testing'),
+            true,
+            true,
+            $tempDir,
+            $tempDir . '/public',
+            $tempDir . '/var',
+            $tempDir . '/config',
+            $tempDir . '/public/index.php',
+            'UNIX',
+        );
+
+        // Path inside public - should be accepted
+        self::assertTrue($this->callMethod($this->processor, 'isPathWithinPublicRoot', $tempDir . '/public'));
+
+        // Path in sibling directory - should be rejected
+        self::assertFalse($this->callMethod($this->processor, 'isPathWithinPublicRoot', $tempDir . '/publicXXX'));
+
+        // Cleanup
+        rmdir($tempDir . '/publicXXX');
+        rmdir($tempDir . '/public');
+        rmdir($tempDir);
+
+        $prop->setValue(null, null);
+        Environment::initialize(
+            new ApplicationContext('Testing'),
+            true,
+            true,
+            '/var/www/html',
+            '/var/www/html/public',
+            '/var/www/html/var',
+            '/var/www/html/config',
+            '/var/www/html/public/index.php',
+            'UNIX',
+        );
     }
 }

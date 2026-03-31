@@ -35,12 +35,14 @@ use RecursiveIteratorIterator;
 use function round;
 
 use RuntimeException;
+use SplFileInfo;
 
 use function str_replace;
 use function strtolower;
 
 use Throwable;
 use TYPO3\CMS\Backend\Template\ModuleTemplateFactory;
+use TYPO3\CMS\Core\Authentication\AbstractUserAuthentication;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Localization\LanguageServiceFactory;
@@ -208,6 +210,7 @@ final class MaintenanceController extends ActionController implements LoggerAwar
             RecursiveIteratorIterator::SELF_FIRST,
         );
 
+        /** @var SplFileInfo $file */
         foreach ($iterator as $file) {
             if ($file->isDir()) {
                 ++$directories;
@@ -224,14 +227,14 @@ final class MaintenanceController extends ActionController implements LoggerAwar
             $size += $fileSize;
             $mtime = $file->getMTime();
 
-            $extension = strtolower((string) $file->getExtension());
+            $extension = strtolower($file->getExtension());
             $fileTypes[$extension] ??= ['count' => 0, 'size' => 0];
             ++$fileTypes[$extension]['count'];
             $fileTypes[$extension]['size'] += $fileSize;
 
             $files[] = [
                 'name' => $file->getFilename(),
-                'path' => str_replace($path . '/', '', (string) $file->getPathname()),
+                'path' => str_replace($path . '/', '', $file->getPathname()),
                 'size' => $fileSize,
             ];
 
@@ -331,7 +334,11 @@ final class MaintenanceController extends ActionController implements LoggerAwar
      */
     private function getLanguageService(): LanguageService
     {
-        return $this->languageServiceFactory->createFromUserPreferences($GLOBALS['BE_USER'] ?? null);
+        $backendUser = $GLOBALS['BE_USER'] ?? null;
+
+        return $this->languageServiceFactory->createFromUserPreferences(
+            $backendUser instanceof AbstractUserAuthentication ? $backendUser : null,
+        );
     }
 
     /**

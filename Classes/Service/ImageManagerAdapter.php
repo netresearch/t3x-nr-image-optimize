@@ -45,16 +45,22 @@ final readonly class ImageManagerAdapter implements ImageReaderInterface
      *
      * The object parameter type prevents PHPStan from statically narrowing
      * the method_exists() check against a single installed library version.
+     *
+     * @return Closure(string): ImageInterface
      */
     private function resolveReadMethod(object $manager): Closure
     {
         $method = method_exists($manager, 'read') ? 'read' : 'decode';
 
+        /** @var Closure(string): ImageInterface */
         return $manager->{$method}(...); // @phpstan-ignore method.dynamicName
     }
 
     public function read(string $path): ImageInterface
     {
-        return ($this->readCallback)($path);
+        $result = ($this->readCallback)($path);
+        assert($result instanceof ImageInterface);
+
+        return $result;
     }
 }

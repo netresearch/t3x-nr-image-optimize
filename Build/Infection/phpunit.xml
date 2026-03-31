@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Combined PHPUnit configuration for mutation testing with Infection.
+
+    Includes unit, functional, and acceptance test suites so that Infection
+    can run ALL tests against each mutant, maximising the chance of killing it.
+
+    The functional bootstrap is a superset of the unit bootstrap: FunctionalTestCase
+    handles its own environment setup in setUp(), so unit tests work fine with it.
+-->
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/12.3/phpunit.xsd"
+         bootstrap="../../.build/vendor/typo3/testing-framework/Resources/Core/Build/FunctionalTestsBootstrap.php"
+         cacheDirectory="../../.build/.phpunit.cache"
+         executionOrder="depends,defects"
+         beStrictAboutOutputDuringTests="true"
+         failOnRisky="true"
+         failOnWarning="true"
+         backupGlobals="true"
+         colors="true"
+>
+    <testsuites>
+        <testsuite name="unit">
+            <directory>../../Tests/Unit</directory>
+        </testsuite>
+        <testsuite name="functional">
+            <directory>../../Tests/Functional</directory>
+        </testsuite>
+        <testsuite name="acceptance">
+            <directory>../../Tests/Acceptance</directory>
+        </testsuite>
+    </testsuites>
+    <php>
+        <ini name="display_errors" value="1"/>
+        <env name="TYPO3_CONTEXT" value="Testing"/>
+    </php>
+    <source restrictNotices="true"
+            restrictWarnings="true"
+            ignoreIndirectDeprecations="true">
+        <include>
+            <directory>../../Classes</directory>
+        </include>
+    </source>
+</phpunit>

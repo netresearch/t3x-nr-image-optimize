@@ -215,7 +215,8 @@ final class ProcessorFuzzTest extends TestCase
             self::assertSame($expected['extension'], $result['extension'], sprintf('Wrong extension for "%s"', $url));
 
             // Verify resolved paths do not escape the public root
-            $resolvedDir = realpath(dirname((string) $result['pathOriginal']));
+            assert(is_string($result['pathOriginal']));
+            $resolvedDir = realpath(dirname($result['pathOriginal']));
             $resolved    = $resolvedDir !== false ? $resolvedDir : $result['pathOriginal'];
             $publicPath  = Environment::getPublicPath();
 

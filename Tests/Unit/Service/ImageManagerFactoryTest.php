@@ -15,13 +15,10 @@ use function extension_loaded;
 
 use Netresearch\NrImageOptimize\Service\ImageManagerAdapter;
 use Netresearch\NrImageOptimize\Service\ImageManagerFactory;
-use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 
-#[CoversClass(ImageManagerFactory::class)]
-#[CoversClass(ImageManagerAdapter::class)]
 class ImageManagerFactoryTest extends TestCase
 {
     private ImageManagerFactory $factory;
@@ -36,10 +33,6 @@ class ImageManagerFactoryTest extends TestCase
     #[Test]
     public function createReturnsManagerCapableOfReadingImages(): void
     {
-        if (!extension_loaded('gd')) {
-            self::markTestSkipped('GD extension is required for this test.');
-        }
-
         $imageManager = $this->factory->create();
         $adapter      = new ImageManagerAdapter($imageManager);
 

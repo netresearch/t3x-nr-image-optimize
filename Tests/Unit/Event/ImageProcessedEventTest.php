@@ -12,12 +12,16 @@ declare(strict_types=1);
 namespace Netresearch\NrImageOptimize\Tests\Unit\Event;
 
 use Netresearch\NrImageOptimize\Event\ImageProcessedEvent;
-use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 
-#[CoversClass(ImageProcessedEvent::class)]
+/**
+ * Tests for ImageProcessedEvent.
+ *
+ * No CoversClass attribute: final readonly classes cannot be instrumented
+ * by PCOV on PHP 8.5, causing PHPUnit coverage warnings.
+ */
 class ImageProcessedEventTest extends TestCase
 {
     #[Test]

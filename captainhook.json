@@ -1,0 +1,36 @@
+{
+    "pre-commit": {
+        "actions": [
+            {
+                "action": "composer ci:test:php:cgl",
+                "conditions": []
+            },
+            {
+                "action": "composer ci:test:php:phpstan",
+                "conditions": []
+            }
+        ]
+    },
+    "commit-msg": {
+        "actions": [
+            {
+                "action": "\\CaptainHook\\App\\Hook\\Message\\Action\\Rules",
+                "options": {
+                    "rules": [
+                        "\\CaptainHook\\App\\Hook\\Message\\Rule\\MsgNotEmpty",
+                        "\\CaptainHook\\App\\Hook\\Message\\Rule\\CapitalizeSubject",
+                        "\\CaptainHook\\App\\Hook\\Message\\Rule\\LimitSubjectLength"
+                    ]
+                }
+            }
+        ]
+    },
+    "pre-push": {
+        "actions": [
+            {
+                "action": "composer ci:test:php:unit",
+                "conditions": []
+            }
+        ]
+    }
+}

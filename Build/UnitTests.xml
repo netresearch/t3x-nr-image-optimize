@@ -4,7 +4,6 @@
          bootstrap="../.build/vendor/typo3/testing-framework/Resources/Core/Build/UnitTestsBootstrap.php"
          cacheDirectory="../.build/.phpunit.cache"
          executionOrder="depends,defects"
-         beStrictAboutCoverageMetadata="true"
          beStrictAboutOutputDuringTests="true"
          failOnRisky="true"
          failOnWarning="true"

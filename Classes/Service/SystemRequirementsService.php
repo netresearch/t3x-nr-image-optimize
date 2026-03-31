@@ -246,7 +246,7 @@ final class SystemRequirementsService
         }
 
         $info      = gd_info();
-        $gdVersion = $info['GD Version'] ?? null;
+        $gdVersion = isset($info['GD Version']) && is_string($info['GD Version']) ? $info['GD Version'] : null;
         $items[]   = $this->makeItem(
             'sysreq.gdVersion',
             $gdVersion,
@@ -472,7 +472,9 @@ final class SystemRequirementsService
 
         foreach ($packages as $p) {
             if (is_array($p) && ($p['name'] ?? '') === $package) {
-                return $p['pretty_version'] ?? $p['version'] ?? null;
+                $version = $p['pretty_version'] ?? $p['version'] ?? null;
+
+                return is_string($version) ? $version : null;
             }
         }
 
@@ -507,9 +509,17 @@ final class SystemRequirementsService
         }
 
         foreach (['packages', 'packages-dev'] as $key) {
-            foreach ($data[$key] ?? [] as $p) {
+            $packages = $data[$key] ?? [];
+
+            if (!is_array($packages)) {
+                continue;
+            }
+
+            foreach ($packages as $p) {
                 if (is_array($p) && ($p['name'] ?? '') === $package) {
-                    return $p['version'] ?? null;
+                    $version = $p['version'] ?? null;
+
+                    return is_string($version) ? $version : null;
                 }
             }
         }
