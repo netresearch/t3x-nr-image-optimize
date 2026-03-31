@@ -6,47 +6,47 @@ help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
 cgl: ## Check code style (dry-run)
-	$(RUNTESTS) cgl
+	$(RUNTESTS) -s cgl
 
 cgl-fix: ## Fix code style
-	$(RUNTESTS) cgl:fix
+	$(RUNTESTS) -s cgl:fix
 
 phpstan: ## Run PHPStan static analysis
-	$(RUNTESTS) phpstan
+	$(RUNTESTS) -s phpstan
 
 rector: ## Run Rector dry-run
-	$(RUNTESTS) rector
+	$(RUNTESTS) -s rector
 
 fractor: ## Run Fractor dry-run
-	$(RUNTESTS) fractor
+	$(RUNTESTS) -s fractor
 
 lint: ## Run PHP linter
-	$(RUNTESTS) lint
+	$(RUNTESTS) -s lint
 
 test: test-unit test-functional test-acceptance ## Run all tests
 
 test-unit: ## Run unit tests
-	$(RUNTESTS) unit
+	$(RUNTESTS) -s unit
 
 test-functional: ## Run functional tests
-	$(RUNTESTS) functional
+	$(RUNTESTS) -s functional
 
 test-acceptance: ## Run acceptance tests
-	$(RUNTESTS) acceptance
+	$(RUNTESTS) -s acceptance
 
 test-fuzz: ## Run fuzz tests
-	$(RUNTESTS) fuzz
+	$(RUNTESTS) -s fuzz
 
 mutation: ## Run mutation tests (unit tests only)
-	$(RUNTESTS) mutation
+	$(RUNTESTS) -s mutation
 
 mutation-full: ## Run mutation tests (unit + functional + acceptance)
-	$(RUNTESTS) mutation-full
+	$(RUNTESTS) -s mutation-full
 
 ci: ## Run full CI suite (lint, cgl, phpstan, rector, fractor, unit)
-	$(RUNTESTS) ci
+	$(RUNTESTS) -s ci
 
 all: ## Run all tests and quality checks
-	$(RUNTESTS) all
+	$(RUNTESTS) -s all
 
 .DEFAULT_GOAL := help

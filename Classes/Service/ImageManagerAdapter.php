@@ -45,8 +45,7 @@ final readonly class ImageManagerAdapter implements ImageReaderInterface
      *
      * The object parameter type prevents PHPStan from statically narrowing
      * the method_exists() check against a single installed library version.
-     */
-    /**
+     *
      * @return Closure(string): ImageInterface
      */
     private function resolveReadMethod(object $manager): Closure

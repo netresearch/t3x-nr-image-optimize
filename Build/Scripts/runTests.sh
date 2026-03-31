@@ -17,9 +17,9 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
-# Network and container naming
-NETWORK="nr-image-optimize"
+# Network and container naming (per-run to avoid conflicts with concurrent runs)
 SUFFIX="$(date +%s%N)"
+NETWORK="nr-image-optimize-${SUFFIX}"
 
 # Defaults
 SUITE=""
@@ -27,7 +27,6 @@ DBMS="sqlite"
 PHP_VERSION="8.4"
 EXTRA_TEST_OPTIONS=""
 XDEBUG=""
-DRY_RUN=""
 UPDATE_IMAGES=""
 HELP=""
 
@@ -89,7 +88,6 @@ Options:
                         mysql     MySQL 8.0
                         postgres  PostgreSQL 16
     -x              Enable Xdebug (for debugging test runs)
-    -n              Dry-run mode for cgl/rector/fractor (this is the default)
     -u              Pull latest Docker images before running
     -h              Show this help message
 
@@ -117,7 +115,6 @@ while [ $# -gt 0 ]; do
         -p) PHP_VERSION="$2"; shift 2 ;;
         -d) DBMS="$2"; shift 2 ;;
         -x) XDEBUG="yes"; shift ;;
-        -n) DRY_RUN="yes"; shift ;;
         -u) UPDATE_IMAGES="yes"; shift ;;
         -h) HELP="yes"; shift ;;
         --) shift; EXTRA_TEST_OPTIONS="$*"; break ;;
