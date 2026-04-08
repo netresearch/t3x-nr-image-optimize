@@ -93,35 +93,41 @@ class Processor
         }
     }
 
-    private function gatherInformationBasedOnUrl(): void
+    private function gatherInformationBasedOnUrl(): bool
     {
         $information = [];
 
-        preg_match(
+        $matched = preg_match(
             '/^(\/processed\/)(.*)\.([0-9whqm]+)\.([a-zA-Z0-9]{1,4})$/',
             $this->variantUrl,
             $information
         );
 
+        if ($matched !== 1) {
+            return false;
+        }
+
         $basePath = Environment::getPublicPath();
 
         $this->pathVariant  = $basePath . $this->variantUrl;
-        $this->pathOriginal = $basePath . '/' . ($information[2] ?? '') . '.' . ($information[4] ?? '');
-        $this->extension    = strtolower($information[4] ?? '');
+        $this->pathOriginal = $basePath . '/' . $information[2] . '.' . $information[4];
+        $this->extension    = strtolower($information[4]);
 
         if ($this->extension === 'jpeg') {
             $this->extension = 'jpg';
         }
 
-        $this->targetWidth    = $this->getValueFromMode('w', $information[3] ?? null);
-        $this->targetHeight   = $this->getValueFromMode('h', $information[3] ?? null);
+        $this->targetWidth    = $this->getValueFromMode('w', $information[3]);
+        $this->targetHeight   = $this->getValueFromMode('h', $information[3]);
         $this->targetQuality  = $this->getValueFromMode('q', $information[3]) ?? 100;
         $this->processingMode = $this->getValueFromMode('m', $information[3]) ?? 0;
+
+        return true;
     }
 
-    private function getValueFromMode(string $what, string $mode): ?int
+    private function getValueFromMode(string $what, ?string $mode): ?int
     {
-        if ($mode === '') {
+        if ($mode === null || $mode === '') {
             return null;
         }
 
@@ -248,9 +254,14 @@ class Processor
             }
         }
 
-        $this->gatherInformationBasedOnUrl();
+        if ($this->gatherInformationBasedOnUrl() === false) {
+            $locker->release();
+            header(HttpUtility::HTTP_STATUS_404);
+            exit;
+        }
 
         if (!file_exists($this->pathOriginal)) {
+            $locker->release();
             header(HttpUtility::HTTP_STATUS_404);
             exit;
         }

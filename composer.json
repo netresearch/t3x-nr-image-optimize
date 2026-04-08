@@ -60,7 +60,7 @@
             "phplint --configuration Build/.phplint.yml"
         ],
         "ci:test:php:unit": [
-            "XDEBUG_MODE=coverage && phpunit -c Build/UnitTests.xml"
+            "phpunit --configuration Build/UnitTests.xml"
         ],
         "ci:test:php:phpstan": [
             "phpstan analyze --configuration Build/phpstan.neon"
@@ -72,10 +72,11 @@
             "rector process --config Build/rector.php --dry-run"
         ],
         "ci:test": [
-            "@ci:test:php:cgl",
             "@ci:test:php:lint",
             "@ci:test:php:phpstan",
-            "@ci:test:php:rector"
+            "@ci:test:php:rector",
+            "@ci:test:php:unit",
+            "@ci:test:php:cgl"
         ],
         "ci:cgl": [
             "php-cs-fixer fix --config Build/.php-cs-fixer.dist.php --diff --verbose --cache-file .build/.php-cs-fixer.cache"
