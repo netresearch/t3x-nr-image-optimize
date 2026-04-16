@@ -218,6 +218,7 @@ class ImageOptimizerTest extends TestCase
         $fakeBinary        = sys_get_temp_dir() . '/nr-pio-fake-optipng-' . uniqid('', true);
         $this->tempFiles[] = $fakeBinary;
         file_put_contents($fakeBinary, "#!/bin/sh\nexit 0\n");
+        chmod($fakeBinary, 0o755);
 
         putenv('OPTIPNG_BIN=' . $fakeBinary);
 
@@ -237,6 +238,7 @@ class ImageOptimizerTest extends TestCase
         $fakeBinary        = sys_get_temp_dir() . '/nr-pio-fake-jpegoptim-' . uniqid('', true);
         $this->tempFiles[] = $fakeBinary;
         file_put_contents($fakeBinary, "#!/bin/sh\nexit 0\n");
+        chmod($fakeBinary, 0o755);
 
         putenv('JPEGOPTIM_BIN=' . $fakeBinary);
 
@@ -478,6 +480,7 @@ class ImageOptimizerTest extends TestCase
         $fake              = sys_get_temp_dir() . '/nr-pio-fake-jpegoptim-' . uniqid('', true);
         $this->tempFiles[] = $fake;
         file_put_contents($fake, "#!/bin/sh\nexit 0\n");
+        chmod($fake, 0o755);
         putenv('JPEGOPTIM_BIN=' . $fake);
 
         $optimizer = new ImageOptimizer();
@@ -645,6 +648,7 @@ class ImageOptimizerTest extends TestCase
         $fake              = sys_get_temp_dir() . '/nr-pio-fake-jpegoptim-' . uniqid('', true);
         $this->tempFiles[] = $fake;
         file_put_contents($fake, "#!/bin/sh\nexit 0\n");
+        chmod($fake, 0o755);
         putenv('JPEGOPTIM_BIN=' . $fake);
 
         $optimizer = new ImageOptimizer();

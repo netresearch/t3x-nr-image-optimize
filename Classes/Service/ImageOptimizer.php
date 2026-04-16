@@ -18,6 +18,7 @@ use function getenv;
 use function getimagesize;
 use function in_array;
 use function is_array;
+use function is_executable;
 use function is_file;
 use function is_numeric;
 use function is_string;
@@ -264,19 +265,27 @@ final class ImageOptimizer
     {
         $envName  = strtoupper($binary) . '_BIN';
         $override = getenv($envName);
-        if (is_string($override) && $override !== '' && is_file($override)) {
-            return $override;
+
+        // If the env override is set, it is authoritative: return the path if
+        // it resolves to an executable file, otherwise treat the tool as
+        // unavailable. Falling back to `which` would silently mask a
+        // misconfigured override and invoke a different binary.
+        if (is_string($override) && $override !== '') {
+            return is_file($override) && is_executable($override) ? $override : null;
         }
 
         $process = new Process(['which', $binary]);
         $process->run();
-        if ($process->isSuccessful()) {
-            $path = trim($process->getOutput());
-
-            return $path !== '' ? $path : null;
+        if (!$process->isSuccessful()) {
+            return null;
         }
 
-        return null;
+        $path = trim($process->getOutput());
+        if ($path === '' || !is_executable($path)) {
+            return null;
+        }
+
+        return $path;
     }
 
     /**
