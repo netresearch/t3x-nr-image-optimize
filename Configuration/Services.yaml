@@ -6,7 +6,6 @@ services:
 
   Netresearch\NrImageOptimize\:
     resource: '../Classes/*'
-    exclude: '../Classes/Domain/Model/*'
 
   Intervention\Image\ImageManager:
     factory:
