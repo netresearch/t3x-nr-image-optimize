@@ -116,13 +116,13 @@ class SystemRequirementsServiceTest extends TestCase
             'makeItem',
             'sysreq.testLabel',
             '8.2.0',
-            '>= 8.2.0',
+            '>= 8.1.0',
             'success',
         );
 
         self::assertSame('sysreq.testLabel', $result['labelKey']);
         self::assertSame('8.2.0', $result['current']);
-        self::assertSame('>= 8.2.0', $result['required']);
+        self::assertSame('>= 8.1.0', $result['required']);
         self::assertSame('success', $result['status']);
         self::assertSame('status-dialog-ok', $result['icon']);
         self::assertSame('bg-success', $result['badgeClass']);
@@ -215,7 +215,7 @@ class SystemRequirementsServiceTest extends TestCase
         $phpVersion = $result['items'][0];
         self::assertSame('sysreq.phpVersion', $phpVersion['labelKey']);
         self::assertSame(PHP_VERSION, $phpVersion['current']);
-        self::assertSame('>= 8.2.0', $phpVersion['required']);
+        self::assertSame('>= 8.1.0', $phpVersion['required']);
 
         // PHP 8.2+ should be success
         self::assertSame('success', $phpVersion['status']);
@@ -333,7 +333,7 @@ class SystemRequirementsServiceTest extends TestCase
 
         $item = $result['items'][0];
         self::assertSame('sysreq.typo3Version', $item['labelKey']);
-        self::assertSame('>= 13.4', $item['required']);
+        self::assertSame('>= 12.4', $item['required']);
         self::assertNotNull($item['current']);
     }
 
