@@ -1,4 +1,4 @@
-..  include:: /Includes.rst.txt
+.. include:: /Includes.rst.txt
 
 ..  _usage:
 
@@ -7,7 +7,8 @@ Usage
 =====
 
 This chapter shows practical examples for integrating
-responsive images into your Fluid templates.
+responsive images into your Fluid templates and for operating
+the command-line tools that ship with the extension.
 
 ..  _usage-namespace:
 
@@ -136,3 +137,82 @@ Paint (LCP) scores:
                   height="1080"
                   fetchpriority="high"
     />
+
+..  _usage-cli:
+
+Command-line tools
+==================
+
+Both commands read the FAL index directly and honor storage
+access rules. They run safely in long-running shells --
+permission checks are disabled and restored per file.
+
+..  _usage-cli-optimize:
+
+Bulk optimize images
+--------------------
+
+The ``nr:image:optimize`` command compresses every eligible
+PNG, GIF, and JPEG file across all storages (or a restricted
+subset) using the installed optimizer binaries. The original
+file is replaced in place only when the tool produces a
+smaller result.
+
+..  code-block:: bash
+    :caption: Preview what would be processed
+
+    vendor/bin/typo3 nr:image:optimize --dry-run
+
+..  code-block:: bash
+    :caption: Compress storage 1 with lossy JPEG quality 85
+
+    vendor/bin/typo3 nr:image:optimize \
+        --storages=1 \
+        --jpeg-quality=85 \
+        --strip-metadata
+
+Options:
+
+``--dry-run``
+    Only analyze; do not modify files.
+
+``--storages``
+    Restrict to specific storage UIDs. Accepts repeated
+    occurrences or a comma-separated list.
+
+``--jpeg-quality``
+    Lossy JPEG quality 0--100. Omit for lossless JPEG
+    optimization.
+
+``--strip-metadata``
+    Remove EXIF and comments when the tool supports it.
+
+..  _usage-cli-analyze:
+
+Analyze optimization potential
+------------------------------
+
+The ``nr:image:analyze`` command estimates how much disk
+space could be saved by running ``nr:image:optimize`` or by
+downscaling oversized originals. It is purely heuristic --
+no external binaries are invoked, so it runs quickly even on
+large installations.
+
+..  code-block:: bash
+    :caption: Report potential for storage 1
+
+    vendor/bin/typo3 nr:image:analyze --storages=1
+
+Options:
+
+``--storages``
+    Restrict to specific storage UIDs.
+
+``--max-width`` / ``--max-height``
+    Target display box (default 2560 x 1440). Images larger
+    than this box are assumed to be downscaled and the
+    estimate factors in the area reduction.
+
+``--min-size``
+    Skip files smaller than this many bytes (default
+    512 000). Prevents noise from already-tiny images.

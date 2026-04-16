@@ -4,28 +4,47 @@
     :target: https://github.com/netresearch/t3x-nr-image-optimize/blob/main/LICENSE
 ..  |ci| image:: https://github.com/netresearch/t3x-nr-image-optimize/actions/workflows/ci.yml/badge.svg
     :target: https://github.com/netresearch/t3x-nr-image-optimize/actions/workflows/ci.yml
+..  |codecov| image:: https://codecov.io/gh/netresearch/t3x-nr-image-optimize/branch/main/graph/badge.svg
+    :target: https://app.codecov.io/gh/netresearch/t3x-nr-image-optimize
 ..  |php| image:: https://img.shields.io/badge/PHP-8.2%20|%208.3%20|%208.4%20|%208.5-blue.svg
     :target: https://www.php.net/
 ..  |typo3| image:: https://img.shields.io/badge/TYPO3-13.4%20|%2014-orange.svg
     :target: https://typo3.org/
 
-|php| |typo3| |license| |ci| |release|
+|php| |typo3| |license| |ci| |codecov| |release|
 
 ================================
 Image Optimization for TYPO3
 ================================
 
-The ``nr_image_optimize`` extension provides on-demand image
-optimization for TYPO3. Images are processed lazily via
-middleware when first requested, with support for modern formats
-(WebP, AVIF), responsive ``srcset`` generation, and automatic
-format negotiation.
+The ``nr_image_optimize`` extension provides image optimization
+for TYPO3 on three layers:
+
+-   **On upload.** Lossless optimization runs automatically when
+    images are added to, or replaced in, a FAL storage (via
+    ``optipng``, ``gifsicle``, ``jpegoptim``).
+-   **On demand in the frontend.** Variants are processed lazily
+    when first requested through the ``/processed/`` URL, with
+    support for modern formats (WebP, AVIF), responsive
+    ``srcset`` generation, and automatic format negotiation.
+-   **In bulk from the CLI.** Two console commands iterate the
+    FAL index to optimize or report optimization potential on
+    the entire installation.
 
 Features
 ========
 
--   **Lazy image processing.** Images are optimized only when
-    a visitor first requests them.
+-   **Automatic optimization on upload.** PSR-14 event listener
+    compresses newly added or replaced images in place without
+    re-encoding. Storages, offline drivers, and unsupported
+    extensions are handled transparently.
+-   **Bulk CLI commands.** ``nr:image:optimize`` walks the FAL
+    index and compresses eligible images. ``nr:image:analyze``
+    reports optimization potential without modifying files
+    (heuristic, no binaries invoked).
+-   **Lazy frontend processing.** Variants are created only when
+    a visitor first requests them through the ``/processed/``
+    URL.
 -   **Modern format support.** Automatic WebP and AVIF
     conversion with fallback to original formats.
 -   **Responsive images.** Built-in ``SourceSetViewHelper``
@@ -49,12 +68,20 @@ Requirements
 -   Intervention Image library (installed via Composer
     automatically).
 
-Recommended extensions
-======================
+Optional (for on-upload and CLI optimization)
+---------------------------------------------
 
--   `imageoptimizer
-    <https://github.com/christophlehmann/imageoptimizer>`__
-    -- Optimize images with external binaries of your choice.
+Install one or more of the following binaries and make them
+available in ``$PATH`` to enable lossless compression:
+
+-   ``optipng`` -- for PNG files.
+-   ``gifsicle`` -- for GIF files.
+-   ``jpegoptim`` -- for JPEG files.
+
+Paths can be overridden per binary via the ``OPTIPNG_BIN``,
+``GIFSICLE_BIN``, and ``JPEGOPTIM_BIN`` environment variables.
+A set-but-invalid override is treated as authoritative (tool
+reported unavailable); there is no silent fallback to ``$PATH``.
 
 Installation
 ============
@@ -75,12 +102,94 @@ Manual installation
 2.  Upload to ``typo3conf/ext/``.
 3.  Activate the extension in the Extension Manager.
 
+Automatic optimization on upload
+================================
+
+After installation the PSR-14 event listener is active out of
+the box. Whenever an image is added or replaced on an online
+storage (for example via the backend file module or the
+REST API) the extension:
+
+1.  Normalizes the file extension (case-insensitive).
+2.  Checks whether an optimizer binary for that extension is
+    installed.
+3.  Runs the tool in place via the ``ImageOptimizer`` service.
+4.  Restores the storage's permission-evaluation state and
+    clears its re-entrancy guard before returning.
+
+No configuration is required. If no optimizer binary is
+available the listener silently skips the file.
+
+CLI commands
+============
+
+Bulk optimize existing images
+-----------------------------
+
+..  code-block:: bash
+
+    # Dry-run: report what would be processed.
+    vendor/bin/typo3 nr:image:optimize --dry-run
+
+    # Optimize all eligible images in storage 1 with lossy JPEG
+    # quality 85 and EXIF stripping.
+    vendor/bin/typo3 nr:image:optimize \
+        --storages=1 \
+        --jpeg-quality=85 \
+        --strip-metadata
+
+Supported options:
+
+``--dry-run``
+    Analyze only, do not modify files.
+
+``--storages``
+    Restrict to specific storage UIDs (comma-separated or
+    repeated).
+
+``--jpeg-quality``
+    Lossy JPEG quality 0--100. Omit for lossless optimization.
+
+``--strip-metadata``
+    Remove EXIF and comments when the tool supports it.
+
+Analyze optimization potential
+------------------------------
+
+..  code-block:: bash
+
+    vendor/bin/typo3 nr:image:analyze \
+        --storages=1 \
+        --max-width=2560 \
+        --max-height=1440 \
+        --min-size=512000
+
+The analyzer never invokes an external tool. It estimates
+savings from file size and resolution and reports how much
+disk space could be recovered by running
+``nr:image:optimize``.
+
+Supported options:
+
+``--storages``
+    Restrict to specific storage UIDs.
+
+``--max-width`` / ``--max-height``
+    Target display box. Images larger than this box are
+    assumed to be downscaled by ``nr:image:optimize`` and
+    the estimate factors in the area reduction.
+
+``--min-size``
+    Skip files smaller than this many bytes (default
+    512 000). Prevents reporting on already-tiny images.
+
 Configuration
 =============
 
 The extension works out of the box with sensible defaults.
-Images are automatically optimized when accessed via the
-``/processed/`` path.
+Images accessed via the ``/processed/`` path are automatically
+optimized by the frontend middleware; uploaded images are
+compressed by the event listener.
 
 ViewHelper usage
 ----------------
@@ -101,6 +210,9 @@ Supported parameters
 
 ``file``
     Image file resource.
+
+``path``
+    Pre-resolved image URI (alternative to ``file``).
 
 ``width``
     Target width in pixels.
@@ -156,6 +268,9 @@ Development and testing
     composer ci:test:php:phpstan  # Static analysis
     composer ci:test:php:unit     # PHPUnit tests
     composer ci:test:php:rector   # Code quality
+
+    # Dockerized test runner (also used by CI)
+    Build/Scripts/runTests.sh -s unit -p 8.4
 
 License
 =======

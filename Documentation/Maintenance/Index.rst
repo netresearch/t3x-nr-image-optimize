@@ -1,4 +1,4 @@
-..  include:: /Includes.rst.txt
+.. include:: /Includes.rst.txt
 
 ..  _maintenance:
 
@@ -6,8 +6,10 @@
 Maintenance
 ===========
 
-The extension provides a backend module accessible via
-:guilabel:`Admin Tools > Processed Images Maintenance`.
+The extension ships both a backend module and two CLI
+commands. The backend module is reachable via
+:guilabel:`Admin Tools > Processed Images Maintenance`. The
+CLI commands are documented in :ref:`usage-cli`.
 
 ..  _maintenance-overview:
 
@@ -33,8 +35,13 @@ Verify all technical prerequisites and tool availability:
     support).
 -   Composer dependencies (Intervention Image).
 -   TYPO3 version compatibility.
--   CLI tools (``magick``, ``convert``, ``identify``, ``gm``
-    -- optional).
+-   CLI tools (``magick``, ``convert``, ``identify``,
+    ``gm`` -- optional).
+
+The page does not currently report on ``optipng`` /
+``gifsicle`` / ``jpegoptim``; for those, run
+``nr:image:analyze`` (see :ref:`usage-cli-analyze`) or check
+the binaries manually on the host.
 
 ..  _maintenance-clear:
 
@@ -49,3 +56,26 @@ automatically when first accessed again.
     After clearing processed images, expect temporarily
     increased loading times on the frontend until images are
     regenerated on demand.
+
+..  _maintenance-cli:
+
+Command-line maintenance
+========================
+
+Two console commands complement the backend module:
+
+:ref:`nr:image:optimize <usage-cli-optimize>`
+    Lossless (or optionally lossy) bulk compression of every
+    PNG, GIF, and JPEG file in the FAL index.
+
+:ref:`nr:image:analyze <usage-cli-analyze>`
+    Fast heuristic report that estimates optimization
+    potential without touching files or running external
+    tools.
+
+..  tip::
+
+    Run ``nr:image:analyze`` first to decide whether the
+    optimization run is worth the I/O. Then schedule
+    ``nr:image:optimize`` as a periodic task (for example
+    through the TYPO3 scheduler or a cron job).

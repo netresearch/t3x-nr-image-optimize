@@ -1,4 +1,4 @@
-..  include:: /Includes.rst.txt
+.. include:: /Includes.rst.txt
 
 ..  _start:
 
@@ -7,7 +7,7 @@ Image Optimization for TYPO3
 ================================
 
 :Extension key:
-    |extension_key|
+    nr_image_optimize
 
 :Package name:
     netresearch/nr-image-optimize
