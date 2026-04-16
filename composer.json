@@ -64,7 +64,7 @@
             "web-dir": ".build/public"
         },
         "branch-alias": {
-            "dev-v12-4-x": "1.0.x-dev"
+            "dev-v12-4-x": "1.1.x-dev"
         }
     },
     "scripts": {

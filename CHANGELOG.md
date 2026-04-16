@@ -1,85 +1,98 @@
-# Changelog
+# 1.1.0
 
-All notable changes to this project will be documented in this file.
+## MISC
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+- 7d13283 fix: backport comprehensive quality review (PR #52) to TYPO3 12 (#54)
+- 016e7f2 NEXT-95: fix version constants in SystemRequirementsService for TYPO3 12
+- a30015a NEXT-95: fix code quality issues and CS violations
+- 58192b7 NEXT-95: fix review comments for TYPO3 12 backport
+- 50d1ebc fix: comprehensive quality review with 29 agent passes (#52)
 
-## [Unreleased]
+## Contributors
 
-### Added
+- Axel Seemann
+- Sebastian Mendel
+- axel.seemann@netresearch.de
 
-- Backend maintenance module: view statistics, check system requirements, clear processed images.
-- `SystemRequirementsService` for PHP extension/binary checks.
-- 15 additional language localizations (cs, da, de, es, fi, fr, it, ja, nl, pl, pt, ru, sv, uk, zh).
-- Responsive width-based `srcset` generation as opt-in feature (`responsiveSrcset` parameter).
-- `widthVariants` parameter for custom breakpoints.
-- `sizes` parameter for responsive image sizing.
-- `fetchpriority` attribute for resource hints.
-- Fuzz tests for the Processor.
+# 1.0.3
 
-### Fixed
+## BUGFIX
 
-- Path traversal hardening in `Processor` and `SourceSetViewHelper`.
-- XSS fix: all HTML attribute values are now properly escaped with `htmlspecialchars()`.
-- DoS prevention: dimensions clamped to 1–8192, quality to 1–100.
-- Lock leak prevention: try/finally blocks around all lock-protected code.
-- `file_get_contents` failure handling.
-- `disable_functions` check now correctly tests `shell_exec`.
-- Removed `@` error suppression on `shell_exec` calls.
-- TOCTOU mitigation in `clearProcessedImagesAction`.
-- Nullable dirname access in `SourceSetViewHelper`.
+- 152c6ce OPSCHEM-347: [BUGFIX] Fix TypeError in Processor::getValueFromMode() for non-matching URLs
 
-### Changed
+## Contributors
 
-- PSR-17 response/stream factory injection in `Processor` (replaces raw `header()`/`exit()` output).
-- HTTP caching headers added: `Cache-Control: public, max-age=31536000, immutable`, `ETag`, `Last-Modified`.
-- Existing-file short-circuit: already-processed images served directly without re-processing.
-- Single-pass mode string parsing (was 4×), query params parsed once (was 2×).
-- Static `getimagesize()` cache in `SourceSetViewHelper`.
-- PSR-14 event dispatch for `ImageProcessedEvent` and `VariantServedEvent`.
-- `processImage()` and `calculateTargetDimensions()` now return values instead of mutating state.
-- Replaced undeclared `GuzzleHttp\Psr7\Query` dependency with native `parse_str`.
-- 33+ new unit tests.
+- Rico Sonntag
 
-## [1.0.2]
+# 1.0.2
 
-### Fixed
+## MISC
 
-- Fix nullable dirname access in SourceSetViewHelper (OPSCHEM-347).
+- 6b72dc3 OPSCHEM-347: [Fix] Fix nullable dirname access in SourceSetViewHelper
 
-## [1.0.1]
+## Contributors
 
-### Added
+- axel.seemann@netresearch.de
 
-- `ext_emconf.php` for classic installation.
+# 1.0.1
 
-## [1.0.0]
+## TASK
 
-### Added
+- 31872bd [TASK] Add ext_emconf file
 
-- Initial stable release.
-- GitHub Actions CI workflows.
+## Contributors
 
-## [0.1.5]
+- Gitsko
 
-### Fixed
+# 1.0.0
 
-- `strtolower()` null argument error.
-- Array offset access on boolean value.
+## TASK
 
-### Added
+- dadff15 [TASK] Add github workflows, fix php linter errors
+- 5bd1c28 [TASK] Add pipeline checks fot github actions
 
-- Allowed numeric characters in file extensions.
-- Extension icon.
+## MISC
 
-### Changed
+- bd3dbfa [Fix] Fix tailor pipeline to user version w/o v in version
+- 31d1121 [Fix] Fix pipline check for php versions
 
-- Corrected crop variant examples.
-- Improved lazy loading behavior.
+## Contributors
 
-[Unreleased]: https://github.com/netresearch/t3x-nr-image-optimize/compare/1.0.2...v12-4-x
-[1.0.2]: https://github.com/netresearch/t3x-nr-image-optimize/compare/1.0.1...1.0.2
-[1.0.1]: https://github.com/netresearch/t3x-nr-image-optimize/compare/1.0.0...1.0.1
-[1.0.0]: https://github.com/netresearch/t3x-nr-image-optimize/compare/0.1.5...1.0.0
-[0.1.5]: https://github.com/netresearch/t3x-nr-image-optimize/releases/tag/0.1.5
+- Gitsko
+
+# 0.1.5
+
+## MISC
+
+- 6a2678e Fix "strtolower(): Argument #1 ($string) must be of type string, null given"
+- 41a6905 Allow possible file extensions include numbers
+- ba1e265 Fix "Trying to access array offset on value of type bool"
+- ca6a25f chore(deps): update dependency ssch/typo3-rector to v3
+- 1373828 fix(deps): update dependency intervention/image to 3.7.2 || 3.11.1
+- a025c2d Add renovate.json
+- a60b13b Add missing extension icon
+- 38723a4 CHEM-422: Correct examples for cropVariants in basic installations
+- dc20ea3 CHEM-288: Change lazyload behaviour. Iptimize readme. Add additional attribute attribute.
+- 9b61f07 Update README.rst. Fix Codeblock in example.
+- 92acca4 OPSFX-259: Disable on the fly image optimization via optipng etc. due to massive performance issues.
+- d73b4a8 Update readme regaridng usage of the viewhelper
+- aadeb33 FX-864: Describe the render modes in readme.
+- ddc0dab FX-864: Implement Middleware ans Processing Logic
+- bbdeab9 FX-864: Fix extension key in composer.json
+- 322ef79 Fix codestyle.
+- 476536d FX-864: Fix code sytle.
+- b64fa1e FX-864: Fix ci pipeline
+- 10d78e8 FX-864: Build base for developing the extension.
+- e80213c FX-864: Add Processor class.
+- b78d36a FX-864: Add basic extenison files.
+- 28b0863 Fix package name.
+- 2988b23 Initial Commit
+
+## Contributors
+
+- Axel Seemann
+- Renovate Bot
+- Renovate Bot
+- Rico Sonntag
+- Sebastian Koschel
+
