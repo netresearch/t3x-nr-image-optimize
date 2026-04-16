@@ -40,12 +40,14 @@ final class OptimizeOnUploadListener
 
     private function handle(FileInterface $file): void
     {
-        $id = $file->getIdentifier();
+        $storage = $file->getStorage();
+        // FAL identifiers are only unique within a storage, so key the guard
+        // on storage UID + identifier to avoid cross-storage collisions.
+        $id = $storage->getUid() . ':' . $file->getIdentifier();
         if (isset($this->guard[$id])) {
             return; // Re-entrancy guard (e.g. triggered by replaceFile)
         }
 
-        $storage = $file->getStorage();
         if (!$storage->isOnline()) {
             return;
         }
