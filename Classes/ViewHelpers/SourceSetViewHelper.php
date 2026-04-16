@@ -256,9 +256,9 @@ class SourceSetViewHelper extends AbstractViewHelper
         return array_filter(
             $props,
             static fn (int|string|null $value, string|int $key): bool => match (true) {
-                $key === 'alt' => $value !== null,
+                $key === 'alt'                      => $value !== null,
                 $key === 'width', $key === 'height' => !in_array($value, [null, '', 0], true),
-                default => $value !== null && $value !== '',
+                default                             => $value !== null && $value !== '',
             },
             ARRAY_FILTER_USE_BOTH,
         );
@@ -606,7 +606,7 @@ class SourceSetViewHelper extends AbstractViewHelper
 
         return match ($value) {
             'high', 'low', 'auto' => $value,
-            default => '',
+            default               => '',
         };
     }
 
