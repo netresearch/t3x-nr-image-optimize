@@ -1,6 +1,6 @@
 <?php
 
-/*
+/**
  * This file is part of the package netresearch/nr-image-optimize.
  *
  * For the full copyright and license information, please read the
@@ -18,11 +18,10 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
-
-use function sys_get_temp_dir;
-
 use TYPO3\CMS\Core\Core\ApplicationContext;
 use TYPO3\CMS\Core\Core\Environment;
+
+use function sys_get_temp_dir;
 
 /**
  * Acceptance tests that verify the rendered HTML output of the SourceSetViewHelper.

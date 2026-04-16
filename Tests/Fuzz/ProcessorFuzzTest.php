@@ -1,6 +1,6 @@
 <?php
 
-/*
+/**
  * This file is part of the package netresearch/nr-image-optimize.
  *
  * For the full copyright and license information, please read the
@@ -19,6 +19,19 @@ use ReflectionClass;
 use ReflectionMethod;
 use TYPO3\CMS\Core\Core\ApplicationContext;
 use TYPO3\CMS\Core\Core\Environment;
+
+use function array_rand;
+use function bin2hex;
+use function dirname;
+use function get_debug_type;
+use function implode;
+use function is_array;
+use function random_bytes;
+use function random_int;
+use function realpath;
+use function sprintf;
+use function str_repeat;
+use function strlen;
 
 /**
  * Fuzz tests for the Processor class.

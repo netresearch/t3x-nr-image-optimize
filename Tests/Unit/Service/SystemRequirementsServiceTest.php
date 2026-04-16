@@ -1,6 +1,6 @@
 <?php
 
-/*
+/**
  * This file is part of the package netresearch/nr-image-optimize.
  *
  * For the full copyright and license information, please read the
@@ -18,6 +18,20 @@ use PHPUnit\Framework\TestCase;
 use ReflectionMethod;
 use TYPO3\CMS\Core\Core\ApplicationContext;
 use TYPO3\CMS\Core\Core\Environment;
+
+use function array_column;
+use function chmod;
+use function count;
+use function extension_loaded;
+use function file_put_contents;
+use function in_array;
+use function json_encode;
+use function mkdir;
+use function rmdir;
+use function sprintf;
+use function sys_get_temp_dir;
+use function uniqid;
+use function unlink;
 
 #[CoversClass(SystemRequirementsService::class)]
 class SystemRequirementsServiceTest extends TestCase

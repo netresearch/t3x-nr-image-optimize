@@ -1,6 +1,6 @@
 <?php
 
-/*
+/**
  * This file is part of the package netresearch/nr-image-optimize.
  *
  * For the full copyright and license information, please read the
@@ -11,30 +11,11 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Controller;
 
-use function array_slice;
-use function count;
-use function date;
-use function floor;
-use function is_dir;
-use function log;
-use function max;
-use function min;
-
 use Netresearch\NrImageOptimize\Service\SystemRequirementsService;
 use Psr\Http\Message\ResponseInterface;
-
-use function realpath;
-
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
-
-use function round;
-
 use RuntimeException;
-
-use function str_replace;
-use function strtolower;
-
 use Throwable;
 use TYPO3\CMS\Backend\Template\ModuleTemplateFactory;
 use TYPO3\CMS\Core\Core\Environment;
@@ -44,6 +25,20 @@ use TYPO3\CMS\Core\Type\ContextualFeedbackSeverity;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Extbase\Mvc\Controller\ActionController;
 
+use function array_slice;
+use function count;
+use function date;
+use function error_log;
+use function floor;
+use function is_dir;
+use function log;
+use function max;
+use function min;
+use function realpath;
+use function round;
+use function sprintf;
+use function str_replace;
+use function strtolower;
 use function uasort;
 use function usort;
 
@@ -71,7 +66,8 @@ final class MaintenanceController extends ActionController
         private readonly ModuleTemplateFactory $moduleTemplateFactory,
         private readonly SystemRequirementsService $systemRequirementsService,
         private readonly LanguageServiceFactory $languageServiceFactory,
-    ) {}
+    ) {
+    }
 
     /**
      * Display the maintenance overview with directory statistics for processed images.

@@ -11,16 +11,26 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize;
 
+use Intervention\Image\ImageManager;
+use Intervention\Image\Interfaces\ImageInterface;
+use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ResponseFactoryInterface;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\StreamFactoryInterface;
+use RuntimeException;
+use Throwable;
+use TYPO3\CMS\Core\Core\Environment;
+use TYPO3\CMS\Core\Locking\Exception\LockCreateException;
+use TYPO3\CMS\Core\Locking\LockFactory;
+use TYPO3\CMS\Core\Locking\LockingStrategyInterface;
+
 use function count;
 use function dirname;
+use function error_log;
 use function file_exists;
 use function filemtime;
 use function filesize;
 use function gmdate;
-
-use Intervention\Image\ImageManager;
-use Intervention\Image\Interfaces\ImageInterface;
-
 use function is_dir;
 use function is_string;
 use function max;
@@ -30,27 +40,11 @@ use function mkdir;
 use function parse_str;
 use function preg_match;
 use function preg_match_all;
-
-use Psr\Http\Message\RequestInterface;
-use Psr\Http\Message\ResponseFactoryInterface;
-use Psr\Http\Message\ResponseInterface;
-use Psr\Http\Message\StreamFactoryInterface;
-
 use function realpath;
 use function round;
-
-use RuntimeException;
-
 use function sprintf;
 use function str_starts_with;
 use function strtolower;
-
-use Throwable;
-use TYPO3\CMS\Core\Core\Environment;
-use TYPO3\CMS\Core\Locking\Exception\LockCreateException;
-use TYPO3\CMS\Core\Locking\LockFactory;
-use TYPO3\CMS\Core\Locking\LockingStrategyInterface;
-
 use function urldecode;
 use function usleep;
 
@@ -154,7 +148,8 @@ class Processor
         private readonly LockFactory $lockFactory,
         private readonly ResponseFactoryInterface $responseFactory,
         private readonly StreamFactoryInterface $streamFactory,
-    ) {}
+    ) {
+    }
 
     /**
      * Entry point invoked by the middleware to handle a processed image request.
@@ -664,6 +659,11 @@ class Processor
         $imageHeight = $image->height();
         $imageWidth  = $image->width();
 
+        // Nothing to compute when both dimensions are missing
+        if ($targetWidth === null && $targetHeight === null) {
+            return [null, null];
+        }
+
         // Guard against division by zero for degenerate images
         if ($imageHeight === 0 || $imageWidth === 0) {
             return [$targetWidth, $targetHeight];
@@ -791,6 +791,10 @@ class Processor
         ?int $targetHeight,
         int $processingMode,
     ): ImageInterface {
+        if ($targetWidth === null || $targetHeight === null) {
+            return $image;
+        }
+
         return match ($processingMode) {
             1       => $image->scale($targetWidth, $targetHeight),
             default => $image->cover($targetWidth, $targetHeight),

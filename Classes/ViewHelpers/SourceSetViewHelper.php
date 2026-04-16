@@ -24,6 +24,10 @@ use function getimagesize;
 use function htmlspecialchars;
 use function http_build_query;
 use function implode;
+use function in_array;
+use function is_array;
+use function round;
+use function sort;
 use function sprintf;
 use function str_contains;
 use function strtolower;
@@ -230,9 +234,9 @@ class SourceSetViewHelper extends AbstractViewHelper
         return array_filter(
             $props,
             static fn (int|string|null $value, string|int $key): bool => match (true) {
-                $key === 'alt' => $value !== null,
+                $key === 'alt'                      => $value !== null,
                 $key === 'width', $key === 'height' => !in_array($value, [null, '', 0], true),
-                default => $value !== null && $value !== '',
+                default                             => $value !== null && $value !== '',
             },
             ARRAY_FILTER_USE_BOTH,
         );
@@ -490,7 +494,7 @@ class SourceSetViewHelper extends AbstractViewHelper
      */
     private function getArgMode(): int
     {
-        return match ($this->arguments['mode']) {
+        return match ($this->arguments['mode'] ?? 'cover') {
             'fit'   => 1,
             default => 0,
         };
@@ -503,7 +507,7 @@ class SourceSetViewHelper extends AbstractViewHelper
      */
     private function getAttributes(): array
     {
-        if (empty($this->arguments['attributes'])) {
+        if (!is_array($this->arguments['attributes'] ?? null) || $this->arguments['attributes'] === []) {
             return [];
         }
 
@@ -538,7 +542,7 @@ class SourceSetViewHelper extends AbstractViewHelper
 
         return match ($value) {
             'high', 'low', 'auto' => $value,
-            default => '',
+            default               => '',
         };
     }
 }

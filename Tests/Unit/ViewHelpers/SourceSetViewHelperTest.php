@@ -1,6 +1,6 @@
 <?php
 
-/*
+/**
  * This file is part of the package netresearch/nr-image-optimize.
  *
  * For the full copyright and license information, please read the
@@ -11,6 +11,15 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Tests\Unit\ViewHelpers;
 
+use Netresearch\NrImageOptimize\ViewHelpers\SourceSetViewHelper;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\TestCase;
+use ReflectionMethod;
+use TYPO3\CMS\Core\Core\ApplicationContext;
+use TYPO3\CMS\Core\Core\Environment;
+
 use function array_filter;
 use function array_map;
 use function base64_decode;
@@ -19,26 +28,12 @@ use function file_put_contents;
 use function floor;
 use function is_dir;
 use function mkdir;
-
-use Netresearch\NrImageOptimize\ViewHelpers\SourceSetViewHelper;
-
 use function pathinfo;
-
-use PHPUnit\Framework\Attributes\CoversClass;
-use PHPUnit\Framework\Attributes\DataProvider;
-use PHPUnit\Framework\Attributes\Test;
-use PHPUnit\Framework\TestCase;
-
 use function preg_match;
-
-use ReflectionMethod;
-
 use function rmdir;
+use function sprintf;
+use function substr_count;
 use function sys_get_temp_dir;
-
-use TYPO3\CMS\Core\Core\ApplicationContext;
-use TYPO3\CMS\Core\Core\Environment;
-
 use function uniqid;
 use function unlink;
 

@@ -1,6 +1,6 @@
 <?php
 
-/*
+/**
  * This file is part of the package netresearch/nr-image-optimize.
  *
  * For the full copyright and license information, please read the
@@ -10,11 +10,6 @@
 declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Tests\Acceptance\Middleware;
-
-use function base64_decode;
-use function file_put_contents;
-use function is_dir;
-use function mkdir;
 
 use Netresearch\NrImageOptimize\Middleware\ProcessingMiddleware;
 use Netresearch\NrImageOptimize\Processor;
@@ -31,10 +26,6 @@ use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use ReflectionClass;
 use ReflectionMethod;
-
-use function rmdir;
-use function sys_get_temp_dir;
-
 use TYPO3\CMS\Core\Core\ApplicationContext;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Http\ResponseFactory;
@@ -42,6 +33,12 @@ use TYPO3\CMS\Core\Http\StreamFactory;
 use TYPO3\CMS\Core\Locking\LockFactory;
 use TYPO3\CMS\Core\Locking\LockingStrategyInterface;
 
+use function base64_decode;
+use function file_put_contents;
+use function is_dir;
+use function mkdir;
+use function rmdir;
+use function sys_get_temp_dir;
 use function unlink;
 
 /**

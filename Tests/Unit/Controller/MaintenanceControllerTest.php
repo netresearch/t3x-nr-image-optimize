@@ -1,6 +1,6 @@
 <?php
 
-/*
+/**
  * This file is part of the package netresearch/nr-image-optimize.
  *
  * For the full copyright and license information, please read the
@@ -22,6 +22,19 @@ use ReflectionClass;
 use ReflectionMethod;
 use TYPO3\CMS\Core\Core\ApplicationContext;
 use TYPO3\CMS\Core\Core\Environment;
+
+use function array_keys;
+use function file_put_contents;
+use function is_dir;
+use function mkdir;
+use function rmdir;
+use function str_repeat;
+use function symlink;
+use function sys_get_temp_dir;
+use function time;
+use function touch;
+use function uniqid;
+use function unlink;
 
 /**
  * Tests for MaintenanceController private helper methods.

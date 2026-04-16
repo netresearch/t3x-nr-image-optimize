@@ -1,6 +1,6 @@
 <?php
 
-/*
+/**
  * This file is part of the package netresearch/nr-image-optimize.
  *
  * For the full copyright and license information, please read the
@@ -38,6 +38,19 @@ use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Locking\Exception\LockCreateException;
 use TYPO3\CMS\Core\Locking\LockFactory;
 use TYPO3\CMS\Core\Locking\LockingStrategyInterface;
+
+use function dirname;
+use function file_put_contents;
+use function glob;
+use function ini_set;
+use function md5;
+use function mkdir;
+use function rmdir;
+use function symlink;
+use function sys_get_temp_dir;
+use function touch;
+use function uniqid;
+use function unlink;
 
 #[CoversClass(Processor::class)]
 class ProcessorTest extends TestCase

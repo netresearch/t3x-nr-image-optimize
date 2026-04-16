@@ -1,6 +1,6 @@
 <?php
 
-/*
+/**
  * This file is part of the package netresearch/nr-image-optimize.
  *
  * For the full copyright and license information, please read the
@@ -40,10 +40,11 @@ final class ProcessingMiddlewareTest extends FunctionalTestCase
         $expectedResponse = new Response();
         $expectedResponse = $expectedResponse->withStatus(200);
 
-        $handler = new class ($expectedResponse) implements RequestHandlerInterface {
+        $handler = new class($expectedResponse) implements RequestHandlerInterface {
             public function __construct(
                 private readonly ResponseInterface $response,
-            ) {}
+            ) {
+            }
 
             public function handle(ServerRequestInterface $request): ResponseInterface
             {

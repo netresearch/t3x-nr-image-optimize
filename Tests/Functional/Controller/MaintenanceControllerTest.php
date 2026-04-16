@@ -1,6 +1,6 @@
 <?php
 
-/*
+/**
  * This file is part of the package netresearch/nr-image-optimize.
  *
  * For the full copyright and license information, please read the
@@ -11,16 +11,16 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Tests\Functional\Controller;
 
-use function file_put_contents;
-use function is_dir;
-use function mkdir;
-
 use Netresearch\NrImageOptimize\Controller\MaintenanceController;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
+
+use function file_put_contents;
+use function is_dir;
+use function mkdir;
 
 /**
  * Functional tests for MaintenanceController backend module actions.
