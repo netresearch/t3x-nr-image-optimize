@@ -147,7 +147,7 @@ final class ProcessorTest extends FunctionalTestCase
         $variantPath = Environment::getPublicPath() . '/processed/fileadmin/test-image.w50h50m0q90.png';
         self::assertFileExists($variantPath);
 
-        $info = @getimagesize($variantPath);
+        $info = getimagesize($variantPath);
         self::assertIsArray($info, 'Processed image should be a valid image file');
         self::assertSame(50, $info[0], 'Cover mode should produce exact target width');
         self::assertSame(50, $info[1], 'Cover mode should produce exact target height');
@@ -169,7 +169,7 @@ final class ProcessorTest extends FunctionalTestCase
         $variantPath = Environment::getPublicPath() . '/processed/fileadmin/test-image.w50h50m1q90.png';
         self::assertFileExists($variantPath);
 
-        $info = @getimagesize($variantPath);
+        $info = getimagesize($variantPath);
         self::assertIsArray($info, 'Processed image should be a valid image file');
 
         // Scale mode fits inside the box, so at least one dimension should match

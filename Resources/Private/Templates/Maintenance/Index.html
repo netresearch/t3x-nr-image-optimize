@@ -21,8 +21,16 @@
 
     <f:flashMessages as="flashMessages">
         <f:for each="{flashMessages}" as="flashMessage">
-            <div class="alert alert-{f:if(condition: '{flashMessage.severity} == 2', then: 'danger', else: 'success')} alert-dismissible fade show" role="alert">
-                <core:icon identifier="actions-{f:if(condition: '{flashMessage.severity} == 2', then: 'close', else: 'check')}" size="small"/>
+            <f:switch expression="{flashMessage.severity}">
+                <f:case value="0"><f:variable name="alertClass" value="notice" /><f:variable name="alertIcon" value="information" /></f:case>
+                <f:case value="1"><f:variable name="alertClass" value="info" /><f:variable name="alertIcon" value="information" /></f:case>
+                <f:case value="2"><f:variable name="alertClass" value="success" /><f:variable name="alertIcon" value="check" /></f:case>
+                <f:case value="3"><f:variable name="alertClass" value="warning" /><f:variable name="alertIcon" value="exclamation-triangle" /></f:case>
+                <f:case value="4"><f:variable name="alertClass" value="danger" /><f:variable name="alertIcon" value="close" /></f:case>
+                <f:defaultCase><f:variable name="alertClass" value="info" /><f:variable name="alertIcon" value="information" /></f:defaultCase>
+            </f:switch>
+            <div class="alert alert-{alertClass} alert-dismissible fade show" role="alert">
+                <core:icon identifier="actions-{alertIcon}" size="small"/>
                 {flashMessage.message}
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>

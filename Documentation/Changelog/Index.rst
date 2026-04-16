@@ -6,61 +6,46 @@
 Changelog
 =========
 
-..  _changelog-2-2-1:
+..  _changelog-1-1-0:
 
-2.2.1
+1.1.0
 =====
 
--   Adjusted author information in :file:`ext_emconf.php`.
+..  versionadded:: 1.1.0
+    Comprehensive quality review: security hardening, performance
+    improvements, backend maintenance module, responsive srcset,
+    and expanded test coverage.
 
-..  _changelog-2-2-0:
-
-2.2.0
-=====
-
--   Fixed: always render ``alt`` attribute on generated
-    ``<img>`` tags.
--   Expanded unit test coverage for Processor and
-    SourceSetViewHelper.
-
-..  _changelog-2-1-0:
-
-2.1.0
-=====
-
-..  versionadded:: 2.1.0
-    Width-based responsive ``srcset`` with ``sizes``
-    attribute, configurable width variants, and
-    ``fetchpriority`` support.
-
+-   Added backend maintenance module with directory statistics,
+    system requirements check, and clear processed images action.
 -   Added responsive width-based ``srcset`` generation as
     opt-in feature.
 -   Added ``widthVariants`` parameter for custom breakpoints.
 -   Added ``sizes`` parameter for responsive image sizing.
 -   Added ``fetchpriority`` attribute for resource hints.
--   Optimized default ``sizes`` attribute values.
+-   Added path traversal hardening and XSS prevention.
+-   Added DoS prevention via dimension and quality clamping.
+-   Added HTTP caching headers (``Cache-Control: immutable``,
+    ``ETag``, ``Last-Modified``).
+-   Added 15 language localizations.
+-   Added 33+ unit tests, fuzz tests, and functional tests.
+-   Added full TYPO3 documentation structure.
 
-..  _changelog-2-0-1:
+..  _changelog-1-0-3:
 
-2.0.1
+1.0.3
 =====
 
--   Fixed ``declare`` statement issue preventing TER
-    publishing via GitHub Actions.
+-   Fixed ``Processor::getValueFromMode()`` TypeError for
+    non-matching URLs (crawler/bot srcset descriptors).
 
-..  _changelog-2-0-0:
+..  _changelog-1-0-2:
 
-2.0.0
+1.0.2
 =====
 
-..  versionadded:: 2.0.0
-    TYPO3 13 compatibility with PHP 8.2--8.4 support.
-
--   Added TYPO3 13 compatibility.
--   Added PHP 8.2, 8.3, and 8.4 support.
--   Dropped support for older TYPO3 versions.
--   Switched to Intervention Image 3.x.
--   Removed obsolete system binary checks.
+-   Fixed nullable ``dirname`` access in
+    ``SourceSetViewHelper``.
 
 ..  _changelog-1-0-1:
 
