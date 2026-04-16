@@ -5,18 +5,18 @@
 
 **Please provide enough information so that others can review your pull request:**
 
-You can skip this if you're fixing a typo. 
+You can skip this if you're fixing a typo.
 
 
 **Explain the details**
 
 Explain the details for making this change. What existing problem does the pull request solve?
-Example: When "Adding a function to do X", explain why it is necessary to have a way to do X. 
+Example: When "Adding a function to do X", explain why it is necessary to have a way to do X.
 
 
 **Test plan (required)**
 
-Make sure your changes pass all checks. 
+Make sure your changes pass all checks.
 
 
 **Code formatting**
@@ -27,3 +27,11 @@ Stick to the coding style, PSR-12 at least.
 **Closing issues**
 
 Put `Closes #XXXX` in your comment to auto-close the issue that your PR fixes (if such).
+
+
+**Checklist**
+
+- [ ] CI checks pass (`composer ci:test`)
+- [ ] Tests added or updated for the change
+- [ ] CHANGELOG.md updated (if applicable)
+- [ ] Documentation updated (if applicable)

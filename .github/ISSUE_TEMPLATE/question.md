@@ -1,7 +1,9 @@
 ---
 name: Question
 about: Questions and suggestions about the extension
-
+title: ''
+labels: question
+assignees: ''
 ---
 
 **Question**
