@@ -20,3 +20,14 @@ services:
 
   Netresearch\NrImageOptimize\Controller\MaintenanceController:
     public: true
+
+  Netresearch\NrImageOptimize\EventListener\OptimizeOnUploadListener:
+    tags:
+      - name: event.listener
+        identifier: 'nr_image_optimize.optimize_on_upload.added'
+        event: TYPO3\CMS\Core\Resource\Event\AfterFileAddedEvent
+        method: optimizeAfterAdd
+      - name: event.listener
+        identifier: 'nr_image_optimize.optimize_on_upload.replaced'
+        event: TYPO3\CMS\Core\Resource\Event\AfterFileReplacedEvent
+        method: optimizeAfterReplace
