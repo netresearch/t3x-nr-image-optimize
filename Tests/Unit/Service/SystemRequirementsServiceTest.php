@@ -388,12 +388,12 @@ class SystemRequirementsServiceTest extends TestCase
         $execItem = $result['items'][0];
         self::assertSame('sysreq.execAvailability', $execItem['labelKey']);
 
-        // Check that CLI tool labels are present
-        $labels = array_column($result['items'], 'label');
-        self::assertContains('CLI: magick', $labels);
-        self::assertContains('CLI: convert', $labels);
-        self::assertContains('CLI: identify', $labels);
-        self::assertContains('CLI: gm (GraphicsMagick)', $labels);
+        // Check that CLI tool label keys are present (localized via XLF)
+        $labelKeys = array_column($result['items'], 'labelKey');
+        self::assertContains('sysreq.cli.magick', $labelKeys);
+        self::assertContains('sysreq.cli.convert', $labelKeys);
+        self::assertContains('sysreq.cli.identify', $labelKeys);
+        self::assertContains('sysreq.cli.gm', $labelKeys);
     }
 
     #[Test]

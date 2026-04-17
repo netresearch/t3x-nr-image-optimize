@@ -19,6 +19,10 @@
                 <source>Clear processed images</source>
                 <target>Limpar imagens processadas</target>
             </trans-unit>
+            <trans-unit id="maintenance.confirmClear" resname="maintenance.confirmClear">
+                <source>Are you sure you want to delete all processed images? This action cannot be undone.</source>
+                <target>Tem a certeza de que pretende eliminar todas as imagens processadas? Esta ação não pode ser revertida.</target>
+            </trans-unit>
             <trans-unit id="stats.directories" resname="stats.directories">
                 <source>Subdirectories</source>
                 <target>Subdiretórios</target>
@@ -274,6 +278,22 @@
             <trans-unit id="sysreq.cliTools" resname="sysreq.cliTools">
                 <source>CLI Tools (Optional)</source>
                 <target>Ferramentas CLI (Opcional)</target>
+            </trans-unit>
+            <trans-unit id="sysreq.cli.magick" resname="sysreq.cli.magick">
+                <source>CLI: magick</source>
+                <target>CLI: magick</target>
+            </trans-unit>
+            <trans-unit id="sysreq.cli.convert" resname="sysreq.cli.convert">
+                <source>CLI: convert</source>
+                <target>CLI: convert</target>
+            </trans-unit>
+            <trans-unit id="sysreq.cli.identify" resname="sysreq.cli.identify">
+                <source>CLI: identify</source>
+                <target>CLI: identify</target>
+            </trans-unit>
+            <trans-unit id="sysreq.cli.gm" resname="sysreq.cli.gm">
+                <source>CLI: gm (GraphicsMagick)</source>
+                <target>CLI: gm (GraphicsMagick)</target>
             </trans-unit>
             <trans-unit id="sysreq.found" resname="sysreq.found">
                 <source>Found</source>
