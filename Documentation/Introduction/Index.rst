@@ -11,59 +11,80 @@ Introduction
 What does it do?
 ================
 
-The *Image Optimization for TYPO3* extension (``nr_image_optimize``) compresses
-images in TYPO3 on three layers:
+The *Image Optimization for TYPO3* extension (``nr_image_optimize``)
+compresses images in TYPO3 on three independent layers:
 
--   **On upload.** A PSR-14 event listener runs lossless
-    optimization when a file is added to, or replaced in, a
-    FAL storage (via ``optipng``, ``gifsicle``,
-    ``jpegoptim``).
--   **On demand in the frontend.** Resized and re-encoded
-    variants are produced lazily by the
-    :php:class:`~Netresearch\\NrImageOptimize\\Processor` when
-    a visitor first requests the ``/processed/`` URL.
--   **In bulk from the CLI.** The :ref:`nr:image:optimize
-    <usage-cli-optimize>` and :ref:`nr:image:analyze
-    <usage-cli-analyze>` commands iterate the FAL index to
-    operate on an entire installation.
+**On upload**
+    A PSR-14 event listener runs lossless optimization whenever a
+    file is added to or replaced in a FAL storage
+    (``AfterFileAddedEvent`` / ``AfterFileReplacedEvent``). The
+    listener delegates to the installed ``optipng`` / ``gifsicle``
+    / ``jpegoptim`` binaries.
 
-This combination reduces server load during content editing,
-keeps storage footprint small, and ensures that only images
-actually viewed by visitors pay the variant-generation cost.
+**On demand in the frontend**
+    A PSR-15 middleware intercepts every request that starts with
+    ``/processed/`` and delegates to the
+    :php:class:`~Netresearch\\NrImageOptimize\\Processor`. The
+    processor parses the URL, loads the original via
+    `Intervention Image <https://image.intervention.io/>`__,
+    produces a resized/recropped variant, optionally writes a
+    matching WebP and AVIF sidecar, and streams the best result
+    back to the client. Variants are cached on disk and served
+    with long-lived HTTP caching headers.
+
+**In bulk from the CLI**
+    Two Symfony Console commands iterate the FAL index:
+    :ref:`nr:image:optimize <usage-cli-optimize>` compresses every
+    eligible file, :ref:`nr:image:analyze <usage-cli-analyze>`
+    reports optimization potential as a fast heuristic without
+    touching any file.
+
+All three layers share a common
+:php:class:`~Netresearch\\NrImageOptimize\\Service\\ImageOptimizer`
+service for tool resolution and process orchestration.
 
 ..  _introduction-features:
 
 Features
 ========
 
--   **Automatic optimization on upload.** Compresses newly
-    added or replaced images in place without re-encoding.
-    Storages, offline drivers, and unsupported extensions are
-    handled transparently.
--   **Bulk CLI commands.** ``nr:image:optimize`` walks the FAL
-    index and compresses eligible images.
-    ``nr:image:analyze`` reports optimization potential
-    without modifying files (fast heuristic -- no binaries
-    invoked).
--   **Lazy image processing.** Variants are optimized only
-    when a visitor first requests them.
--   **Modern format support.** Automatic WebP and AVIF
-    conversion with fallback to original formats.
--   **Responsive images.** Built-in ``SourceSetViewHelper``
-    for ``srcset`` and ``sizes`` generation.
--   **Render modes.** Choose between ``cover`` and ``fit``
-    resize strategies.
--   **Width-based srcset.** Optional responsive ``srcset``
-    with configurable width variants and ``sizes`` attribute.
+-   **Automatic optimization on upload.** In-place lossless
+    compression without re-encoding. Unsupported extensions,
+    offline storages, and missing binaries are handled
+    transparently -- the listener never raises.
+-   **Bulk CLI commands.** Streaming iteration over ``sys_file``
+    keeps memory usage flat on large installations. Progress bar
+    with cumulative savings.
+-   **On-demand variant generation.** Variants are produced only
+    when a visitor first requests them through the ``/processed/``
+    URL.
+-   **Next-gen format support.** Automatic WebP and AVIF sidecar
+    generation with Accept-header-driven content negotiation and
+    ``skipWebP`` / ``skipAvif`` opt-outs.
+-   **Responsive images.**
+    :php:class:`~Netresearch\\NrImageOptimize\\ViewHelpers\\SourceSetViewHelper`
+    emits ``<img>`` tags with density-based or width-based
+    ``srcset`` + ``sizes``.
+-   **Render modes.** Choose between ``cover`` and ``fit`` resize
+    strategies per URL.
 -   **Fetch priority.** Native ``fetchpriority`` attribute
-    support for Core Web Vitals optimization.
--   **Middleware-based processing.** Lightweight frontend
-    middleware intercepts ``/processed/`` requests.
--   **Backend maintenance module.** View statistics, check
-    system requirements, and clear processed images.
--   **Powered by Intervention Image.** Uses the
-    `Intervention Image <https://image.intervention.io/>`__
-    library for reliable image manipulation.
+    support for Core Web Vitals (LCP) tuning.
+-   **PSR-14 extension points.**
+    :php:class:`~Netresearch\\NrImageOptimize\\Event\\ImageProcessedEvent`
+    and
+    :php:class:`~Netresearch\\NrImageOptimize\\Event\\VariantServedEvent`
+    let integrators observe the pipeline.
+-   **Driver abstraction.** Imagick is preferred when the
+    extension is loaded; GD is used as a fallback. The
+    ``ImageReaderInterface`` adapter (see
+    :ref:`developer-image-manager`) hides the Intervention
+    Image v3/v4 API difference.
+-   **Backend maintenance module.** View statistics about
+    processed images, check prerequisites, and clear the cache
+    from the TYPO3 backend.
+-   **Security.** Path traversal is blocked at URL parsing time,
+    quality and dimension values are clamped to safe ranges,
+    PSR-7 responses replace direct ``header()`` / ``exit`` calls.
 
 ..  _introduction-requirements:
 
@@ -72,16 +93,17 @@ Requirements
 
 -   PHP 8.2, 8.3, 8.4, or 8.5.
 -   TYPO3 13.4 or 14.
--   Intervention Image library 3.11+ (installed automatically
-    via Composer).
+-   Imagick **or** GD PHP extension.
+-   Intervention Image 3.11+ (installed automatically via
+    Composer).
 
 ..  _introduction-optional-binaries:
 
 Optional optimizer binaries
 ===========================
 
-On-upload and CLI optimization only compress files when a
-matching binary is available:
+The on-upload listener and the CLI commands only compress files
+when a matching binary is available in ``$PATH``:
 
 ``optipng``
     Lossless PNG compression.
@@ -92,12 +114,14 @@ matching binary is available:
 ``jpegoptim``
     Lossless (default) or lossy JPEG compression.
 
-The extension discovers these binaries through ``$PATH``. You
-can override the resolved path per binary via the
-``OPTIPNG_BIN``, ``GIFSICLE_BIN``, and ``JPEGOPTIM_BIN``
-environment variables. A set-but-invalid override is treated
-as authoritative: the tool is reported unavailable rather
-than silently falling back to ``$PATH``.
+Paths can be pinned per binary via the ``OPTIPNG_BIN``,
+``GIFSICLE_BIN``, and ``JPEGOPTIM_BIN`` environment variables. A
+set-but-invalid override is treated as authoritative: the tool
+is reported unavailable rather than silently falling back to
+``$PATH``. ``$PATH`` lookups also verify ``is_executable()``.
+
+See :ref:`installation-optional-binaries` for package-manager
+snippets.
 
 ..  _introduction-recommended-extensions:
 
@@ -106,5 +130,5 @@ Recommended extensions
 
 `imageoptimizer <https://github.com/christophlehmann/imageoptimizer>`__
     Alternative TYPO3 image optimization extension that
-    integrates a broader set of external binaries with the
-    core image processing pipeline.
+    integrates a broader set of external binaries with the core
+    image processing pipeline.

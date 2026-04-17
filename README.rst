@@ -246,6 +246,44 @@ Supported parameters
     Native HTML ``fetchpriority`` attribute (``high``,
     ``low``, ``auto``).
 
+Variant URL format
+==================
+
+Processed variants are served from
+``/processed/<path>.<mode-config>.<ext>``. The mode config is a
+concatenation of any of ``w<n>``, ``h<n>``, ``q<n>``, ``m<n>``
+(width, height, quality 1--100, mode ``0`` = cover / ``1`` = fit).
+The processor decides at response time whether to serve the
+original, the ``.webp`` sidecar, or the ``.avif`` sidecar based on
+the ``Accept`` header and the ``skipWebP`` / ``skipAvif`` query
+flags. Path traversal sequences are rejected; ``w`` / ``h`` are
+clamped to 1--8192 and ``q`` to 1--100.
+
+Example: ``/processed/fileadmin/hero.w1200h800m0q85.jpg``.
+
+Extension points
+================
+
+Two PSR-14 events let integrators observe the on-demand
+pipeline:
+
+``ImageProcessedEvent``
+    Dispatched after a new variant has been written to disk.
+    Exposes source path, variant path, extension, dimensions,
+    quality, mode, and whether WebP / AVIF sidecars were
+    produced.
+
+``VariantServedEvent``
+    Dispatched immediately before the response body is
+    streamed. Reports whether the response was served from
+    disk cache (``fromCache``).
+
+Image driver selection is handled by ``ImageManagerFactory``:
+Imagick is preferred when the PHP extension is loaded, GD is
+used as a fallback. The version-agnostic ``ImageReaderInterface``
+hides the Intervention Image v3/v4 API difference so integrators
+can rely on a stable contract.
+
 Documentation
 =============
 

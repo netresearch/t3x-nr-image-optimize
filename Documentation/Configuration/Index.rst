@@ -6,10 +6,11 @@
 Configuration
 =============
 
-The extension works out of the box with sensible defaults.
-Images are automatically optimized when accessed via the
-``/processed/`` path. All configuration happens through
-ViewHelper attributes in your Fluid templates.
+The extension works out of the box with sensible defaults. All
+three operating modes -- on-demand frontend processing, on-upload
+compression, and bulk CLI -- activate automatically after
+installation. This page documents the extension points that can
+be tweaked.
 
 ..  _configuration-viewhelper:
 
@@ -57,20 +58,23 @@ Parameters
     :name: confval-width
     :type: integer
 
-    Target width in pixels.
+    Target width in pixels. Clamped by the processor to
+    1 -- 8192.
 
 ..  confval:: height
     :name: confval-height
     :type: integer
 
-    Target height in pixels.
+    Target height in pixels. Clamped by the processor to
+    1 -- 8192.
 
 ..  confval:: quality
     :name: confval-quality
     :type: integer
     :Default: 100
 
-    JPEG/WebP quality (1--100).
+    JPEG / WebP / AVIF quality (1--100). Clamped by the
+    processor.
 
 ..  confval:: sizes
     :name: confval-sizes
@@ -191,3 +195,144 @@ By default :confval:`responsiveSrcset <confval-responsive-srcset>`
 is ``false``, preserving the existing 2x density-based
 ``srcset`` behavior. All existing templates continue to work
 without modifications.
+
+..  _configuration-url-format:
+
+Variant URL format
+==================
+
+Processed variants are served from a dedicated URL path. The
+ViewHelper generates these URLs automatically, but any markup
+that writes a URL of this form will be intercepted by the
+:ref:`ProcessingMiddleware <developer-middleware>`:
+
+..  code-block:: text
+    :caption: URL template
+
+    /processed/<original-path>.<mode-config>.<ext>[?<query>]
+
+``<original-path>``
+    Public path of the source image, including the
+    ``/fileadmin/`` (or other storage) prefix. Path traversal
+    sequences (``..``) are rejected at URL-parsing time.
+
+``<mode-config>``
+    Concatenation of one or more of:
+
+    ``w<n>``
+        Target width in pixels.
+
+    ``h<n>``
+        Target height in pixels.
+
+    ``q<n>``
+        Quality (1--100).
+
+    ``m<n>``
+        Processing mode (``0`` = cover, ``1`` = scale/fit).
+
+``<ext>``
+    Source image extension. The processor decides at
+    response time whether to serve the original, the
+    ``.webp`` sidecar, or the ``.avif`` sidecar based on
+    the ``Accept`` header and the query flags below.
+
+..  code-block:: text
+    :caption: Example URL
+
+    /processed/fileadmin/photos/hero.w1200h800m0q85.jpg
+
+..  _configuration-variant-negotiation:
+
+Variant negotiation
+===================
+
+When the processor generates a variant, it writes the original
+file to disk and additionally produces a ``.webp`` and an
+``.avif`` sidecar (same base name). On each request it inspects
+the ``Accept`` header and returns the best match the client
+supports, preferring AVIF over WebP over the original format.
+
+Two query parameters let callers opt out of sidecar generation
+for individual URLs:
+
+``skipWebP=1``
+    Do not produce or serve a WebP variant for this URL. The
+    ``Content-Type`` always matches the source extension.
+
+``skipAvif=1``
+    Do not produce or serve an AVIF variant for this URL. If
+    WebP is still allowed and the client supports it, WebP is
+    served.
+
+These flags are useful when specific consumers (for example
+e-mail clients or legacy RSS renderers) cannot handle modern
+formats.
+
+..  _configuration-cache-headers:
+
+Cache headers
+=============
+
+Processed variant URLs are effectively content-addressed -- any
+change to dimensions, quality, or format produces a different
+URL. The processor therefore responds with an immutable,
+long-lived cache header:
+
+..  code-block:: text
+
+    Cache-Control: public, max-age=31536000, immutable
+
+This value is a compile-time constant and not user-configurable.
+
+..  _configuration-image-driver:
+
+Image driver selection
+======================
+
+Intervention Image is instantiated through
+:php:class:`~Netresearch\\NrImageOptimize\\Service\\ImageManagerFactory`,
+which selects the best available driver at runtime:
+
+1.  **Imagick** when the ``imagick`` PHP extension is loaded
+    (preferred -- supports AVIF natively if the underlying
+    ImageMagick build does).
+2.  **GD** when ``imagick`` is unavailable and the ``gd``
+    extension is loaded.
+
+If neither extension is present, the factory throws a
+``RuntimeException`` with a descriptive message. Use the
+:ref:`backend maintenance module <maintenance-system-requirements>`
+to verify driver availability on your host.
+
+..  _configuration-middleware:
+
+Middleware registration
+=======================
+
+:file:`Configuration/RequestMiddlewares.php` registers the
+``ProcessingMiddleware`` on the frontend pipeline **before**
+``typo3/cms-frontend/site``. This ordering is required so the
+middleware can intercept ``/processed/`` URLs before
+TYPO3's frontend routing claims them. The registration has no
+user-configurable options.
+
+..  _configuration-limits:
+
+Processor limits
+================
+
+The processor enforces the following bounds when parsing a URL:
+
+``MAX_DIMENSION``
+    Width and height are clamped to 1--8192 pixels to prevent
+    denial-of-service via excessive memory allocation.
+
+``MIN_QUALITY`` / ``MAX_QUALITY``
+    Quality is clamped to 1--100.
+
+``LOCK_MAX_RETRIES``
+    Up to 10 attempts (at 100 ms intervals) to acquire the
+    per-variant processing lock before returning HTTP 503.
+    Prevents duplicate work when multiple clients hit the
+    same uncached variant simultaneously.
