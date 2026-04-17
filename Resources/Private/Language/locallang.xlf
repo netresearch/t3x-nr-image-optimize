@@ -21,7 +21,7 @@
             </trans-unit>
             <trans-unit id="maintenance.confirmClear" resname="maintenance.confirmClear">
                 <source>Are you sure you want to delete all processed images? This action cannot be undone.</source>
-                <note from="developer">JavaScript confirmation dialog text shown before the destructive "Clear all processed images" action. Avoid single quotes/apostrophes that would break a plain string; use typographic quotation marks if possible.</note>
+                <note from="developer">Confirmation dialog text shown before the destructive "Clear all processed images" action. The text is rendered into a data-confirm HTML attribute and read from the DOM at submit time, so normal apostrophes and quotation marks are safe.</note>
             </trans-unit>
             <trans-unit id="stats.directories" resname="stats.directories">
                 <source>Subdirectories</source>
