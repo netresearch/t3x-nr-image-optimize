@@ -99,15 +99,15 @@ final class SystemRequirementsService
     ];
 
     /**
-     * CLI tools to check for availability.
+     * CLI tools to check for availability, mapped to their translation key.
      *
      * @var array<string, string>
      */
     private const CLI_TOOLS = [
-        'magick'   => 'CLI: magick',
-        'convert'  => 'CLI: convert',
-        'identify' => 'CLI: identify',
-        'gm'       => 'CLI: gm (GraphicsMagick)',
+        'magick'   => 'sysreq.cli.magick',
+        'convert'  => 'sysreq.cli.convert',
+        'identify' => 'sysreq.cli.identify',
+        'gm'       => 'sysreq.cli.gm',
     ];
 
     /**
@@ -364,12 +364,12 @@ final class SystemRequirementsService
             'sysreq.optional',
         );
 
-        foreach (self::CLI_TOOLS as $cmd => $label) {
+        foreach (self::CLI_TOOLS as $cmd => $labelKey) {
             $res    = $this->checkBinaryAvailability($cmd, $execAllowed);
             $status = $res['available'] === true ? 'success' : 'warning';
 
             $items[] = $this->makeItem(
-                null,
+                $labelKey,
                 $res['version'],
                 null,
                 $status,
@@ -377,7 +377,6 @@ final class SystemRequirementsService
                 [],
                 $res['available'] === true ? 'sysreq.found' : 'sysreq.notFound',
                 'sysreq.optional',
-                $label,
             );
         }
 

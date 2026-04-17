@@ -225,7 +225,8 @@
                         </div>
                     </div>
 
-                    <f:form action="clearProcessedImages" additionalAttributes="{onsubmit: 'return confirm(\'Are you sure you want to delete all processed images? This action cannot be undone.\');'}">
+                    <f:variable name="confirmClearText"><f:translate key="maintenance.confirmClear" extensionName="NrImageOptimize" /></f:variable>
+                    <f:form action="clearProcessedImages" additionalAttributes="{data-confirm: confirmClearText}">
                         <div class="d-grid">
                             <f:form.button type="submit" class="btn btn-danger">
                                 <core:icon identifier="actions-delete" size="small"/>
@@ -233,6 +234,8 @@
                             </f:form.button>
                         </div>
                     </f:form>
+
+                    <f:be.pageRenderer includeJsFiles="{0: 'EXT:nr_image_optimize/Resources/Public/JavaScript/Maintenance.js'}" />
                 </div>
             </div>
         </div>
