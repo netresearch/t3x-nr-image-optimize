@@ -55,9 +55,13 @@ Optional: install optimizer binaries
 ====================================
 
 The automatic on-upload compression and the
-:ref:`CLI commands <usage-cli>` call out to ``optipng``,
-``gifsicle``, and ``jpegoptim``. Install whichever tools you
-need and make them available in ``$PATH``:
+:ref:`nr:image:optimize <usage-cli-optimize>` CLI command call
+out to ``optipng``, ``gifsicle``, and ``jpegoptim``. The
+:ref:`nr:image:analyze <usage-cli-analyze>` command is purely
+heuristic and does not require these binaries.
+
+Install whichever tools you need and make them available in
+``$PATH``:
 
 ..  code-block:: bash
     :caption: Debian/Ubuntu
@@ -82,11 +86,14 @@ set one or more of the following environment variables:
     Absolute path to ``jpegoptim``.
 
 A set-but-invalid override is authoritative: the tool is
-reported unavailable and the listener/commands simply skip the
-file. There is no silent fallback to ``$PATH``.
+reported unavailable. There is no silent fallback to ``$PATH``.
 
 ..  tip::
 
-    If no binary is installed, on-upload compression and
-    ``nr:image:optimize`` simply do nothing -- they never
-    raise errors.
+    If no supported binary is installed, the on-upload
+    listener skips optimization silently. The
+    ``nr:image:optimize`` CLI command, by contrast, reports
+    the missing tools and exits with failure so an operator
+    running a bulk job gets immediate feedback.
+    ``nr:image:analyze`` works regardless because it never
+    invokes an external binary.

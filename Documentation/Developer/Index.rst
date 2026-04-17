@@ -237,7 +237,7 @@ Upload event listener
     :php:class:`~Netresearch\\NrImageOptimize\\Service\\ImageOptimizer`.
 
     Re-entrancy guard: keyed by
-    ``storageUid + ':' + identifier`` so two storages sharing
+    ``storageUid . ':' . identifier`` so two storages sharing
     an identifier (``/image.jpg`` in different driver roots)
     don't block each other, while still catching the
     ``replaceFile()`` loop that the optimizer's own write
@@ -267,18 +267,18 @@ ImageOptimizer service
 
     Public API:
 
-    ``optimize(FileInterface, stripMetadata, jpegQuality, dryRun): array``
+    ``optimize(FileInterface $file, bool $stripMetadata = false, ?int $jpegQuality = null, bool $dryRun = false): array``
         Run the appropriate tool in place and replace the
         FAL file when the result shrinks.
 
-    ``analyze(FileInterface, stripMetadata, jpegQuality): array``
+    ``analyze(FileInterface $file, bool $stripMetadata = false, ?int $jpegQuality = null): array``
         Same pipeline, but never writes back.
 
-    ``analyzeHeuristic(FileInterface, maxWidth, maxHeight, minSize): array``
+    ``analyzeHeuristic(FileInterface $file, int $maxWidth = 2560, int $maxHeight = 1440, int $minSize = 512000): array``
         Fast estimation from size and resolution. No binary
         is invoked.
 
-    ``resolveToolFor(string extension): ?array``
+    ``resolveToolFor(string $extension): ?array``
         Tool discovery for callers that want to pre-check.
 
     ``hasAnyTool(): bool``

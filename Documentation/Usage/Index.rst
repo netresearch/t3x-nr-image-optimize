@@ -143,9 +143,12 @@ Paint (LCP) scores:
 Command-line tools
 ==================
 
-Both commands read the FAL index directly and honor storage
-access rules. They run safely in long-running shells --
-permission checks are disabled and restored per file.
+Both commands read the FAL index directly and process eligible
+image files (``image/jpeg``, ``image/gif``, ``image/png``) on
+online storages. Per-file storage permission evaluation is
+temporarily disabled and restored in a ``finally`` block so
+long-running CLI runs don't leak state across iterations or
+require a BE user context.
 
 ..  _usage-cli-optimize:
 
@@ -215,4 +218,4 @@ Options:
 
 ``--min-size``
     Skip files smaller than this many bytes (default
-    512 000). Prevents noise from already-tiny images.
+    512000). Prevents noise from already-tiny images.

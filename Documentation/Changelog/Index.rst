@@ -18,7 +18,7 @@ Unreleased
 -   Added ``OptimizeOnUploadListener`` -- PSR-14 listener
     that runs ``optipng`` / ``gifsicle`` / ``jpegoptim`` on
     ``AfterFileAddedEvent`` and ``AfterFileReplacedEvent``.
-    Keyed by ``storageUid + ':' + identifier`` to avoid
+    Keyed by ``storageUid . ':' . identifier`` to avoid
     cross-storage re-entrancy collisions; restores
     ``setEvaluatePermissions`` in a ``finally`` block.
 -   Added ``nr:image:optimize`` -- bulk optimization command

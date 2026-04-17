@@ -25,11 +25,12 @@ with ``srcset`` attributes.
 
     {namespace nr=Netresearch\NrImageOptimize\ViewHelpers}
 
-    <nr:sourceSet file="{image}"
+    <nr:sourceSet path="{f:uri.image(image: image)}"
                   width="1200"
                   height="800"
-                  quality="85"
+                  alt="{image.properties.alternative}"
                   sizes="(max-width: 768px) 100vw, 50vw"
+                  responsiveSrcset="1"
     />
 
 ..  _configuration-parameters:
@@ -37,59 +38,68 @@ with ``srcset`` attributes.
 Parameters
 ----------
 
-..  confval:: file
-    :name: confval-file
-    :type: object
-    :required: true
-
-    Image file resource (FAL file reference). Either ``file``
-    or ``path`` must be provided.
-
 ..  confval:: path
     :name: confval-path
     :type: string
+    :required: true
 
-    URI string path to the image, typically generated via
-    ``f:uri.image()``. Use ``path`` instead of ``file`` when
-    passing a pre-resolved image URI. Either ``file`` or
-    ``path`` must be provided.
+    Public path to the source image (for example
+    ``/fileadmin/foo.jpg``), typically generated via
+    ``f:uri.image()``.
 
 ..  confval:: width
     :name: confval-width
-    :type: integer
+    :type: int|float
+    :Default: 0
 
-    Target width in pixels. Clamped by the processor to
-    1 -- 8192.
+    Base width in pixels for the rendered ``<img>``. ``0``
+    resolves automatically from the source file.
+    :ref:`Clamped by the processor <configuration-limits>` to
+    1--8192 when baked into the variant URL.
 
 ..  confval:: height
     :name: confval-height
-    :type: integer
+    :type: int|float
+    :Default: 0
 
-    Target height in pixels. Clamped by the processor to
-    1 -- 8192.
+    Base height in pixels. ``0`` preserves aspect ratio
+    relative to :confval:`width <confval-width>`.
+    :ref:`Clamped by the processor <configuration-limits>`
+    to 1--8192.
 
-..  confval:: quality
-    :name: confval-quality
-    :type: integer
-    :Default: 100
+..  confval:: set
+    :name: confval-set
+    :type: array
+    :Default: []
 
-    JPEG / WebP / AVIF quality (1--100). Clamped by the
-    processor.
+    Responsive set in the form
+    ``{maxWidth: {width: int, height: int}}``. Each entry
+    becomes a ``<source media="(max-width: <maxWidth>px)">``
+    tag.
 
-..  confval:: sizes
-    :name: confval-sizes
+..  confval:: alt
+    :name: confval-alt
     :type: string
+    :Default: empty string
 
-    Responsive ``sizes`` attribute for the generated
-    ``<img>`` tag.
+    Alternative text for the image. Always rendered (even
+    when empty) to keep assistive-tech compatibility.
 
-..  confval:: format
-    :name: confval-format
+..  confval:: title
+    :name: confval-title
     :type: string
-    :Default: auto
+    :Default: empty string
 
-    Output format. Allowed values: ``auto``, ``webp``,
-    ``avif``, ``jpg``, ``png``.
+    HTML-escaped title attribute.
+
+..  confval:: class
+    :name: confval-class
+    :type: string
+    :Default: empty string
+
+    CSS classes for the ``<img>`` tag. Include
+    ``lazyload`` to switch from native to JS-based lazy
+    loading (see :ref:`configuration-lazy-loading`).
 
 ..  confval:: mode
     :name: confval-mode
@@ -97,16 +107,24 @@ Parameters
     :Default: cover
 
     Render mode. ``cover`` resizes images to fully cover
-    the given dimensions. ``fit`` resizes images to fit
-    within the given dimensions.
+    the given dimensions (crop/fill). ``fit`` resizes images
+    to fit within the given dimensions.
+
+..  confval:: lazyload
+    :name: confval-lazyload
+    :type: boolean
+    :Default: false
+
+    Add ``loading="lazy"`` (native lazy loading).
 
 ..  confval:: responsiveSrcset
     :name: confval-responsive-srcset
     :type: boolean
     :Default: false
 
-    Enable width-based responsive ``srcset`` instead of
-    density-based ``2x`` srcset.
+    Enable width-based responsive ``srcset`` instead of the
+    density-based ``2x`` output (preserved for backward
+    compatibility).
 
 ..  confval:: widthVariants
     :name: confval-width-variants
@@ -114,15 +132,43 @@ Parameters
     :Default: 480, 576, 640, 768, 992, 1200, 1800
 
     Width variants for responsive ``srcset``
-    (comma-separated string or array).
+    (comma-separated string or array). Only honored when
+    :confval:`responsiveSrcset <confval-responsive-srcset>`
+    is enabled.
+
+..  confval:: sizes
+    :name: confval-sizes
+    :type: string
+    :Default: auto, (min-width: 992px) 991px, 100vw
+
+    Responsive ``sizes`` attribute for the generated
+    ``<img>`` tag.
 
 ..  confval:: fetchpriority
     :name: confval-fetchpriority
     :type: string
+    :Default: empty string
 
     Native HTML ``fetchpriority`` attribute. Allowed
     values: ``high``, ``low``, ``auto``. Omitted when
     empty.
+
+..  confval:: attributes
+    :name: confval-attributes
+    :type: array
+    :Default: []
+
+    Extra HTML attributes merged into the rendered tag.
+
+..  note::
+
+    Quality and output format are not exposed as ViewHelper
+    arguments. Quality defaults to 100 and is baked into the
+    generated ``/processed/...q<n>...`` URL; the variant's
+    file extension is inherited from the source image. Use
+    :ref:`the URL format <configuration-url-format>` and
+    :ref:`variant negotiation <configuration-variant-negotiation>`
+    to influence the served format.
 
 ..  _configuration-source-sets:
 

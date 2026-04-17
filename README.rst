@@ -181,7 +181,7 @@ Supported options:
 
 ``--min-size``
     Skip files smaller than this many bytes (default
-    512 000). Prevents reporting on already-tiny images.
+    512000). Prevents reporting on already-tiny images.
 
 Configuration
 =============
@@ -198,53 +198,71 @@ ViewHelper usage
 
     {namespace nr=Netresearch\NrImageOptimize\ViewHelpers}
 
-    <nr:sourceSet file="{image}"
+    <nr:sourceSet path="{f:uri.image(image: image)}"
                   width="1200"
                   height="800"
-                  quality="85"
+                  alt="{image.properties.alternative}"
                   sizes="(max-width: 768px) 100vw, 50vw"
+                  responsiveSrcset="1"
     />
 
 Supported parameters
 --------------------
 
-``file``
-    Image file resource.
+``path`` (required)
+    Public path to the source image (e.g. ``/fileadmin/foo.jpg``).
+    Typically generated via ``f:uri.image()``.
 
-``path``
-    Pre-resolved image URI (alternative to ``file``).
+``width`` / ``height``
+    Base width/height in px for the rendered ``<img>``.
+    Defaults to ``0`` (auto from file / preserve aspect ratio).
 
-``width``
-    Target width in pixels.
+``set``
+    Responsive set in the form
+    ``{maxWidth: {width: int, height: int}}`` — emits per-breakpoint
+    ``<source>`` tags wrapped in a ``<picture>``.
 
-``height``
-    Target height in pixels.
+``alt`` / ``title``
+    HTML-escaped ``alt`` and ``title`` attributes.
 
-``quality``
-    JPEG/WebP quality (1--100).
-
-``sizes``
-    Responsive ``sizes`` attribute.
-
-``format``
-    Output format: ``auto``, ``webp``, ``avif``, ``jpg``,
-    ``png``.
+``class``
+    CSS classes for the ``<img>`` tag. Include ``lazyload`` to
+    switch to JS-based lazy loading (``data-src``/``data-srcset``).
 
 ``mode``
-    Render mode: ``cover`` (default) or ``fit``.
+    Render mode: ``cover`` (default, crop/fill) or ``fit``
+    (scale inside the box).
+
+``lazyload``
+    Add ``loading="lazy"`` (native lazy loading).
 
 ``responsiveSrcset``
     Enable width-based responsive ``srcset`` instead of
-    density-based ``2x``. Default: ``false``.
+    density-based 2x. Default: ``false``.
 
 ``widthVariants``
-    Width variants for responsive ``srcset``
-    (comma-separated string or array).
-    Default: ``480, 576, 640, 768, 992, 1200, 1800``.
+    Width variants for responsive ``srcset`` (comma-separated
+    string or array). Default:
+    ``480, 576, 640, 768, 992, 1200, 1800``.
+
+``sizes``
+    Responsive ``sizes`` attribute. Default:
+    ``auto, (min-width: 992px) 991px, 100vw``.
 
 ``fetchpriority``
     Native HTML ``fetchpriority`` attribute (``high``,
-    ``low``, ``auto``).
+    ``low``, or ``auto``).
+
+``attributes``
+    Extra HTML attributes merged into the rendered tag.
+
+..  note::
+
+    Quality and output format are not exposed as ViewHelper
+    arguments; they are baked into the ``/processed/`` URL
+    (``q<n>`` segment, source extension). Use
+    ``f:uri.image(image: image, additionalConfiguration: ...)``
+    to influence the generated path if needed.
 
 Variant URL format
 ==================

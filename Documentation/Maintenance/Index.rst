@@ -70,10 +70,13 @@ host in minutes.
 
     The page does not currently report on the ``optipng``,
     ``gifsicle``, or ``jpegoptim`` binaries used by the
-    on-upload listener and CLI commands. Run
-    :ref:`nr:image:analyze <usage-cli-analyze>` or check the
-    binaries manually on the host to verify their
-    availability.
+    on-upload listener and ``nr:image:optimize``. To verify
+    those, run ``nr:image:optimize --dry-run`` (see
+    :ref:`usage-cli-optimize`) -- it resolves every tool up
+    front and exits with an error listing the missing ones --
+    or check the binaries manually on the host.
+    ``nr:image:analyze`` is heuristic and never invokes
+    external tools, so it cannot be used for this check.
 
 ..  _maintenance-clear:
 
