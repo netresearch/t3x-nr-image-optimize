@@ -133,23 +133,26 @@ class Processor
     private const MODE_PATTERN = '/([hwqm])(\d+)/';
 
     /**
-     * Cached list of absolute filesystem roots (realpath-resolved) under which
-     * image paths are considered safe. Populated on first call to
-     * getAllowedRoots() and reused across requests in the same PHP process.
+     * Cached lists of absolute filesystem roots (realpath-resolved) under
+     * which image paths are considered safe, keyed by the TYPO3 public path
+     * that was in effect when each list was computed.
      *
-     * Contains the TYPO3 public path plus the basePath of every Local-driver
-     * FAL storage, each resolved through realpath so that legitimately
-     * symlinked storage directories (e.g. fileadmin on an NFS/EFS mount) are
-     * recognised as allowed. Any symlink inside a storage that points to a
-     * location outside these roots is rejected.
+     * Each entry contains the public path plus the basePath of every
+     * Local-driver FAL storage, each resolved through realpath so that
+     * legitimately symlinked storage directories (e.g. fileadmin on an
+     * NFS/EFS mount) are recognised as allowed. Any symlink inside a storage
+     * that points to a location outside these roots is rejected.
      *
-     * Because the cache persists for the life of the PHP process, tests must
-     * reset it between cases via reflection — see
-     * ProcessorTest::resetAllowedRootsCache().
+     * Keying by public path auto-invalidates the cache when the public path
+     * changes — matters for TYPO3 functional tests (each test instance has
+     * its own typo3temp/var/tests/functional-XXXX/ root) and long-running
+     * worker setups (FrankenPHP, swoole, RoadRunner) that might reinitialise
+     * Environment between handler invocations. In a normal HTTP request the
+     * public path is constant, so this degenerates to a single-entry cache.
      *
-     * @var list<string>|null
+     * @var array<string, list<string>>
      */
-    private static ?array $resolvedAllowedRoots = null;
+    private static array $resolvedAllowedRootsByPublicPath = [];
 
     /**
      * Initialize the image processor with all required dependencies.
@@ -566,8 +569,6 @@ class Processor
         $allowedRoots = $this->getAllowedRoots();
 
         if ($allowedRoots === []) {
-            error_log(sprintf('[nr_image_optimize DEBUG] isPathWithinAllowedRoots: path=%s  allowedRoots=EMPTY', $path));
-
             return false;
         }
 
@@ -575,17 +576,7 @@ class Processor
         $resolvedPath = realpath($path);
 
         if ($resolvedPath !== false) {
-            $ok = $this->isWithinAnyRoot($resolvedPath, $allowedRoots);
-            if (!$ok) {
-                error_log(sprintf(
-                    '[nr_image_optimize DEBUG] isPathWithinAllowedRoots REJECTED: path=%s  realpath=%s  allowedRoots=%s',
-                    $path,
-                    $resolvedPath,
-                    implode(';', $allowedRoots),
-                ));
-            }
-
-            return $ok;
+            return $this->isWithinAnyRoot($resolvedPath, $allowedRoots);
         }
 
         // For paths that do not yet exist (variant files), resolve the
@@ -653,13 +644,14 @@ class Processor
      */
     private function getAllowedRoots(): array
     {
-        if (self::$resolvedAllowedRoots !== null) {
-            return self::$resolvedAllowedRoots;
+        $publicPathRaw = Environment::getPublicPath();
+
+        if (isset(self::$resolvedAllowedRootsByPublicPath[$publicPathRaw])) {
+            return self::$resolvedAllowedRootsByPublicPath[$publicPathRaw];
         }
 
-        $roots         = [];
-        $publicPathRaw = Environment::getPublicPath();
-        $publicPath    = realpath($publicPathRaw);
+        $roots      = [];
+        $publicPath = realpath($publicPathRaw);
 
         if ($publicPath !== false) {
             $roots[$publicPath] = true;
@@ -706,9 +698,11 @@ class Processor
             ));
         }
 
-        self::$resolvedAllowedRoots = array_keys($roots);
+        $resolved = array_keys($roots);
 
-        return self::$resolvedAllowedRoots;
+        self::$resolvedAllowedRootsByPublicPath[$publicPathRaw] = $resolved;
+
+        return $resolved;
     }
 
     /**
