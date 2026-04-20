@@ -727,11 +727,21 @@ class Processor implements LoggerAwareInterface, ProcessorInterface
             return self::$resolvedAllowedRoots;
         }
 
-        $roots      = [];
-        $publicPath = realpath(Environment::getPublicPath());
+        $roots         = [];
+        $publicPathRaw = Environment::getPublicPath();
+        $publicPath    = realpath($publicPathRaw);
 
         if ($publicPath !== false) {
             $roots[$publicPath] = true;
+        }
+
+        // isset() guards against tests that construct Processor via
+        // ReflectionClass::newInstanceWithoutConstructor() without injecting
+        // this readonly property; in production DI always provides it.
+        if (!isset($this->storageRepository)) {
+            self::$resolvedAllowedRoots = array_keys($roots);
+
+            return self::$resolvedAllowedRoots;
         }
 
         try {
@@ -754,7 +764,7 @@ class Processor implements LoggerAwareInterface, ProcessorInterface
 
                 $absolutePath = $pathType === 'absolute'
                     ? $basePath
-                    : Environment::getPublicPath() . DIRECTORY_SEPARATOR . $basePath;
+                    : $publicPathRaw . DIRECTORY_SEPARATOR . $basePath;
 
                 $resolvedBasePath = realpath($absolutePath);
 
