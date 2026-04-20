@@ -48,7 +48,7 @@ class ImageManagerFactoryTest extends TestCase
             self::assertSame(1, $image->width());
             self::assertSame(1, $image->height());
         } finally {
-            unlink($tmpFile);
+            unlink($tmpFile); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
         }
     }
 

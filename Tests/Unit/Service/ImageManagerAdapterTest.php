@@ -56,7 +56,7 @@ class ImageManagerAdapterTest extends TestCase
             self::assertSame(2, $image->width());
             self::assertSame(3, $image->height());
         } finally {
-            unlink($tmpFile);
+            unlink($tmpFile); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
         }
     }
 

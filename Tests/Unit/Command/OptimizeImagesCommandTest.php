@@ -85,7 +85,7 @@ class OptimizeImagesCommandTest extends TestCase
 
         foreach ($this->tempFiles as $path) {
             if (is_file($path)) {
-                @unlink($path);
+                @unlink($path); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
             }
         }
 

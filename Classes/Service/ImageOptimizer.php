@@ -113,7 +113,7 @@ final class ImageOptimizer
 
             return ['optimized' => false, 'savedBytes' => 0, 'before' => $before, 'after' => $after, 'tool' => $tool['name']];
         } finally {
-            @unlink($localPath);
+            @unlink($localPath); // nosemgrep: php.lang.security.unlink-use.unlink-use -- @unlink() of TYPO3 FAL temporary local copy from getForLocalProcessing(true) in finally block; not a user-supplied path
         }
     }
 
@@ -194,7 +194,7 @@ final class ImageOptimizer
 
             return ['optimized' => false, 'savedBytes' => 0, 'before' => $before, 'after' => $after, 'tool' => $tool['name']];
         } finally {
-            @unlink($localPath);
+            @unlink($localPath); // nosemgrep: php.lang.security.unlink-use.unlink-use -- @unlink() of TYPO3 FAL temporary local copy from getForLocalProcessing(true) in finally block; not a user-supplied path
         }
     }
 
@@ -356,7 +356,7 @@ final class ImageOptimizer
                 'tool'       => null,
             ];
         } finally {
-            @unlink($localPath);
+            @unlink($localPath); // nosemgrep: php.lang.security.unlink-use.unlink-use -- @unlink() of TYPO3 FAL temporary local copy from getForLocalProcessing(true) in finally block; not a user-supplied path
         }
     }
 }
