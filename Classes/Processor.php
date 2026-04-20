@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize;
 
+use function array_keys;
 use function count;
 use function dirname;
 use function file_exists;
@@ -59,6 +60,7 @@ use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Locking\Exception\LockCreateException;
 use TYPO3\CMS\Core\Locking\LockFactory;
 use TYPO3\CMS\Core\Locking\LockingStrategyInterface;
+use TYPO3\CMS\Core\Resource\StorageRepository;
 
 use function urldecode;
 use function usleep;
@@ -147,19 +149,31 @@ class Processor implements LoggerAwareInterface, ProcessorInterface
     private const MODE_PATTERN = '/([hwqm])(\d+)/';
 
     /**
-     * Cached result of realpath(Environment::getPublicPath()) to avoid repeated
-     * filesystem calls in isPathWithinPublicRoot().
+     * Cached list of absolute filesystem roots (realpath-resolved) under which
+     * image paths are considered safe. Populated on first call to
+     * getAllowedRoots() and reused across requests in the same PHP process.
+     *
+     * Contains the TYPO3 public path plus the basePath of every Local-driver
+     * FAL storage, each resolved through realpath so that legitimately
+     * symlinked storage directories (e.g. fileadmin on an NFS/EFS mount) are
+     * recognised as allowed. Any symlink inside a storage that points to a
+     * location outside these roots is rejected.
+     *
+     * @var list<string>|null
      */
-    private static string|false|null $resolvedPublicPath = null;
+    private static ?array $resolvedAllowedRoots = null;
 
     /**
      * Initialize the image processor with all required dependencies.
      *
-     * @param ImageReaderInterface     $imageReader     Adapter for loading images (v3/v4 compatible)
-     * @param LockFactory              $lockFactory     TYPO3 lock factory for concurrent processing coordination
-     * @param ResponseFactoryInterface $responseFactory PSR-17 response factory
-     * @param StreamFactoryInterface   $streamFactory   PSR-17 stream factory
-     * @param EventDispatcherInterface $eventDispatcher PSR-14 event dispatcher for post-processing hooks
+     * @param ImageReaderInterface     $imageReader       Adapter for loading images (v3/v4 compatible)
+     * @param LockFactory              $lockFactory       TYPO3 lock factory for concurrent processing coordination
+     * @param ResponseFactoryInterface $responseFactory   PSR-17 response factory
+     * @param StreamFactoryInterface   $streamFactory     PSR-17 stream factory
+     * @param EventDispatcherInterface $eventDispatcher   PSR-14 event dispatcher for post-processing hooks
+     * @param StorageRepository        $storageRepository FAL storage repository used to expand the set of
+     *                                                    filesystem roots from which images may be served
+     *                                                    (supports symlinked storage targets, e.g. NFS/EFS)
      */
     public function __construct(
         private readonly ImageReaderInterface $imageReader,
@@ -167,6 +181,7 @@ class Processor implements LoggerAwareInterface, ProcessorInterface
         private readonly ResponseFactoryInterface $responseFactory,
         private readonly StreamFactoryInterface $streamFactory,
         private readonly EventDispatcherInterface $eventDispatcher,
+        private readonly StorageRepository $storageRepository,
     ) {
         $this->logger = new NullLogger();
     }
@@ -603,32 +618,33 @@ class Processor implements LoggerAwareInterface, ProcessorInterface
 
     /**
      * Validate that a filesystem path resolves to a location within the TYPO3
-     * public directory. This prevents path-traversal attacks using encoded or
-     * otherwise crafted sequences that escape the web root.
+     * public directory or any configured Local FAL storage base path. This
+     * prevents path-traversal attacks using encoded or otherwise crafted
+     * sequences that escape the web root, while still allowing legitimate
+     * setups where e.g. fileadmin is a symlink to an external mount (NFS/EFS).
+     *
+     * Symlinks are resolved via realpath() so that an attacker (including a
+     * compromised admin who places a symlink inside a storage directory)
+     * cannot escape the declared roots by pointing a symlink at an arbitrary
+     * location such as /etc.
      *
      * @param string $path Absolute filesystem path to validate
      *
-     * @return bool True if the path is safely within the public root
+     * @return bool True if the path is safely within an allowed root
      */
     private function isPathWithinPublicRoot(string $path): bool
     {
-        if (self::$resolvedPublicPath === null) {
-            self::$resolvedPublicPath = realpath(Environment::getPublicPath());
-        }
+        $allowedRoots = $this->getAllowedRoots();
 
-        $publicPath = self::$resolvedPublicPath;
-
-        if ($publicPath === false) {
+        if ($allowedRoots === []) {
             return false;
         }
 
         // For existing paths, use realpath to resolve symlinks
         $resolvedPath = realpath($path);
 
-        $publicPrefix = $publicPath . DIRECTORY_SEPARATOR;
-
         if ($resolvedPath !== false) {
-            return str_starts_with($resolvedPath, $publicPrefix) || $resolvedPath === $publicPath;
+            return $this->isWithinAnyRoot($resolvedPath, $allowedRoots);
         }
 
         // For paths that do not yet exist (variant files), resolve the
@@ -642,11 +658,102 @@ class Processor implements LoggerAwareInterface, ProcessorInterface
             $resolvedParent = realpath($parent);
 
             if ($resolvedParent !== false) {
-                return str_starts_with($resolvedParent, $publicPrefix) || $resolvedParent === $publicPath;
+                return $this->isWithinAnyRoot($resolvedParent, $allowedRoots);
             }
         } while ($parent !== $previous);
 
         return false;
+    }
+
+    /**
+     * Check whether an already-resolved (realpath'd) absolute path lies within
+     * at least one of the allowed filesystem roots.
+     *
+     * @param string       $resolvedPath Realpath-resolved absolute path
+     * @param list<string> $allowedRoots Realpath-resolved absolute roots
+     *
+     * @return bool True if $resolvedPath equals any root or is nested inside one
+     */
+    private function isWithinAnyRoot(string $resolvedPath, array $allowedRoots): bool
+    {
+        foreach ($allowedRoots as $root) {
+            if ($resolvedPath === $root) {
+                return true;
+            }
+
+            if (str_starts_with($resolvedPath, $root . DIRECTORY_SEPARATOR)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Build (and cache statically) the list of realpath-resolved absolute
+     * roots under which image paths are considered safe.
+     *
+     * Always includes the TYPO3 public path. Additionally includes the
+     * resolved base path of every Local-driver FAL storage so that storages
+     * whose directory is a symlink to an external mount (e.g. fileadmin on
+     * AWS EFS or another NFS share) remain servable. Paths that cannot be
+     * realpath'd (because they do not exist on disk) are skipped.
+     *
+     * Throwables from StorageRepository (e.g. during very early bootstrap
+     * when TCA is not yet loaded) are caught so that path validation still
+     * works against the public root alone.
+     *
+     * @return list<string> Zero or more realpath-resolved allowed roots
+     */
+    private function getAllowedRoots(): array
+    {
+        if (self::$resolvedAllowedRoots !== null) {
+            return self::$resolvedAllowedRoots;
+        }
+
+        $roots      = [];
+        $publicPath = realpath(Environment::getPublicPath());
+
+        if ($publicPath !== false) {
+            $roots[$publicPath] = true;
+        }
+
+        try {
+            foreach ($this->storageRepository->findAll() as $storage) {
+                if ($storage->getDriverType() !== 'Local') {
+                    continue;
+                }
+
+                $configuration = $storage->getConfiguration();
+                $basePath      = $configuration['basePath'] ?? '';
+                if (!is_string($basePath)) {
+                    continue;
+                }
+
+                if ($basePath === '') {
+                    continue;
+                }
+
+                $pathType = $configuration['pathType'] ?? 'relative';
+
+                $absolutePath = $pathType === 'absolute'
+                    ? $basePath
+                    : Environment::getPublicPath() . DIRECTORY_SEPARATOR . $basePath;
+
+                $resolvedBasePath = realpath($absolutePath);
+
+                if ($resolvedBasePath !== false) {
+                    $roots[$resolvedBasePath] = true;
+                }
+            }
+        } catch (Throwable) {
+            // StorageRepository may be unusable (e.g. during very early
+            // bootstrap). Fall back to whatever roots we already collected.
+        }
+
+        self::$resolvedAllowedRoots = array_keys($roots);
+
+        return self::$resolvedAllowedRoots;
     }
 
     /**

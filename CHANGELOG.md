@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Serve images from storage directories that are symlinks (e.g. `fileadmin`
+  mounted on AWS EFS/NFS) instead of returning HTTP 400 for every uncached
+  variant. Path validation now resolves every configured Local FAL storage
+  base path in addition to the TYPO3 public root, while still rejecting
+  paths that escape those roots via symlinks inside a storage ([#70]).
+
+[#70]: https://github.com/netresearch/t3x-nr-image-optimize/issues/70
+
 ## [2.2.1]
 
 ### Changed
