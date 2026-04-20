@@ -68,7 +68,7 @@
             "web-dir": ".build/public"
         },
         "branch-alias": {
-            "dev-main": "2.2.x-dev"
+            "dev-main": "2.3.x-dev"
         }
     },
     "scripts": {

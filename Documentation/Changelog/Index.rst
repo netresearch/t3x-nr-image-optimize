@@ -11,11 +11,6 @@ Changelog
 Unreleased
 ==========
 
-..  versionchanged:: next
-    Fixed path validation for FAL Local storages whose
-    ``basePath`` is a symlink to an external mount (NFS,
-    AWS EFS, bind-mount).
-
 -   Fixed: processed image requests no longer return
     HTTP 400 when :file:`fileadmin` (or any other Local
     FAL storage) is a symlink to an external location
@@ -30,16 +25,13 @@ Unreleased
 -   Hardened: paths containing NUL bytes are rejected
     outright, closing a minor realpath-bypass via the
     not-yet-existing-path parent-walk branch.
--   Changed (subclass BC): :php:`Netresearch\\NrImageOptimize\\Processor`
-    gains a new required ``StorageRepository`` constructor
+-   Changed (BC for subclasses and manual instantiators):
+    :php:`Netresearch\\NrImageOptimize\\Processor` gains a
+    new required ``StorageRepository`` constructor
     parameter. Consumers that autowire the service (the
-    default in TYPO3 12+) are unaffected; subclasses must
+    default in TYPO3 12+) are unaffected; any code that
+    extends the class or constructs it by hand must
     forward the new dependency.
-
-..  versionadded:: next
-    Automatic optimization on upload and bulk CLI commands
-    for optimizing or analyzing the FAL image inventory.
-
 -   Added ``OptimizeOnUploadListener`` -- PSR-14 listener
     that runs ``optipng`` / ``gifsicle`` / ``jpegoptim`` on
     ``AfterFileAddedEvent`` and ``AfterFileReplacedEvent``.

@@ -767,9 +767,16 @@ class Processor implements LoggerAwareInterface, ProcessorInterface
                     $roots[$resolvedBasePath] = true;
                 }
             }
-        } catch (Throwable) {
+        } catch (Throwable $e) {
             // StorageRepository may be unusable (e.g. during very early
-            // bootstrap). Fall back to whatever roots we already collected.
+            // bootstrap). Fall back to whatever roots we already collected
+            // and log at warning level so operators see the degradation
+            // instead of silently receiving 400s for every storage-backed
+            // variant request.
+            $this->getLogger()->warning(
+                'Path validation limited to public root; StorageRepository unavailable',
+                ['exception' => $e],
+            );
         }
 
         self::$resolvedAllowedRoots = array_keys($roots);
