@@ -9,9 +9,10 @@ Thank you for considering a contribution to **nr_image_optimize**.
    ```bash
    composer install
    ```
-3. Create a feature branch from `main`:
+3. Create a feature branch from `TYPO3_12` (maintenance fixes for the
+   TYPO3 12 line; TYPO3 13+ work targets `main`):
    ```bash
-   git checkout -b feature/your-feature main
+   git checkout -b feature/your-feature TYPO3_12
    ```
 
 ## Development
@@ -74,4 +75,4 @@ For security vulnerabilities, please follow the [Security Policy](SECURITY.md). 
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the [GPL-3.0-or-later](LICENSE) license.
+By contributing, you agree that your contributions will be licensed under the GPL-2.0-or-later license, matching the extension's declared license in `composer.json`.

@@ -2,10 +2,10 @@
 
 ## Supported Versions
 
-| Version | Supported          |
-|---------|--------------------|
-| 2.x     | :white_check_mark: |
-| 1.x     | :x:                |
+| Version | Supported          | Branch     | TYPO3 line   |
+|---------|--------------------|------------|--------------|
+| 2.x     | :white_check_mark: | `main`     | 13.4 / 14.x  |
+| 1.x     | :white_check_mark: | `TYPO3_12` | 12.x         |
 
 ## Reporting a Vulnerability
 
