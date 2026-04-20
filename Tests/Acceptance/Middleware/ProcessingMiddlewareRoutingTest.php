@@ -492,9 +492,9 @@ class ProcessingMiddlewareRoutingTest extends TestCase
         foreach ($items as $item) {
             /** @var SplFileInfo $item */
             if ($item->isDir()) {
-                @rmdir($item->getRealPath());
+                @rmdir($item->getPathname());
             } else {
-                @unlink($item->getRealPath()); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
+                @unlink($item->getPathname()); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
             }
         }
 
