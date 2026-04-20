@@ -148,7 +148,7 @@ esac
 
 # Docker images
 IMAGE_PHP="ghcr.io/typo3/core-testing-$(echo "php${PHP_VERSION}" | sed -e 's/\.//'):latest"
-IMAGE_ALPINE="docker.io/alpine:3.8"
+IMAGE_ALPINE="docker.io/alpine:3.22"
 IMAGE_MARIADB="docker.io/mariadb:10"
 IMAGE_MYSQL="docker.io/mysql:8.0"
 IMAGE_POSTGRES="docker.io/postgres:16-alpine"
