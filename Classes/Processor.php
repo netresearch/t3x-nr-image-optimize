@@ -735,15 +735,10 @@ class Processor implements LoggerAwareInterface, ProcessorInterface
             $roots[$publicPath] = true;
         }
 
-        // isset() guards against tests that construct Processor via
+        // The try/catch also protects tests that construct Processor via
         // ReflectionClass::newInstanceWithoutConstructor() without injecting
-        // this readonly property; in production DI always provides it.
-        if (!isset($this->storageRepository)) {
-            self::$resolvedAllowedRoots = array_keys($roots);
-
-            return self::$resolvedAllowedRoots;
-        }
-
+        // this readonly property — accessing an uninitialized typed property
+        // throws Error, which extends Throwable.
         try {
             foreach ($this->storageRepository->findAll() as $storage) {
                 if ($storage->getDriverType() !== 'Local') {
