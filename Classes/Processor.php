@@ -310,7 +310,14 @@ class Processor
         $fileSize  = filesize($filePath);
         $fileMtime = filemtime($filePath);
 
-        if ($fileSize === false) {
+        // Treat 0-byte variant files as "not present" so buildOutputResponse's
+        // AVIF -> WebP -> primary fallback chain skips over them. Empty
+        // variant files occur when a driver silently writes nothing (most
+        // often: Imagick builds without AVIF encoder support leave an empty
+        // .avif next to a valid PNG). Returning that empty file to the
+        // client is strictly worse than falling back to the format that
+        // actually has pixels.
+        if ($fileSize === false || $fileSize === 0) {
             return null;
         }
 
