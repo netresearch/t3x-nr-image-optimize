@@ -160,7 +160,7 @@ Development and testing
 License
 =======
 
-GPL-2.0-or-later. See the
+GPL-3.0-or-later. See the
 `LICENSE file <LICENSE>`_ for details.
 
 Support

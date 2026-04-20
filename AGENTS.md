@@ -2,7 +2,7 @@ Welcome! This repository contains the TYPO3 extension **`nr_image_optimize`**, w
 
 ## Project Overview
 - **Purpose**: Serve processed variants of images (including WebP/AVIF fallbacks) and generate responsive `<img>` tags via Fluid ViewHelpers.
-- **Runtime**: TYPO3 13.4 / 14 with PHP 8.2+ and the Intervention Image library (Imagick driver).
+- **Runtime**: TYPO3 12 (12.0–12.4.x) with PHP 8.1–8.4 and the Intervention Image library (Imagick driver). This is the TYPO3_12 maintenance branch; TYPO3 13.4 / 14 support lives on `main`.
 - **Key Entry Points**:
     - `Classes/Processor.php`: parses `/processed/...` requests, applies resizing/cropping, encodes variants, and streams the response.
     - `Classes/Middleware/ProcessingMiddleware.php`: TYPO3 PSR-15 middleware that delegates matching requests to the processor.
@@ -29,10 +29,10 @@ Welcome! This repository contains the TYPO3 extension **`nr_image_optimize`**, w
 - Always run `composer ci:test` before committing.
 
 ## Git Workflow Essentials
-- Branch from `main` with a descriptive name: `feature/<slug>` or `bugfix/<slug>`.
+- Branch from `TYPO3_12` with a descriptive name: `feature/<slug>` or `bugfix/<slug>`. Maintenance fixes target this branch; TYPO3 13+ work targets `main`.
 - Run `composer ci:test` locally **before** committing.
 - Force pushes **allowed only** on your feature branch using
-   `git push --force-with-lease`. Never force-push `main`.
+   `git push --force-with-lease`. Never force-push `TYPO3_12` or `main`.
 - Keep commits atomic; prefer checkpoints (`FEATURE: …`, `TEST: …`, `BUGFIX: …`).
 
 ## Directory Highlights

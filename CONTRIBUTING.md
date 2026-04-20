@@ -9,9 +9,10 @@ Thank you for considering a contribution to **nr_image_optimize**.
    ```bash
    composer install
    ```
-3. Create a feature branch from `main`:
+3. Create a feature branch from `TYPO3_12` (maintenance fixes for the
+   TYPO3 12 line; TYPO3 13+ work targets `main`):
    ```bash
-   git checkout -b feature/your-feature main
+   git checkout -b feature/your-feature TYPO3_12
    ```
 
 ## Development

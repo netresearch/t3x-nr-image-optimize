@@ -1,8 +1,8 @@
 # TYPO3 Extension: nr_image_optimize
 
 [![PHP](https://img.shields.io/badge/PHP-8.1%20|%208.2%20|%208.3%20|%208.4-blue.svg)](https://www.php.net/)
-[![TYPO3](https://img.shields.io/badge/TYPO3-11.5%20|%2012-orange.svg)](https://typo3.org/)
-[![License](https://img.shields.io/badge/License-GPL%202.0-green.svg)](LICENSE)
+[![TYPO3](https://img.shields.io/badge/TYPO3-12-orange.svg)](https://typo3.org/)
+[![License](https://img.shields.io/badge/License-GPL%203.0-green.svg)](LICENSE)
 
 Advanced image optimization extension for TYPO3 CMS that provides lazy image processing, modern format support, and performance optimization.
 
@@ -18,7 +18,7 @@ Advanced image optimization extension for TYPO3 CMS that provides lazy image pro
 ## Requirements
 
 - PHP 8.1, 8.2, 8.3, or 8.4
-- TYPO3 11.5 or 12.x
+- TYPO3 12.x
 - Intervention Image library (automatically installed via Composer)
 
 ## Installation
@@ -100,11 +100,11 @@ The extension uses a middleware approach for processing images:
 
 ## License
 
-This extension is licensed under the GPL-2.0-or-later license. See [LICENSE](LICENSE) file for details.
+This extension is licensed under the GPL-3.0-or-later license. See [LICENSE](LICENSE) file for details.
 
 ## Support
 
-For issues and feature requests, please use the [GitHub issue tracker](https://github.com/netresearch/typo3-nr-image-optimize/issues).
+For issues and feature requests, please use the [GitHub issue tracker](https://github.com/netresearch/t3x-nr-image-optimize/issues).
 
 ## Credits
 
@@ -112,10 +112,4 @@ Developed by [Netresearch DTT GmbH](https://www.netresearch.de/)
 
 ## Changelog
 
-### Version 1.0.0
-- Initial release
-- PHP 8.1-8.4 compatibility
-- TYPO3 11.5 and 12.x support
-- WebP and AVIF format support
-- Lazy image processing
-- Responsive image ViewHelper
+See [CHANGELOG.md](CHANGELOG.md) and [`Documentation/Changelog/Index.rst`](Documentation/Changelog/Index.rst) for the full release history.
