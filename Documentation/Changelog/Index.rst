@@ -11,10 +11,27 @@ Changelog
 Unreleased
 ==========
 
-..  versionadded:: next
-    Automatic optimization on upload and bulk CLI commands
-    for optimizing or analyzing the FAL image inventory.
-
+-   Fixed: processed image requests no longer return
+    HTTP 400 when :file:`fileadmin` (or any other Local
+    FAL storage) is a symlink to an external location
+    such as an NFS/EFS mount. ``isPathWithinAllowedRoots``
+    now accepts any realpath-resolved path that lies
+    within the TYPO3 public root or the realpath of any
+    configured Local storage's ``basePath``. Symlinks
+    placed *inside* a storage that escape every allowed
+    root -- e.g. :file:`fileadmin/evil` -> :file:`/etc`
+    -- continue to be rejected. Reported in
+    `issue #70 <https://github.com/netresearch/t3x-nr-image-optimize/issues/70>`__.
+-   Hardened: paths containing NUL bytes are rejected
+    outright, closing a minor realpath-bypass via the
+    not-yet-existing-path parent-walk branch.
+-   Changed (BC for subclasses and manual instantiators):
+    :php:`Netresearch\\NrImageOptimize\\Processor` gains a
+    new required ``StorageRepository`` constructor
+    parameter. Consumers that autowire the service (the
+    default in TYPO3 12+) are unaffected; any code that
+    extends the class or constructs it by hand must
+    forward the new dependency.
 -   Added ``OptimizeOnUploadListener`` -- PSR-14 listener
     that runs ``optipng`` / ``gifsicle`` / ``jpegoptim`` on
     ``AfterFileAddedEvent`` and ``AfterFileReplacedEvent``.
