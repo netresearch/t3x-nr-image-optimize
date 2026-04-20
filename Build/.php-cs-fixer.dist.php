@@ -31,13 +31,13 @@ return (new PhpCsFixer\Config())
     ->setRiskyAllowed(true)
     ->setRules([
         '@PSR12'                          => true,
-        '@PER-CS2.0'                      => true,
+        '@PER-CS2x0'                      => true,
         '@Symfony'                        => true,
-        '@PHP80Migration'                 => true,
-        '@PHP81Migration'                 => true,
-        // Don't use PHP 8.2+ migration rules for compatibility
-        // '@PHP82Migration'              => true,
-        // '@PHP83Migration'              => true,
+        '@PHP8x0Migration'                => true,
+        '@PHP8x1Migration'                => true,
+        '@PHP8x2Migration'                => true,
+        // '@PHP8x3Migration'             => true,
+        // '@PHP8x4Migration'             => true,
 
         // Additional custom rules
         'declare_strict_types'            => true,

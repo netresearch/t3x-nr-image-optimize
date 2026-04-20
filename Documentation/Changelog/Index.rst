@@ -33,6 +33,11 @@ Unreleased
     default in TYPO3 12+) are unaffected; any code that
     extends the class or constructs it by hand must
     forward the new dependency.
+-   Changed (BC): dropped PHP 8.1 support. The TYPO3_12
+    maintenance branch now requires PHP 8.2 or newer
+    (TYPO3 v12 itself still supports PHP 8.1, but this
+    extension aligns with the ``netresearch/typo3-ci-workflows``
+    tooling which requires PHP 8.2+).
 
 ..  _changelog-1-1-0:
 

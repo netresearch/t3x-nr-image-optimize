@@ -1,16 +1,427 @@
 parameters:
 	ignoreErrors:
 		-
-			message: "#^Method Netresearch\\\\NrImageOptimize\\\\Controller\\\\MaintenanceController\\:\\:buildLargestFiles\\(\\) should return array\\<int, array\\{name\\: string, path\\: string, size\\: int, sizeHuman\\: string\\}\\> but returns array\\<int, array\\{name\\: string, path\\: string, size\\: int\\}\\>\\.$#"
-			count: 1
-			path: ../Classes/Controller/MaintenanceController.php
+			message: '#^Binary operation "\+\=" between \(float\|int\) and mixed results in an error\.$#'
+			identifier: assignOp.invalid
+			count: 2
+			path: %currentWorkingDirectory%/Classes/Controller/MaintenanceController.php
 
 		-
-			message: "#^Method Netresearch\\\\NrImageOptimize\\\\Controller\\\\MaintenanceController\\:\\:getDirectoryStats\\(\\) should return array\\{count\\: int, size\\: int, directories\\: int, largestFiles\\: array\\<int, array\\{name\\: string, path\\: string, size\\: int, sizeHuman\\: string\\}\\>, fileTypes\\: array\\<string, array\\{count\\: int, size\\: int, sizeHuman\\: string\\}\\>, oldestFile\\: array\\{name\\: string, mtime\\: int, date\\: string\\}\\|null, newestFile\\: array\\{name\\: string, mtime\\: int, date\\: string\\}\\|null\\} but returns array\\{count\\: int\\<0, max\\>, size\\: \\(float\\|int\\), directories\\: int\\<0, max\\>, largestFiles\\: array\\<int, array\\{name\\: string, path\\: string, size\\: int, sizeHuman\\: string\\}\\>, fileTypes\\: array\\<string, array\\{count\\: int\\<1, max\\>, size\\: \\(float\\|int\\)\\}\\>, oldestFile\\: array\\{name\\: string, mtime\\: int, date\\: string\\}\\|null, newestFile\\: array\\{name\\: string, mtime\\: int, date\\: string\\}\\|null\\}\\.$#"
+			message: '#^Cannot call method getExtension\(\) on mixed\.$#'
+			identifier: method.nonObject
 			count: 1
-			path: ../Classes/Controller/MaintenanceController.php
+			path: %currentWorkingDirectory%/Classes/Controller/MaintenanceController.php
 
 		-
-			message: "#^Strict comparison using \\=\\=\\= between non\\-falsy\\-string and '' will always evaluate to false\\.$#"
+			message: '#^Cannot call method getFilename\(\) on mixed\.$#'
+			identifier: method.nonObject
+			count: 3
+			path: %currentWorkingDirectory%/Classes/Controller/MaintenanceController.php
+
+		-
+			message: '#^Cannot call method getMTime\(\) on mixed\.$#'
+			identifier: method.nonObject
 			count: 1
-			path: ../Classes/ViewHelpers/SourceSetViewHelper.php
+			path: %currentWorkingDirectory%/Classes/Controller/MaintenanceController.php
+
+		-
+			message: '#^Cannot call method getPathname\(\) on mixed\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: %currentWorkingDirectory%/Classes/Controller/MaintenanceController.php
+
+		-
+			message: '#^Cannot call method getSize\(\) on mixed\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: %currentWorkingDirectory%/Classes/Controller/MaintenanceController.php
+
+		-
+			message: '#^Cannot call method isDir\(\) on mixed\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: %currentWorkingDirectory%/Classes/Controller/MaintenanceController.php
+
+		-
+			message: '#^Cannot call method isFile\(\) on mixed\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: %currentWorkingDirectory%/Classes/Controller/MaintenanceController.php
+
+		-
+			message: '#^Cannot cast mixed to string\.$#'
+			identifier: cast.string
+			count: 2
+			path: %currentWorkingDirectory%/Classes/Controller/MaintenanceController.php
+
+		-
+			message: '#^Parameter \#1 \$files of method Netresearch\\NrImageOptimize\\Controller\\MaintenanceController\:\:buildLargestFiles\(\) expects list\<array\{name\: string, path\: string, size\: int\}\>, list\<array\{name\: mixed, path\: string, size\: mixed\}\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: %currentWorkingDirectory%/Classes/Controller/MaintenanceController.php
+
+		-
+			message: '#^Parameter \#1 \$user of method TYPO3\\CMS\\Core\\Localization\\LanguageServiceFactory\:\:createFromUserPreferences\(\) expects TYPO3\\CMS\\Core\\Authentication\\AbstractUserAuthentication\|null, mixed given\.$#'
+			identifier: argument.type
+			count: 1
+			path: %currentWorkingDirectory%/Classes/Controller/MaintenanceController.php
+
+		-
+			message: '#^Parameter \#2 \$filename of method Netresearch\\NrImageOptimize\\Controller\\MaintenanceController\:\:updateTimestampRecord\(\) expects string, mixed given\.$#'
+			identifier: argument.type
+			count: 2
+			path: %currentWorkingDirectory%/Classes/Controller/MaintenanceController.php
+
+		-
+			message: '#^Parameter \#3 \$mtime of method Netresearch\\NrImageOptimize\\Controller\\MaintenanceController\:\:updateTimestampRecord\(\) expects int, mixed given\.$#'
+			identifier: argument.type
+			count: 2
+			path: %currentWorkingDirectory%/Classes/Controller/MaintenanceController.php
+
+		-
+			message: '#^Argument of an invalid type mixed supplied for foreach, only iterables are supported\.$#'
+			identifier: foreach.nonIterable
+			count: 1
+			path: %currentWorkingDirectory%/Classes/Service/SystemRequirementsService.php
+
+		-
+			message: '#^Method Netresearch\\NrImageOptimize\\Service\\SystemRequirementsService\:\:findVersionFromComposerLock\(\) should return string\|null but returns mixed\.$#'
+			identifier: return.type
+			count: 1
+			path: %currentWorkingDirectory%/Classes/Service/SystemRequirementsService.php
+
+		-
+			message: '#^Method Netresearch\\NrImageOptimize\\Service\\SystemRequirementsService\:\:findVersionFromInstalledJson\(\) should return string\|null but returns mixed\.$#'
+			identifier: return.type
+			count: 1
+			path: %currentWorkingDirectory%/Classes/Service/SystemRequirementsService.php
+
+		-
+			message: '#^Parameter \#2 \$current of method Netresearch\\NrImageOptimize\\Service\\SystemRequirementsService\:\:makeItem\(\) expects string\|null, mixed given\.$#'
+			identifier: argument.type
+			count: 1
+			path: %currentWorkingDirectory%/Classes/Service/SystemRequirementsService.php
+
+		-
+			message: '#^Cannot cast mixed to string\.$#'
+			identifier: cast.string
+			count: 2
+			path: %currentWorkingDirectory%/Classes/ViewHelpers/SourceSetViewHelper.php
+
+		-
+			message: '#^Method Netresearch\\NrImageOptimize\\ViewHelpers\\SourceSetViewHelper\:\:getArgPath\(\) should return string but returns mixed\.$#'
+			identifier: return.type
+			count: 1
+			path: %currentWorkingDirectory%/Classes/ViewHelpers/SourceSetViewHelper.php
+
+		-
+			message: '#^Method Netresearch\\NrImageOptimize\\ViewHelpers\\SourceSetViewHelper\:\:getArgSet\(\) should return array\<array\<int\>\> but returns mixed\.$#'
+			identifier: return.type
+			count: 1
+			path: %currentWorkingDirectory%/Classes/ViewHelpers/SourceSetViewHelper.php
+
+		-
+			message: '#^Method Netresearch\\NrImageOptimize\\ViewHelpers\\SourceSetViewHelper\:\:getAttributes\(\) should return array\<string, bool\|float\|int\|string\> but returns array\<mixed, mixed\>\.$#'
+			identifier: return.type
+			count: 1
+			path: %currentWorkingDirectory%/Classes/ViewHelpers/SourceSetViewHelper.php
+
+		-
+			message: '#^Parameter \#1 \$callback of function array_map expects \(callable\(mixed\)\: mixed\)\|null, Closure\(array\|bool\|float\|GMP\|int\|resource\|SimpleXMLElement\|string\|null, int\=\)\: int given\.$#'
+			identifier: argument.type
+			count: 1
+			path: %currentWorkingDirectory%/Classes/ViewHelpers/SourceSetViewHelper.php
+
+		-
+			message: '#^Parameter \#1 \$haystack of function str_contains expects string, mixed given\.$#'
+			identifier: argument.type
+			count: 1
+			path: %currentWorkingDirectory%/Classes/ViewHelpers/SourceSetViewHelper.php
+
+		-
+			message: '#^Parameter \#1 \$num of function floor expects float\|int, mixed given\.$#'
+			identifier: argument.type
+			count: 2
+			path: %currentWorkingDirectory%/Classes/ViewHelpers/SourceSetViewHelper.php
+
+		-
+			message: '#^Parameter \#1 \$props of method Netresearch\\NrImageOptimize\\ViewHelpers\\SourceSetViewHelper\:\:filterEmptyAttributes\(\) expects array\<string, int\|string\|null\>, array\<string, mixed\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: %currentWorkingDirectory%/Classes/ViewHelpers/SourceSetViewHelper.php
+
+		-
+			message: '#^Parameter \#1 \$string of function trim expects string, mixed given\.$#'
+			identifier: argument.type
+			count: 3
+			path: %currentWorkingDirectory%/Classes/ViewHelpers/SourceSetViewHelper.php
+
+		-
+			message: '#^Strict comparison using \=\=\= between non\-falsy\-string and '''' will always evaluate to false\.$#'
+			identifier: identical.alwaysFalse
+			count: 1
+			path: %currentWorkingDirectory%/Classes/ViewHelpers/SourceSetViewHelper.php
+
+		-
+			message: '#^Cannot call method getHeaderLine\(\) on mixed\.$#'
+			identifier: method.nonObject
+			count: 2
+			path: %currentWorkingDirectory%/Tests/Acceptance/Middleware/ProcessingMiddlewareRoutingTest.php
+
+		-
+			message: '#^Cannot call method getRealPath\(\) on mixed\.$#'
+			identifier: method.nonObject
+			count: 2
+			path: %currentWorkingDirectory%/Tests/Acceptance/Middleware/ProcessingMiddlewareRoutingTest.php
+
+		-
+			message: '#^Cannot call method getStatusCode\(\) on mixed\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: %currentWorkingDirectory%/Tests/Acceptance/Middleware/ProcessingMiddlewareRoutingTest.php
+
+		-
+			message: '#^Cannot call method isDir\(\) on mixed\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: %currentWorkingDirectory%/Tests/Acceptance/Middleware/ProcessingMiddlewareRoutingTest.php
+
+		-
+			message: '#^Class Netresearch\\NrImageOptimize\\Tests\\Acceptance\\Middleware\\ProcessingMiddlewareRoutingTest has an uninitialized property \$publicPath\. Give it default value or assign it in the constructor\.$#'
+			identifier: property.uninitialized
+			count: 1
+			path: %currentWorkingDirectory%/Tests/Acceptance/Middleware/ProcessingMiddlewareRoutingTest.php
+
+		-
+			message: '#^Class Netresearch\\NrImageOptimize\\Tests\\Acceptance\\Middleware\\ProcessingMiddlewareRoutingTest has an uninitialized property \$responseFactory\. Give it default value or assign it in the constructor\.$#'
+			identifier: property.uninitialized
+			count: 1
+			path: %currentWorkingDirectory%/Tests/Acceptance/Middleware/ProcessingMiddlewareRoutingTest.php
+
+		-
+			message: '#^Class Netresearch\\NrImageOptimize\\Tests\\Acceptance\\Middleware\\ProcessingMiddlewareRoutingTest has an uninitialized property \$streamFactory\. Give it default value or assign it in the constructor\.$#'
+			identifier: property.uninitialized
+			count: 1
+			path: %currentWorkingDirectory%/Tests/Acceptance/Middleware/ProcessingMiddlewareRoutingTest.php
+
+		-
+			message: '#^Class Netresearch\\NrImageOptimize\\Tests\\Acceptance\\Middleware\\ProcessingMiddlewareRoutingTest has an uninitialized property \$tempDir\. Give it default value or assign it in the constructor\.$#'
+			identifier: property.uninitialized
+			count: 1
+			path: %currentWorkingDirectory%/Tests/Acceptance/Middleware/ProcessingMiddlewareRoutingTest.php
+
+		-
+			message: '#^Parameter \#1 \$directory of function rmdir expects string, mixed given\.$#'
+			identifier: argument.type
+			count: 1
+			path: %currentWorkingDirectory%/Tests/Acceptance/Middleware/ProcessingMiddlewareRoutingTest.php
+
+		-
+			message: '#^Parameter \#1 \$filename of function unlink expects string, mixed given\.$#'
+			identifier: argument.type
+			count: 1
+			path: %currentWorkingDirectory%/Tests/Acceptance/Middleware/ProcessingMiddlewareRoutingTest.php
+
+		-
+			message: '#^Parameter \#2 \$haystack of static method PHPUnit\\Framework\\Assert\:\:assertStringContainsString\(\) expects string, mixed given\.$#'
+			identifier: argument.type
+			count: 1
+			path: %currentWorkingDirectory%/Tests/Acceptance/Middleware/ProcessingMiddlewareRoutingTest.php
+
+		-
+			message: '#^Parameter \#2 \$string of static method PHPUnit\\Framework\\Assert\:\:assertMatchesRegularExpression\(\) expects string, mixed given\.$#'
+			identifier: argument.type
+			count: 1
+			path: %currentWorkingDirectory%/Tests/Acceptance/Middleware/ProcessingMiddlewareRoutingTest.php
+
+		-
+			message: '#^Class Netresearch\\NrImageOptimize\\Tests\\Acceptance\\ViewHelpers\\SourceSetViewHelperHtmlOutputTest has an uninitialized property \$viewHelper\. Give it default value or assign it in the constructor\.$#'
+			identifier: property.uninitialized
+			count: 1
+			path: %currentWorkingDirectory%/Tests/Acceptance/ViewHelpers/SourceSetViewHelperHtmlOutputTest.php
+
+		-
+			message: '#^Cannot cast mixed to string\.$#'
+			identifier: cast.string
+			count: 1
+			path: %currentWorkingDirectory%/Tests/Functional/ProcessorTest.php
+
+		-
+			message: '#^Cannot cast mixed to string\.$#'
+			identifier: cast.string
+			count: 1
+			path: %currentWorkingDirectory%/Tests/Fuzz/ProcessorFuzzTest.php
+
+		-
+			message: '#^Class Netresearch\\NrImageOptimize\\Tests\\Fuzz\\ProcessorFuzzTest has an uninitialized property \$processor\. Give it default value or assign it in the constructor\.$#'
+			identifier: property.uninitialized
+			count: 1
+			path: %currentWorkingDirectory%/Tests/Fuzz/ProcessorFuzzTest.php
+
+		-
+			message: '#^Parameter \#2 \$string of static method PHPUnit\\Framework\\Assert\:\:assertStringStartsWith\(\) expects string, mixed given\.$#'
+			identifier: argument.type
+			count: 1
+			path: %currentWorkingDirectory%/Tests/Fuzz/ProcessorFuzzTest.php
+
+		-
+			message: '#^Parameter \#3 \.\.\.\$values of function sprintf expects bool\|float\|int\|string\|null, mixed given\.$#'
+			identifier: argument.type
+			count: 1
+			path: %currentWorkingDirectory%/Tests/Fuzz/ProcessorFuzzTest.php
+
+		-
+			message: '#^Argument of an invalid type mixed supplied for foreach, only iterables are supported\.$#'
+			identifier: foreach.nonIterable
+			count: 2
+			path: %currentWorkingDirectory%/Tests/Unit/Controller/MaintenanceControllerTest.php
+
+		-
+			message: '#^Cannot call method getPathname\(\) on mixed\.$#'
+			identifier: method.nonObject
+			count: 2
+			path: %currentWorkingDirectory%/Tests/Unit/Controller/MaintenanceControllerTest.php
+
+		-
+			message: '#^Cannot call method isDir\(\) on mixed\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: %currentWorkingDirectory%/Tests/Unit/Controller/MaintenanceControllerTest.php
+
+		-
+			message: '#^Class Netresearch\\NrImageOptimize\\Tests\\Unit\\Controller\\MaintenanceControllerTest has an uninitialized property \$controller\. Give it default value or assign it in the constructor\.$#'
+			identifier: property.uninitialized
+			count: 1
+			path: %currentWorkingDirectory%/Tests/Unit/Controller/MaintenanceControllerTest.php
+
+		-
+			message: '#^Class Netresearch\\NrImageOptimize\\Tests\\Unit\\Controller\\MaintenanceControllerTest has an uninitialized property \$tempDir\. Give it default value or assign it in the constructor\.$#'
+			identifier: property.uninitialized
+			count: 1
+			path: %currentWorkingDirectory%/Tests/Unit/Controller/MaintenanceControllerTest.php
+
+		-
+			message: '#^Parameter \#1 \$array of function array_keys expects array, mixed given\.$#'
+			identifier: argument.type
+			count: 2
+			path: %currentWorkingDirectory%/Tests/Unit/Controller/MaintenanceControllerTest.php
+
+		-
+			message: '#^Parameter \#1 \$directory of function rmdir expects string, mixed given\.$#'
+			identifier: argument.type
+			count: 1
+			path: %currentWorkingDirectory%/Tests/Unit/Controller/MaintenanceControllerTest.php
+
+		-
+			message: '#^Parameter \#1 \$filename of function unlink expects string, mixed given\.$#'
+			identifier: argument.type
+			count: 1
+			path: %currentWorkingDirectory%/Tests/Unit/Controller/MaintenanceControllerTest.php
+
+		-
+			message: '#^Parameter \#2 \$haystack of static method PHPUnit\\Framework\\Assert\:\:assertCount\(\) expects Countable\|iterable, mixed given\.$#'
+			identifier: argument.type
+			count: 2
+			path: %currentWorkingDirectory%/Tests/Unit/Controller/MaintenanceControllerTest.php
+
+		-
+			message: '#^Cannot call method getPathname\(\) on mixed\.$#'
+			identifier: method.nonObject
+			count: 2
+			path: %currentWorkingDirectory%/Tests/Unit/ProcessorTest.php
+
+		-
+			message: '#^Cannot call method isDir\(\) on mixed\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: %currentWorkingDirectory%/Tests/Unit/ProcessorTest.php
+
+		-
+			message: '#^Class Netresearch\\NrImageOptimize\\Tests\\Unit\\ProcessorTest has an uninitialized property \$lockFactory\. Give it default value or assign it in the constructor\.$#'
+			identifier: property.uninitialized
+			count: 1
+			path: %currentWorkingDirectory%/Tests/Unit/ProcessorTest.php
+
+		-
+			message: '#^Class Netresearch\\NrImageOptimize\\Tests\\Unit\\ProcessorTest has an uninitialized property \$processor\. Give it default value or assign it in the constructor\.$#'
+			identifier: property.uninitialized
+			count: 1
+			path: %currentWorkingDirectory%/Tests/Unit/ProcessorTest.php
+
+		-
+			message: '#^Class Netresearch\\NrImageOptimize\\Tests\\Unit\\ProcessorTest has an uninitialized property \$responseFactory\. Give it default value or assign it in the constructor\.$#'
+			identifier: property.uninitialized
+			count: 1
+			path: %currentWorkingDirectory%/Tests/Unit/ProcessorTest.php
+
+		-
+			message: '#^Class Netresearch\\NrImageOptimize\\Tests\\Unit\\ProcessorTest has an uninitialized property \$storageRepository\. Give it default value or assign it in the constructor\.$#'
+			identifier: property.uninitialized
+			count: 1
+			path: %currentWorkingDirectory%/Tests/Unit/ProcessorTest.php
+
+		-
+			message: '#^Class Netresearch\\NrImageOptimize\\Tests\\Unit\\ProcessorTest has an uninitialized property \$streamFactory\. Give it default value or assign it in the constructor\.$#'
+			identifier: property.uninitialized
+			count: 1
+			path: %currentWorkingDirectory%/Tests/Unit/ProcessorTest.php
+
+		-
+			message: '#^Parameter \#1 \$directory of function rmdir expects string, mixed given\.$#'
+			identifier: argument.type
+			count: 1
+			path: %currentWorkingDirectory%/Tests/Unit/ProcessorTest.php
+
+		-
+			message: '#^Parameter \#1 \$filename of function unlink expects string, mixed given\.$#'
+			identifier: argument.type
+			count: 1
+			path: %currentWorkingDirectory%/Tests/Unit/ProcessorTest.php
+
+		-
+			message: '#^Parameter \#2 \$haystack of static method PHPUnit\\Framework\\Assert\:\:assertStringContainsString\(\) expects string, mixed given\.$#'
+			identifier: argument.type
+			count: 1
+			path: %currentWorkingDirectory%/Tests/Unit/ProcessorTest.php
+
+		-
+			message: '#^Argument of an invalid type mixed supplied for foreach, only iterables are supported\.$#'
+			identifier: foreach.nonIterable
+			count: 3
+			path: %currentWorkingDirectory%/Tests/Unit/Service/SystemRequirementsServiceTest.php
+
+		-
+			message: '#^Class Netresearch\\NrImageOptimize\\Tests\\Unit\\Service\\SystemRequirementsServiceTest has an uninitialized property \$service\. Give it default value or assign it in the constructor\.$#'
+			identifier: property.uninitialized
+			count: 1
+			path: %currentWorkingDirectory%/Tests/Unit/Service/SystemRequirementsServiceTest.php
+
+		-
+			message: '#^Parameter \#1 \$array of function array_column expects array, mixed given\.$#'
+			identifier: argument.type
+			count: 3
+			path: %currentWorkingDirectory%/Tests/Unit/Service/SystemRequirementsServiceTest.php
+
+		-
+			message: '#^Parameter \#1 \$value of function count expects array\|Countable, mixed given\.$#'
+			identifier: argument.type
+			count: 5
+			path: %currentWorkingDirectory%/Tests/Unit/Service/SystemRequirementsServiceTest.php
+
+		-
+			message: '#^Parameter \#2 \$haystack of function in_array expects array, mixed given\.$#'
+			identifier: argument.type
+			count: 1
+			path: %currentWorkingDirectory%/Tests/Unit/Service/SystemRequirementsServiceTest.php
+
+		-
+			message: '#^Parameter \#2 \$haystack of static method PHPUnit\\Framework\\Assert\:\:assertCount\(\) expects Countable\|iterable, mixed given\.$#'
+			identifier: argument.type
+			count: 5
+			path: %currentWorkingDirectory%/Tests/Unit/Service/SystemRequirementsServiceTest.php
+
+		-
+			message: '#^Class Netresearch\\NrImageOptimize\\Tests\\Unit\\ViewHelpers\\SourceSetViewHelperTest has an uninitialized property \$viewHelper\. Give it default value or assign it in the constructor\.$#'
+			identifier: property.uninitialized
+			count: 1
+			path: %currentWorkingDirectory%/Tests/Unit/ViewHelpers/SourceSetViewHelperTest.php

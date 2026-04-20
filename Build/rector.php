@@ -34,8 +34,8 @@ return static function (RectorConfig $rectorConfig): void {
     $rectorConfig->removeUnusedImports();
     $rectorConfig->disableParallel();
 
-    // Set PHP version to target (PHP 8.1 minimum for compatibility)
-    $rectorConfig->phpVersion(80100);
+    // Set PHP version to target (PHP 8.2 minimum on this branch)
+    $rectorConfig->phpVersion(80200);
 
     // Define what rule sets will be applied
     $rectorConfig->sets([
@@ -48,8 +48,8 @@ return static function (RectorConfig $rectorConfig): void {
         SetList::STRICT_BOOLEANS,
         SetList::TYPE_DECLARATION,
 
-        // Only use PHP 8.1 features for maximum compatibility
-        LevelSetList::UP_TO_PHP_81,
+        // Only use PHP 8.2 features for maximum compatibility
+        LevelSetList::UP_TO_PHP_82,
 
         Typo3LevelSetList::UP_TO_TYPO3_12,
     ]);

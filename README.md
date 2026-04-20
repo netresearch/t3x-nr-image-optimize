@@ -1,6 +1,6 @@
 # TYPO3 Extension: nr_image_optimize
 
-[![PHP](https://img.shields.io/badge/PHP-8.1%20|%208.2%20|%208.3%20|%208.4-blue.svg)](https://www.php.net/)
+[![PHP](https://img.shields.io/badge/PHP-8.2%20|%208.3%20|%208.4-blue.svg)](https://www.php.net/)
 [![TYPO3](https://img.shields.io/badge/TYPO3-12-orange.svg)](https://typo3.org/)
 [![License](https://img.shields.io/badge/License-GPL%203.0-green.svg)](LICENSE)
 
@@ -17,7 +17,7 @@ Advanced image optimization extension for TYPO3 CMS that provides lazy image pro
 
 ## Requirements
 
-- PHP 8.1, 8.2, 8.3, or 8.4
+- PHP 8.2, 8.3, or 8.4
 - TYPO3 12.x
 - Intervention Image library (automatically installed via Composer)
 
