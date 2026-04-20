@@ -150,23 +150,26 @@ class Processor implements LoggerAwareInterface, ProcessorInterface
     private const MODE_PATTERN = '/([hwqm])(\d+)/';
 
     /**
-     * Cached list of absolute filesystem roots (realpath-resolved) under which
-     * image paths are considered safe. Populated on first call to
-     * getAllowedRoots() and reused across requests in the same PHP process.
+     * Cached lists of absolute filesystem roots (realpath-resolved) under
+     * which image paths are considered safe, keyed by the TYPO3 public path
+     * that was in effect when each list was computed.
      *
-     * Contains the TYPO3 public path plus the basePath of every Local-driver
-     * FAL storage, each resolved through realpath so that legitimately
-     * symlinked storage directories (e.g. fileadmin on an NFS/EFS mount) are
-     * recognised as allowed. Any symlink inside a storage that points to a
-     * location outside these roots is rejected.
+     * Each entry contains the public path plus the basePath of every
+     * Local-driver FAL storage, each resolved through realpath so that
+     * legitimately symlinked storage directories (e.g. fileadmin on an
+     * NFS/EFS mount) are recognised as allowed. Any symlink inside a storage
+     * that points to a location outside these roots is rejected.
      *
-     * Because the cache persists for the life of the PHP process, tests must
-     * reset it between cases via reflection — see
-     * ProcessorTest::resetAllowedRootsCache().
+     * Keying by public path auto-invalidates the cache when the public path
+     * changes — matters for TYPO3 functional tests (each test instance has
+     * its own typo3temp/var/tests/functional-XXXX/ root) and long-running
+     * worker setups (FrankenPHP, swoole, RoadRunner) that might reinitialise
+     * Environment between handler invocations. In a normal HTTP request the
+     * public path is constant, so this degenerates to a single-entry cache.
      *
-     * @var list<string>|null
+     * @var array<string, list<string>>
      */
-    private static ?array $resolvedAllowedRoots = null;
+    private static array $resolvedAllowedRootsByPublicPath = [];
 
     /**
      * Initialize the image processor with all required dependencies.
@@ -325,22 +328,31 @@ class Processor implements LoggerAwareInterface, ProcessorInterface
      */
     private function serveCachedVariant(string $pathVariant, string $extension): ?ResponseInterface
     {
-        // Prefer AVIF, then WebP, then the original format
-        if (!$this->isAvifImage($extension) && file_exists($pathVariant . '.avif')) {
-            return $this->buildFileResponse($pathVariant . '.avif', 'image/avif');
+        // Prefer AVIF, then WebP, then the original format. Each step falls
+        // through to the next when buildFileResponse returns null — which it
+        // does for missing AND for 0-byte files (see buildFileResponse). That
+        // matters when e.g. Imagick silently writes an empty .avif because
+        // the encoder isn't installed: we must not short-circuit on the empty
+        // file and skip a valid WebP/primary that's also on disk.
+        if (!$this->isAvifImage($extension)) {
+            $response = $this->buildFileResponse($pathVariant . '.avif', 'image/avif');
+
+            if ($response instanceof ResponseInterface) {
+                return $response;
+            }
         }
 
-        if (!$this->isWebpImage($extension) && file_exists($pathVariant . '.webp')) {
-            return $this->buildFileResponse($pathVariant . '.webp', 'image/webp');
+        if (!$this->isWebpImage($extension)) {
+            $response = $this->buildFileResponse($pathVariant . '.webp', 'image/webp');
+
+            if ($response instanceof ResponseInterface) {
+                return $response;
+            }
         }
 
-        if (file_exists($pathVariant)) {
-            $mimeType = self::EXTENSION_MIME_MAP[$extension] ?? 'application/octet-stream';
+        $mimeType = self::EXTENSION_MIME_MAP[$extension] ?? 'application/octet-stream';
 
-            return $this->buildFileResponse($pathVariant, $mimeType);
-        }
-
-        return null;
+        return $this->buildFileResponse($pathVariant, $mimeType);
     }
 
     /**
@@ -364,7 +376,14 @@ class Processor implements LoggerAwareInterface, ProcessorInterface
         $fileSize  = filesize($filePath);
         $fileMtime = filemtime($filePath);
 
-        if ($fileSize === false) {
+        // Treat 0-byte variant files as "not present" so buildOutputResponse's
+        // AVIF -> WebP -> primary fallback chain skips over them. Empty
+        // variant files occur when a driver silently writes nothing (most
+        // often: Imagick builds without AVIF encoder support leave an empty
+        // .avif next to a valid PNG). Returning that empty file to the
+        // client is strictly worse than falling back to the format that
+        // actually has pixels.
+        if ($fileSize === false || $fileSize === 0) {
             return null;
         }
 
@@ -723,13 +742,14 @@ class Processor implements LoggerAwareInterface, ProcessorInterface
      */
     private function getAllowedRoots(): array
     {
-        if (self::$resolvedAllowedRoots !== null) {
-            return self::$resolvedAllowedRoots;
+        $publicPathRaw = Environment::getPublicPath();
+
+        if (isset(self::$resolvedAllowedRootsByPublicPath[$publicPathRaw])) {
+            return self::$resolvedAllowedRootsByPublicPath[$publicPathRaw];
         }
 
-        $roots         = [];
-        $publicPathRaw = Environment::getPublicPath();
-        $publicPath    = realpath($publicPathRaw);
+        $roots      = [];
+        $publicPath = realpath($publicPathRaw);
 
         if ($publicPath !== false) {
             $roots[$publicPath] = true;
@@ -779,9 +799,11 @@ class Processor implements LoggerAwareInterface, ProcessorInterface
             );
         }
 
-        self::$resolvedAllowedRoots = array_keys($roots);
+        $resolved = array_keys($roots);
 
-        return self::$resolvedAllowedRoots;
+        self::$resolvedAllowedRootsByPublicPath[$publicPathRaw] = $resolved;
+
+        return $resolved;
     }
 
     /**
