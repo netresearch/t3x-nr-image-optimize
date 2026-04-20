@@ -52,6 +52,7 @@ use function round;
 use RuntimeException;
 
 use function sprintf;
+use function str_contains;
 use function str_starts_with;
 use function strtolower;
 
@@ -159,6 +160,10 @@ class Processor implements LoggerAwareInterface, ProcessorInterface
      * recognised as allowed. Any symlink inside a storage that points to a
      * location outside these roots is rejected.
      *
+     * Because the cache persists for the life of the PHP process, tests must
+     * reset it between cases via reflection — see
+     * ProcessorTest::resetAllowedRootsCache().
+     *
      * @var list<string>|null
      */
     private static ?array $resolvedAllowedRoots = null;
@@ -218,9 +223,9 @@ class Processor implements LoggerAwareInterface, ProcessorInterface
             return $this->responseFactory->createResponse(400);
         }
 
-        // Validate that both resolved paths stay within the public root
-        if (!$this->isPathWithinPublicRoot($urlInfo['pathOriginal'])
-            || !$this->isPathWithinPublicRoot($urlInfo['pathVariant'])
+        // Validate that both resolved paths stay within an allowed root
+        if (!$this->isPathWithinAllowedRoots($urlInfo['pathOriginal'])
+            || !$this->isPathWithinAllowedRoots($urlInfo['pathVariant'])
         ) {
             return $this->responseFactory->createResponse(400);
         }
@@ -628,12 +633,20 @@ class Processor implements LoggerAwareInterface, ProcessorInterface
      * cannot escape the declared roots by pointing a symlink at an arbitrary
      * location such as /etc.
      *
+     * NUL bytes in the input are rejected outright: realpath() treats them as
+     * a hard error, but the parent-walk fallback would otherwise trim them off
+     * and revalidate a misleading parent prefix.
+     *
      * @param string $path Absolute filesystem path to validate
      *
      * @return bool True if the path is safely within an allowed root
      */
-    private function isPathWithinPublicRoot(string $path): bool
+    private function isPathWithinAllowedRoots(string $path): bool
     {
+        if (str_contains($path, "\0")) {
+            return false;
+        }
+
         $allowedRoots = $this->getAllowedRoots();
 
         if ($allowedRoots === []) {
@@ -696,8 +709,11 @@ class Processor implements LoggerAwareInterface, ProcessorInterface
      * Always includes the TYPO3 public path. Additionally includes the
      * resolved base path of every Local-driver FAL storage so that storages
      * whose directory is a symlink to an external mount (e.g. fileadmin on
-     * AWS EFS or another NFS share) remain servable. Paths that cannot be
-     * realpath'd (because they do not exist on disk) are skipped.
+     * AWS EFS or another NFS share) remain servable.
+     *
+     * Storages are silently skipped when their driver type is not "Local",
+     * when basePath is missing or empty, or when the configured directory
+     * does not (yet) exist on disk and cannot be realpath'd.
      *
      * Throwables from StorageRepository (e.g. during very early bootstrap
      * when TCA is not yet loaded) are caught so that path validation still
