@@ -107,8 +107,8 @@ class ProcessorTest extends TestCase
     private function resetAllowedRootsCache(): void
     {
         $refClass = new ReflectionClass(Processor::class);
-        $prop     = $refClass->getProperty('resolvedAllowedRoots');
-        $prop->setValue(null, null);
+        $prop     = $refClass->getProperty('resolvedAllowedRootsByPublicPath');
+        $prop->setValue(null, []);
     }
 
     /**
@@ -1029,7 +1029,7 @@ class ProcessorTest extends TestCase
     public function isPathWithinAllowedRootsReturnsFalseWhenNoAllowedRootsAreResolvable(): void
     {
         $refClass = new ReflectionClass(Processor::class);
-        $prop     = $refClass->getProperty('resolvedAllowedRoots');
+        $prop     = $refClass->getProperty('resolvedAllowedRootsByPublicPath');
         // Simulate cached empty result (neither the public path nor any FAL
         // storage base path could be realpath'd — e.g., early bootstrap).
         $prop->setValue(null, []);
@@ -1039,7 +1039,7 @@ class ProcessorTest extends TestCase
         self::assertFalse($result);
 
         // Reset
-        $prop->setValue(null, null);
+        $prop->setValue(null, []);
     }
 
     #[Test]
@@ -1632,7 +1632,7 @@ class ProcessorTest extends TestCase
     /**
      * Set up a real temp directory for tests that exercise generateAndSend (needs real filesystem for path validation).
      *
-     * @return array{tempDir: string, prop: ReflectionProperty} Temp dir path and resolvedAllowedRoots property
+     * @return array{tempDir: string, prop: ReflectionProperty} Temp dir path and resolvedAllowedRootsByPublicPath property
      */
     private function setUpRealEnvironment(): array
     {
@@ -1641,7 +1641,7 @@ class ProcessorTest extends TestCase
         mkdir($tempDir . '/public/images', 0o777, true);
 
         $refClass = new ReflectionClass(Processor::class);
-        $prop     = $refClass->getProperty('resolvedAllowedRoots');
+        $prop     = $refClass->getProperty('resolvedAllowedRootsByPublicPath');
 
         $this->resetAllowedRootsCache();
         $this->initializeEnvironment($tempDir, $tempDir . '/public');
@@ -1661,7 +1661,7 @@ class ProcessorTest extends TestCase
     private function tearDownRealEnvironment(string $tempDir, ReflectionProperty $prop): void
     {
         $this->removeOwnedTempTree($tempDir);
-        $prop->setValue(null, null);
+        $prop->setValue(null, []);
         $this->initializeDefaultEnvironment();
     }
 
@@ -2857,8 +2857,8 @@ class ProcessorTest extends TestCase
         mkdir($tempDir . '/outside', 0o777, true);
 
         $refClass = new ReflectionClass(Processor::class);
-        $prop     = $refClass->getProperty('resolvedAllowedRoots');
-        $prop->setValue(null, null);
+        $prop     = $refClass->getProperty('resolvedAllowedRootsByPublicPath');
+        $prop->setValue(null, []);
 
         Environment::initialize(
             new ApplicationContext('Testing'),
@@ -2902,7 +2902,7 @@ class ProcessorTest extends TestCase
         rmdir($tempDir . '/public');
         rmdir($tempDir);
 
-        $prop->setValue(null, null);
+        $prop->setValue(null, []);
         Environment::initialize(
             new ApplicationContext('Testing'),
             true,
