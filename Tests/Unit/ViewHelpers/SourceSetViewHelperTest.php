@@ -400,7 +400,7 @@ class SourceSetViewHelperTest extends TestCase
 
         self::assertSame($expected, $result);
 
-        unlink($absolutePath);
+        unlink($absolutePath); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
         @rmdir($directory);
     }
 
@@ -1553,7 +1553,7 @@ class SourceSetViewHelperTest extends TestCase
         // Must contain w2h1 (width=2, height=1), not w1h1 or w2h2
         self::assertStringContainsString('w2h1', $result);
 
-        unlink($absolutePath);
+        unlink($absolutePath); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
         @rmdir($directory);
     }
 
@@ -1806,7 +1806,7 @@ class SourceSetViewHelperTest extends TestCase
         self::assertStringContainsString('w100h0', $result);
         self::assertStringNotContainsString('w2h1', $result);
 
-        unlink($absolutePath);
+        unlink($absolutePath); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
         @rmdir($directory);
     }
 
@@ -1847,7 +1847,7 @@ class SourceSetViewHelperTest extends TestCase
         self::assertStringContainsString('w0h100', $result);
         self::assertStringNotContainsString('w2h1', $result);
 
-        unlink($absolutePath);
+        unlink($absolutePath); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
         @rmdir($directory);
     }
 

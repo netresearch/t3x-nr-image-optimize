@@ -313,8 +313,8 @@ class ProcessingMiddlewareRoutingTest extends TestCase
         // Content-Length header present
         self::assertNotEmpty($response->getHeaderLine('Content-Length'));
 
-        unlink($variantFile);
-        unlink($originalFile);
+        unlink($variantFile); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
+        unlink($originalFile); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
     }
 
     #[Test]
@@ -335,9 +335,9 @@ class ProcessingMiddlewareRoutingTest extends TestCase
         self::assertSame(200, $response->getStatusCode());
         self::assertSame('image/avif', $response->getHeaderLine('Content-Type'));
 
-        unlink($variantFile . '.avif');
-        unlink($variantFile);
-        unlink($originalFile);
+        unlink($variantFile . '.avif'); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
+        unlink($variantFile); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
+        unlink($originalFile); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
     }
 
     #[Test]
@@ -358,9 +358,9 @@ class ProcessingMiddlewareRoutingTest extends TestCase
         self::assertSame(200, $response->getStatusCode());
         self::assertSame('image/webp', $response->getHeaderLine('Content-Type'));
 
-        unlink($variantFile . '.webp');
-        unlink($variantFile);
-        unlink($originalFile);
+        unlink($variantFile . '.webp'); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
+        unlink($variantFile); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
+        unlink($originalFile); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
     }
 
     // ──────────────────────────────────────────────────
@@ -384,7 +384,7 @@ class ProcessingMiddlewareRoutingTest extends TestCase
         $etag = $response->getHeaderLine('ETag');
         self::assertMatchesRegularExpression('/^"[a-f0-9]{32}"$/', $etag, 'ETag should be a quoted MD5 hash.');
 
-        unlink($testFile);
+        unlink($testFile); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
     }
 
     #[Test]
@@ -404,7 +404,7 @@ class ProcessingMiddlewareRoutingTest extends TestCase
         $lastModified = $response->getHeaderLine('Last-Modified');
         self::assertStringContainsString('GMT', $lastModified);
 
-        unlink($testFile);
+        unlink($testFile); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
     }
 
     // ──────────────────────────────────────────────────
@@ -492,9 +492,9 @@ class ProcessingMiddlewareRoutingTest extends TestCase
         foreach ($items as $item) {
             /** @var SplFileInfo $item */
             if ($item->isDir()) {
-                @rmdir($item->getRealPath());
+                @rmdir($item->getPathname());
             } else {
-                @unlink($item->getRealPath());
+                @unlink($item->getPathname()); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
             }
         }
 
