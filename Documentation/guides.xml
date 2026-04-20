@@ -24,7 +24,7 @@
         project-repository="https://github.com/netresearch/t3x-nr-image-optimize"
         project-issues="https://github.com/netresearch/t3x-nr-image-optimize/issues"
         edit-on-github="netresearch/t3x-nr-image-optimize"
-        edit-on-github-branch="v12-4-x"
+        edit-on-github-branch="TYPO3_12"
         edit-on-github-directory="Documentation"
         project-discussions="https://github.com/netresearch/t3x-nr-image-optimize/discussions"
     />

@@ -2,13 +2,12 @@ name: CI
 
 on:
   push:
+    # Only run for merge commits / direct pushes to the maintenance branch.
+    # PRs still get a single run via `pull_request` (otherwise every PR push
+    # would trigger both events and duplicate every job).
     branches:
-      - main
-      - develop
+      - TYPO3_12
   pull_request:
-    branches:
-      - main
-      - develop
 
 jobs:
   tests:
@@ -24,7 +23,7 @@ jobs:
           - '8.4'
         include:
           - php-version: '8.1'
-            typo3-version: '^11.5'
+            typo3-version: '^12.0'
           - php-version: '8.2'
             typo3-version: '^12.0'
           - php-version: '8.3'
@@ -34,10 +33,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Setup PHP
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f # 2.37.0
         with:
           php-version: ${{ matrix.php-version }}
           extensions: mbstring, intl, json, dom, curl, xml, zip, opcache, gd
@@ -52,7 +51,7 @@ jobs:
         run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
 
       - name: Cache composer dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ${{ steps.composer-cache.outputs.dir }}
           key: composer-${{ runner.os }}-${{ matrix.php-version }}-${{ hashFiles('**/composer.json') }}
@@ -82,10 +81,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Setup PHP
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f # 2.37.0
         with:
           php-version: '8.3'
           extensions: mbstring, intl, json, dom, curl, xml, zip, opcache, gd
@@ -110,10 +109,10 @@ jobs:
           - '8.4'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Setup PHP ${{ matrix.php-version }}
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f # 2.37.0
         with:
           php-version: ${{ matrix.php-version }}
           extensions: mbstring, intl, json
