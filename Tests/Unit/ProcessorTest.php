@@ -33,19 +33,26 @@ use ReflectionClass;
 use ReflectionMethod;
 use ReflectionProperty;
 use RuntimeException;
+use SplFileInfo;
+use TypeError;
 use TYPO3\CMS\Core\Core\ApplicationContext;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Locking\Exception\LockCreateException;
 use TYPO3\CMS\Core\Locking\LockFactory;
 use TYPO3\CMS\Core\Locking\LockingStrategyInterface;
+use TYPO3\CMS\Core\Resource\ResourceStorage;
+use TYPO3\CMS\Core\Resource\StorageRepository;
 
 use function dirname;
 use function file_put_contents;
 use function glob;
 use function ini_set;
+use function is_dir;
 use function md5;
 use function mkdir;
+use function realpath;
 use function rmdir;
+use function sprintf;
 use function symlink;
 use function sys_get_temp_dir;
 use function touch;
@@ -60,6 +67,8 @@ class ProcessorTest extends TestCase
     private MockObject $responseFactory;
 
     private MockObject $streamFactory;
+
+    private MockObject $storageRepository;
 
     private Processor $processor;
 
@@ -79,9 +88,14 @@ class ProcessorTest extends TestCase
             'UNIX',
         );
 
-        $this->lockFactory     = $this->createMock(LockFactory::class);
-        $this->responseFactory = $this->createMock(ResponseFactoryInterface::class);
-        $this->streamFactory   = $this->createMock(StreamFactoryInterface::class);
+        $this->lockFactory       = $this->createMock(LockFactory::class);
+        $this->responseFactory   = $this->createMock(ResponseFactoryInterface::class);
+        $this->streamFactory     = $this->createMock(StreamFactoryInterface::class);
+        $this->storageRepository = $this->createMock(StorageRepository::class);
+        $this->storageRepository->method('findAll')->willReturn([]);
+
+        // Reset the process-wide allowed-roots cache so each test starts fresh
+        $this->resetAllowedRootsCache();
 
         // ImageManager is final and cannot be mocked. Use newInstanceWithoutConstructor
         // since tests only exercise private helper methods via reflection that do not
@@ -93,6 +107,7 @@ class ProcessorTest extends TestCase
         $this->setProperty($this->processor, 'lockFactory', $this->lockFactory);
         $this->setProperty($this->processor, 'responseFactory', $this->responseFactory);
         $this->setProperty($this->processor, 'streamFactory', $this->streamFactory);
+        $this->setProperty($this->processor, 'storageRepository', $this->storageRepository);
     }
 
     private function setProperty(object $object, string $property, mixed $value): void
@@ -102,27 +117,149 @@ class ProcessorTest extends TestCase
         $prop->setValue($object, $value);
     }
 
+    private function resetAllowedRootsCache(): void
+    {
+        $refClass = new ReflectionClass(Processor::class);
+        $prop     = $refClass->getProperty('resolvedAllowedRoots');
+        $prop->setValue(null, null);
+    }
+
+    /**
+     * Re-apply the default `/var/www/html` Environment used by most tests.
+     */
+    private function initializeDefaultEnvironment(): void
+    {
+        Environment::initialize(
+            new ApplicationContext('Testing'),
+            true,
+            true,
+            '/var/www/html',
+            '/var/www/html/public',
+            '/var/www/html/var',
+            '/var/www/html/config',
+            '/var/www/html/public/index.php',
+            'UNIX',
+        );
+    }
+
+    /**
+     * Initialize the Environment with a specific (temp) project root and public
+     * path; sensible defaults are used for var/config/entry-script paths.
+     */
+    private function initializeEnvironment(string $projectRoot, string $publicPath): void
+    {
+        Environment::initialize(
+            new ApplicationContext('Testing'),
+            true,
+            true,
+            $projectRoot,
+            $publicPath,
+            $projectRoot . '/var',
+            $projectRoot . '/config',
+            $publicPath . '/index.php',
+            'UNIX',
+        );
+    }
+
+    /**
+     * Build a StorageRepository mock that exposes one Local storage with the
+     * given basePath and pathType.
+     */
+    private function createLocalStorageRepository(string $basePath, string $pathType): StorageRepository
+    {
+        $storage = $this->createMock(ResourceStorage::class);
+        $storage->method('getDriverType')->willReturn('Local');
+        $storage->method('getConfiguration')->willReturn([
+            'basePath' => $basePath,
+            'pathType' => $pathType,
+        ]);
+
+        $storageRepository = $this->createMock(StorageRepository::class);
+        $storageRepository->method('findAll')->willReturn([$storage]);
+
+        return $storageRepository;
+    }
+
+    /**
+     * Best-effort recursive cleanup of a temp-dir tree that may contain
+     * symlinks. Handles symlinks (via isLink()) before checking isDir() so
+     * plain rmdir() on a symlinked directory does not error. Absorbs errors
+     * so a teardown failure doesn't mask a genuine test failure.
+     *
+     * An explicit precondition asserts the path lies under the system temp
+     * directory so this helper cannot be turned into an arbitrary-path
+     * deletion tool by copy-paste drift in future tests.
+     */
+    private function removeOwnedTempTree(string $tempDir): void
+    {
+        $sysTemp    = realpath(sys_get_temp_dir());
+        $parent     = dirname($tempDir);
+        $realParent = realpath($parent) !== false ? realpath($parent) : $parent;
+
+        if ($sysTemp === false || $realParent !== $sysTemp) {
+            throw new RuntimeException(sprintf(
+                'removeOwnedTempTree refuses to operate outside sys_get_temp_dir(): %s',
+                $tempDir,
+            ));
+        }
+
+        if (!is_dir($tempDir)) {
+            return;
+        }
+
+        $iterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator(
+                $tempDir,
+                RecursiveDirectoryIterator::SKIP_DOTS,
+            ),
+            RecursiveIteratorIterator::CHILD_FIRST,
+        );
+
+        foreach ($iterator as $item) {
+            /** @var SplFileInfo $item */
+            $path = $item->getPathname();
+
+            if ($item->isLink()) {
+                @unlink($path);
+            } elseif ($item->isDir()) {
+                @rmdir($path);
+            } else {
+                @unlink($path);
+            }
+        }
+
+        @rmdir($tempDir);
+    }
+
     /**
      * Create a fresh Processor with specific dependencies injected via reflection.
      *
      * Required because constructor-promoted readonly properties cannot be reassigned,
      * so tests needing specific mock expectations must build a new instance.
      *
-     * @param object|null $lockFactory     Lock factory stub/mock
-     * @param object|null $responseFactory Response factory stub/mock
-     * @param object|null $streamFactory   Stream factory stub/mock
+     * @param object|null $lockFactory       Lock factory stub/mock
+     * @param object|null $responseFactory   Response factory stub/mock
+     * @param object|null $streamFactory     Stream factory stub/mock
+     * @param object|null $storageRepository Storage repository stub/mock (defaults to one returning an empty findAll())
      */
     private function createProcessor(
         ?object $lockFactory = null,
         ?object $responseFactory = null,
         ?object $streamFactory = null,
+        ?object $storageRepository = null,
     ): Processor {
         $reflection = new ReflectionClass(Processor::class);
         $instance   = $reflection->newInstanceWithoutConstructor();
 
+        if (!$storageRepository instanceof StorageRepository) {
+            $storageRepository = $this->createMock(StorageRepository::class);
+            $storageRepository->method('findAll')->willReturn([]);
+        }
+
         $this->setProperty($instance, 'lockFactory', $lockFactory ?? $this->createMock(LockFactory::class));
         $this->setProperty($instance, 'responseFactory', $responseFactory ?? $this->createMock(ResponseFactoryInterface::class));
         $this->setProperty($instance, 'streamFactory', $streamFactory ?? $this->createMock(StreamFactoryInterface::class));
+        $this->setProperty($instance, 'storageRepository', $storageRepository);
 
         return $instance;
     }
@@ -904,10 +1041,10 @@ class ProcessorTest extends TestCase
     // -------------------------------------------------------------------------
 
     #[Test]
-    public function isPathWithinPublicRootAcceptsPathsInsidePublicDir(): void
+    public function isPathWithinAllowedRootsAcceptsPathsInsidePublicDir(): void
     {
         $refClass = new ReflectionClass(Processor::class);
-        $prop     = $refClass->getProperty('resolvedPublicPath');
+        $prop     = $refClass->getProperty('resolvedAllowedRoots');
         $prop->setValue(null, null);
 
         $tempDir = sys_get_temp_dir() . '/nr-pio-pubroot-' . uniqid('', true);
@@ -926,23 +1063,23 @@ class ProcessorTest extends TestCase
         );
 
         // Existing path within public root
-        self::assertTrue($this->callMethod($this->processor, 'isPathWithinPublicRoot', $tempDir . '/public/subdir'));
+        self::assertTrue($this->callMethod($this->processor, 'isPathWithinAllowedRoots', $tempDir . '/public/subdir'));
 
         // Public root itself
-        self::assertTrue($this->callMethod($this->processor, 'isPathWithinPublicRoot', $tempDir . '/public'));
+        self::assertTrue($this->callMethod($this->processor, 'isPathWithinAllowedRoots', $tempDir . '/public'));
 
         // Non-existent path under public root: the parent-walk resolves up to
         // the existing /public directory, which is within the public root
-        self::assertTrue($this->callMethod($this->processor, 'isPathWithinPublicRoot', $tempDir . '/public/subdir/nonexistent.jpg'));
+        self::assertTrue($this->callMethod($this->processor, 'isPathWithinAllowedRoots', $tempDir . '/public/subdir/nonexistent.jpg'));
 
         // Path outside public root (existing)
         $outsideDir = sys_get_temp_dir() . '/nr-pio-outside-' . uniqid('', true);
         mkdir($outsideDir, 0o777, true);
-        self::assertFalse($this->callMethod($this->processor, 'isPathWithinPublicRoot', $outsideDir));
+        self::assertFalse($this->callMethod($this->processor, 'isPathWithinAllowedRoots', $outsideDir));
         rmdir($outsideDir);
 
         // Non-existent path where no parent resolves to public root
-        self::assertFalse($this->callMethod($this->processor, 'isPathWithinPublicRoot', '/completely/fake/path/image.jpg'));
+        self::assertFalse($this->callMethod($this->processor, 'isPathWithinAllowedRoots', '/completely/fake/path/image.jpg'));
 
         // Cleanup
         rmdir($tempDir . '/public/subdir');
@@ -964,14 +1101,15 @@ class ProcessorTest extends TestCase
     }
 
     #[Test]
-    public function isPathWithinPublicRootReturnsFalseWhenPublicPathCannotBeResolved(): void
+    public function isPathWithinAllowedRootsReturnsFalseWhenNoAllowedRootsAreResolvable(): void
     {
         $refClass = new ReflectionClass(Processor::class);
-        $prop     = $refClass->getProperty('resolvedPublicPath');
-        // Simulate cached false result (public path doesn't resolve)
-        $prop->setValue(null, false);
+        $prop     = $refClass->getProperty('resolvedAllowedRoots');
+        // Simulate cached empty result (neither the public path nor any FAL
+        // storage base path could be realpath'd — e.g., early bootstrap).
+        $prop->setValue(null, []);
 
-        $result = $this->callMethod($this->processor, 'isPathWithinPublicRoot', '/some/path');
+        $result = $this->callMethod($this->processor, 'isPathWithinAllowedRoots', '/some/path');
 
         self::assertFalse($result);
 
@@ -980,10 +1118,10 @@ class ProcessorTest extends TestCase
     }
 
     #[Test]
-    public function isPathWithinPublicRootReturnsFalseForNonExistentPaths(): void
+    public function isPathWithinAllowedRootsReturnsFalseForNonExistentPaths(): void
     {
         $refClass = new ReflectionClass(Processor::class);
-        $prop     = $refClass->getProperty('resolvedPublicPath');
+        $prop     = $refClass->getProperty('resolvedAllowedRoots');
 
         $tempDir = sys_get_temp_dir() . '/nr-pio-walk-' . uniqid('', true);
         mkdir($tempDir . '/public/deep/nested', 0o777, true);
@@ -1009,7 +1147,7 @@ class ProcessorTest extends TestCase
         // (the parent-walk resolves to the existing parent directory).
         $result = $this->callMethod(
             $this->processor,
-            'isPathWithinPublicRoot',
+            'isPathWithinAllowedRoots',
             $tempDir . '/public/deep/nested/very/deeply/image.jpg',
         );
         self::assertTrue($result);
@@ -1018,7 +1156,7 @@ class ProcessorTest extends TestCase
         $outsidePath   = '/tmp/completely-outside-' . uniqid('', true) . '/image.jpg';
         $resultOutside = $this->callMethod(
             $this->processor,
-            'isPathWithinPublicRoot',
+            'isPathWithinAllowedRoots',
             $outsidePath,
         );
         self::assertFalse($resultOutside);
@@ -1043,13 +1181,441 @@ class ProcessorTest extends TestCase
         );
     }
 
+    /**
+     * Regression test for issue #70: when fileadmin (a FAL Local storage) is a
+     * symlink to an external location (e.g. an NFS/EFS mount), paths inside it
+     * must still be accepted. Without this fix, realpath() resolves through
+     * the symlink and the target no longer starts with the public root, so
+     * every uncached variant request returned HTTP 400.
+     *
+     * @see https://github.com/netresearch/t3x-nr-image-optimize/issues/70
+     */
+    #[Test]
+    public function isPathWithinAllowedRootsAcceptsPathsInsideSymlinkedFalStorage(): void
+    {
+        $tempDir  = sys_get_temp_dir() . '/nr-pio-efs-' . uniqid('', true);
+        $public   = $tempDir . '/public';
+        $external = $tempDir . '/external/fileadmin';
+
+        mkdir($public, 0o777, true);
+        mkdir($external . '/_processed_/6/d', 0o777, true);
+        symlink($external, $public . '/fileadmin');
+
+        try {
+            $this->initializeEnvironment($tempDir, $public);
+
+            $processor = $this->createProcessor(
+                storageRepository: $this->createLocalStorageRepository('fileadmin/', 'relative'),
+            );
+            $this->resetAllowedRootsCache();
+
+            file_put_contents($external . '/_processed_/6/d/photo.jpg', 'image-bytes');
+            self::assertTrue($this->callMethod(
+                $processor,
+                'isPathWithinAllowedRoots',
+                $public . '/fileadmin/_processed_/6/d/photo.jpg',
+            ));
+
+            // Non-existent variant path (parent-walk branch)
+            self::assertTrue($this->callMethod(
+                $processor,
+                'isPathWithinAllowedRoots',
+                $public . '/fileadmin/_processed_/6/d/photo.w800h600m0q100.jpg',
+            ));
+        } finally {
+            $this->removeOwnedTempTree($tempDir);
+            $this->resetAllowedRootsCache();
+            $this->initializeDefaultEnvironment();
+        }
+    }
+
+    /**
+     * Security guarantee: even when a symlinked fileadmin is accepted, a
+     * symlink placed INSIDE that storage that points to a location outside
+     * every allowed root must still be rejected.
+     */
+    #[Test]
+    public function isPathWithinAllowedRootsRejectsSymlinkEscapingAllowedRoots(): void
+    {
+        $tempDir  = sys_get_temp_dir() . '/nr-pio-efs-escape-' . uniqid('', true);
+        $public   = $tempDir . '/public';
+        $external = $tempDir . '/external/fileadmin';
+        $secret   = $tempDir . '/secret';
+
+        mkdir($public, 0o777, true);
+        mkdir($external, 0o777, true);
+        mkdir($secret, 0o777, true);
+
+        symlink($external, $public . '/fileadmin');
+        symlink($secret, $external . '/escape');
+
+        file_put_contents($secret . '/shadow', 'not-an-image');
+        file_put_contents($external . '/legit.jpg', 'image-bytes');
+
+        try {
+            $this->initializeEnvironment($tempDir, $public);
+
+            $processor = $this->createProcessor(
+                storageRepository: $this->createLocalStorageRepository('fileadmin/', 'relative'),
+            );
+            $this->resetAllowedRootsCache();
+
+            self::assertFalse($this->callMethod(
+                $processor,
+                'isPathWithinAllowedRoots',
+                $public . '/fileadmin/escape/shadow',
+            ));
+
+            // Non-existent path under the malicious symlink (parent-walk)
+            self::assertFalse($this->callMethod(
+                $processor,
+                'isPathWithinAllowedRoots',
+                $public . '/fileadmin/escape/nonexistent.w100h100m0q100.jpg',
+            ));
+
+            // Legit sibling inside the same storage still works
+            self::assertTrue($this->callMethod(
+                $processor,
+                'isPathWithinAllowedRoots',
+                $public . '/fileadmin/legit.jpg',
+            ));
+        } finally {
+            $this->removeOwnedTempTree($tempDir);
+            $this->resetAllowedRootsCache();
+            $this->initializeDefaultEnvironment();
+        }
+    }
+
+    /**
+     * If StorageRepository::findAll() raises an exception (e.g. during early
+     * bootstrap when TCA is not yet loaded), path validation must still work
+     * against the public root alone, not crash the middleware.
+     */
+    #[Test]
+    public function isPathWithinAllowedRootsFallsBackToPublicRootWhenStorageRepositoryThrows(): void
+    {
+        $tempDir = sys_get_temp_dir() . '/nr-pio-storage-err-' . uniqid('', true);
+        mkdir($tempDir . '/public/subdir', 0o777, true);
+
+        try {
+            $this->initializeEnvironment($tempDir, $tempDir . '/public');
+
+            $storageRepository = $this->createMock(StorageRepository::class);
+            $storageRepository->method('findAll')
+                ->willThrowException(new RuntimeException('TCA not yet initialised'));
+
+            $processor = $this->createProcessor(storageRepository: $storageRepository);
+            $this->resetAllowedRootsCache();
+
+            self::assertTrue($this->callMethod(
+                $processor,
+                'isPathWithinAllowedRoots',
+                $tempDir . '/public/subdir',
+            ));
+            self::assertFalse($this->callMethod(
+                $processor,
+                'isPathWithinAllowedRoots',
+                '/completely/fake/path/image.jpg',
+            ));
+        } finally {
+            $this->removeOwnedTempTree($tempDir);
+            $this->resetAllowedRootsCache();
+            $this->initializeDefaultEnvironment();
+        }
+    }
+
+    /**
+     * Storages with a non-Local driver (e.g. remote) must be skipped by
+     * getAllowedRoots() — their basePath is not a disk path.
+     */
+    #[Test]
+    public function isPathWithinAllowedRootsSkipsNonLocalDriverStorages(): void
+    {
+        $tempDir = sys_get_temp_dir() . '/nr-pio-nonlocal-' . uniqid('', true);
+        mkdir($tempDir . '/public', 0o777, true);
+        mkdir($tempDir . '/remote', 0o777, true);
+
+        try {
+            $this->initializeEnvironment($tempDir, $tempDir . '/public');
+
+            $storage = $this->createMock(ResourceStorage::class);
+            $storage->method('getDriverType')->willReturn('S3');
+            $storage->method('getConfiguration')->willReturn([
+                'basePath' => $tempDir . '/remote',
+                'pathType' => 'absolute',
+            ]);
+
+            $storageRepository = $this->createMock(StorageRepository::class);
+            $storageRepository->method('findAll')->willReturn([$storage]);
+
+            $processor = $this->createProcessor(storageRepository: $storageRepository);
+            $this->resetAllowedRootsCache();
+
+            self::assertFalse($this->callMethod(
+                $processor,
+                'isPathWithinAllowedRoots',
+                $tempDir . '/remote/image.jpg',
+            ));
+        } finally {
+            $this->removeOwnedTempTree($tempDir);
+            $this->resetAllowedRootsCache();
+            $this->initializeDefaultEnvironment();
+        }
+    }
+
+    /**
+     * Local storages configured with pathType=absolute expose a disk directory
+     * outside the public root — paths inside such a storage must be accepted.
+     */
+    #[Test]
+    public function isPathWithinAllowedRootsResolvesAbsolutePathTypeStorage(): void
+    {
+        $tempDir = sys_get_temp_dir() . '/nr-pio-absolute-' . uniqid('', true);
+        mkdir($tempDir . '/public', 0o777, true);
+        mkdir($tempDir . '/srv/assets', 0o777, true);
+
+        try {
+            $this->initializeEnvironment($tempDir, $tempDir . '/public');
+
+            $processor = $this->createProcessor(
+                storageRepository: $this->createLocalStorageRepository(
+                    $tempDir . '/srv/assets',
+                    'absolute',
+                ),
+            );
+            $this->resetAllowedRootsCache();
+
+            file_put_contents($tempDir . '/srv/assets/photo.jpg', 'image-bytes');
+            self::assertTrue($this->callMethod(
+                $processor,
+                'isPathWithinAllowedRoots',
+                $tempDir . '/srv/assets/photo.jpg',
+            ));
+
+            self::assertFalse($this->callMethod(
+                $processor,
+                'isPathWithinAllowedRoots',
+                $tempDir . '/srv/other.jpg',
+            ));
+        } finally {
+            $this->removeOwnedTempTree($tempDir);
+            $this->resetAllowedRootsCache();
+            $this->initializeDefaultEnvironment();
+        }
+    }
+
+    /**
+     * Storages with unusable basePath (missing on disk, empty string, or
+     * non-string) must be silently skipped — public root still works.
+     */
+    #[Test]
+    public function isPathWithinAllowedRootsSkipsStoragesWithUnusableBasePath(): void
+    {
+        $tempDir = sys_get_temp_dir() . '/nr-pio-badbase-' . uniqid('', true);
+        mkdir($tempDir . '/public', 0o777, true);
+
+        try {
+            $this->initializeEnvironment($tempDir, $tempDir . '/public');
+
+            $missing = $this->createMock(ResourceStorage::class);
+            $missing->method('getDriverType')->willReturn('Local');
+            $missing->method('getConfiguration')->willReturn([
+                'basePath' => $tempDir . '/does/not/exist',
+                'pathType' => 'absolute',
+            ]);
+
+            $empty = $this->createMock(ResourceStorage::class);
+            $empty->method('getDriverType')->willReturn('Local');
+            $empty->method('getConfiguration')->willReturn([
+                'basePath' => '',
+                'pathType' => 'relative',
+            ]);
+
+            $nonString = $this->createMock(ResourceStorage::class);
+            $nonString->method('getDriverType')->willReturn('Local');
+            $nonString->method('getConfiguration')->willReturn([
+                'basePath' => null,
+                'pathType' => 'relative',
+            ]);
+
+            $storageRepository = $this->createMock(StorageRepository::class);
+            $storageRepository->method('findAll')
+                ->willReturn([$missing, $empty, $nonString]);
+
+            $processor = $this->createProcessor(storageRepository: $storageRepository);
+            $this->resetAllowedRootsCache();
+
+            self::assertTrue($this->callMethod(
+                $processor,
+                'isPathWithinAllowedRoots',
+                $tempDir . '/public',
+            ));
+
+            self::assertFalse($this->callMethod(
+                $processor,
+                'isPathWithinAllowedRoots',
+                $tempDir . '/does/not/exist/image.jpg',
+            ));
+        } finally {
+            $this->removeOwnedTempTree($tempDir);
+            $this->resetAllowedRootsCache();
+            $this->initializeDefaultEnvironment();
+        }
+    }
+
+    /**
+     * Rejects paths with embedded NUL bytes — realpath() errors on them and
+     * the parent-walk fallback would otherwise silently strip them.
+     */
+    #[Test]
+    public function isPathWithinAllowedRootsRejectsPathsWithNullByte(): void
+    {
+        $tempDir = sys_get_temp_dir() . '/nr-pio-nul-' . uniqid('', true);
+        mkdir($tempDir . '/public/fileadmin', 0o777, true);
+
+        try {
+            $this->resetAllowedRootsCache();
+            $this->initializeEnvironment($tempDir, $tempDir . '/public');
+
+            self::assertFalse($this->callMethod(
+                $this->processor,
+                'isPathWithinAllowedRoots',
+                $tempDir . "/public/fileadmin/foo\0.jpg",
+            ));
+        } finally {
+            $this->removeOwnedTempTree($tempDir);
+            $this->resetAllowedRootsCache();
+            $this->initializeDefaultEnvironment();
+        }
+    }
+
+    /**
+     * The static cache must short-circuit repeat invocations —
+     * StorageRepository::findAll() should be consulted once per process.
+     */
+    #[Test]
+    public function isPathWithinAllowedRootsCachesFalStorageLookupAcrossCalls(): void
+    {
+        $tempDir = sys_get_temp_dir() . '/nr-pio-cache-' . uniqid('', true);
+        mkdir($tempDir . '/public/fileadmin', 0o777, true);
+
+        $storage = $this->createMock(ResourceStorage::class);
+        $storage->method('getDriverType')->willReturn('Local');
+        $storage->method('getConfiguration')->willReturn([
+            'basePath' => 'fileadmin/',
+            'pathType' => 'relative',
+        ]);
+
+        $storageRepository = $this->createMock(StorageRepository::class);
+        $storageRepository->expects(self::once())
+            ->method('findAll')
+            ->willReturn([$storage]);
+
+        try {
+            $this->initializeEnvironment($tempDir, $tempDir . '/public');
+
+            $processor = $this->createProcessor(storageRepository: $storageRepository);
+            $this->resetAllowedRootsCache();
+
+            self::assertTrue($this->callMethod(
+                $processor,
+                'isPathWithinAllowedRoots',
+                $tempDir . '/public/fileadmin',
+            ));
+            self::assertTrue($this->callMethod(
+                $processor,
+                'isPathWithinAllowedRoots',
+                $tempDir . '/public/fileadmin',
+            ));
+        } finally {
+            $this->removeOwnedTempTree($tempDir);
+            $this->resetAllowedRootsCache();
+            $this->initializeDefaultEnvironment();
+        }
+    }
+
+    /**
+     * When public path itself cannot be realpath'd, FAL storages configured
+     * with absolute basePaths must still be collected as allowed roots.
+     */
+    #[Test]
+    public function isPathWithinAllowedRootsStillAcceptsStorageWhenPublicRootIsUnresolvable(): void
+    {
+        $tempDir      = sys_get_temp_dir() . '/nr-pio-nopub-' . uniqid('', true);
+        $absoluteRoot = $tempDir . '/srv/assets';
+        mkdir($absoluteRoot, 0o777, true);
+
+        try {
+            $this->initializeEnvironment($tempDir, $tempDir . '/public-does-not-exist');
+
+            $processor = $this->createProcessor(
+                storageRepository: $this->createLocalStorageRepository($absoluteRoot, 'absolute'),
+            );
+            $this->resetAllowedRootsCache();
+
+            self::assertTrue($this->callMethod(
+                $processor,
+                'isPathWithinAllowedRoots',
+                $absoluteRoot,
+            ));
+
+            self::assertFalse($this->callMethod(
+                $processor,
+                'isPathWithinAllowedRoots',
+                $tempDir . '/srv/other.jpg',
+            ));
+        } finally {
+            $this->removeOwnedTempTree($tempDir);
+            $this->resetAllowedRootsCache();
+            $this->initializeDefaultEnvironment();
+        }
+    }
+
+    /**
+     * The catch must catch Throwable, not just Exception — otherwise
+     * Error/TypeError from findAll() would propagate and break request
+     * handling (including the uninitialized-readonly-property path).
+     */
+    #[Test]
+    public function isPathWithinAllowedRootsFallsBackToPublicRootWhenStorageRepositoryThrowsError(): void
+    {
+        $tempDir = sys_get_temp_dir() . '/nr-pio-err-' . uniqid('', true);
+        mkdir($tempDir . '/public', 0o777, true);
+
+        try {
+            $this->initializeEnvironment($tempDir, $tempDir . '/public');
+
+            $storageRepository = $this->createMock(StorageRepository::class);
+            $storageRepository->method('findAll')
+                ->willThrowException(new TypeError('Return type mismatch'));
+
+            $processor = $this->createProcessor(storageRepository: $storageRepository);
+            $this->resetAllowedRootsCache();
+
+            self::assertTrue($this->callMethod(
+                $processor,
+                'isPathWithinAllowedRoots',
+                $tempDir . '/public',
+            ));
+            self::assertFalse($this->callMethod(
+                $processor,
+                'isPathWithinAllowedRoots',
+                '/completely/fake/image.jpg',
+            ));
+        } finally {
+            $this->removeOwnedTempTree($tempDir);
+            $this->resetAllowedRootsCache();
+            $this->initializeDefaultEnvironment();
+        }
+    }
+
     // -------------------------------------------------------------------------
     // generateAndSend: LockCreateException catch
     // -------------------------------------------------------------------------
     /**
      * Set up a real temp directory for tests that exercise generateAndSend (needs real filesystem for path validation).
      *
-     * @return array{tempDir: string, prop: ReflectionProperty} Temp dir path and resolvedPublicPath property
+     * @return array{tempDir: string, prop: ReflectionProperty} Temp dir path and resolvedAllowedRoots property
      */
     private function setUpRealEnvironment(): array
     {
@@ -1058,7 +1624,7 @@ class ProcessorTest extends TestCase
         mkdir($tempDir . '/public/images', 0o777, true);
 
         $refClass = new ReflectionClass(Processor::class);
-        $prop     = $refClass->getProperty('resolvedPublicPath');
+        $prop     = $refClass->getProperty('resolvedAllowedRoots');
         $prop->setValue(null, null);
 
         Environment::initialize(
@@ -1116,7 +1682,7 @@ class ProcessorTest extends TestCase
     {
         ['tempDir' => $tempDir, 'prop' => $prop] = $this->setUpRealEnvironment();
 
-        // Both pathOriginal and pathVariant must exist for isPathWithinPublicRoot to pass
+        // Both pathOriginal and pathVariant must exist for isPathWithinAllowedRoots to pass
         file_put_contents($tempDir . '/public/images/photo.jpg', 'original');
         file_put_contents($tempDir . '/public/processed/images/photo.w100h50m0q80.jpg', 'variant');
 
@@ -1130,7 +1696,7 @@ class ProcessorTest extends TestCase
         // Since the variant file exists, serveCachedVariant will be called first
         // and will return a response before lock is attempted.
         // To test the LockCreateException, we need the variant NOT to exist.
-        // But then isPathWithinPublicRoot fails. So we test LockCreateException
+        // But then isPathWithinAllowedRoots fails. So we test LockCreateException
         // directly via acquireLockWithRetry test instead.
         // Here we demonstrate that the cached variant short-circuits.
         $responseFactory = $this->createMock(ResponseFactoryInterface::class);
@@ -1405,7 +1971,7 @@ class ProcessorTest extends TestCase
         // Create only a WebP cached variant (no avif)
         $variantPath = $tempDir . '/public/processed/images/photo.w100h50m0q80.jpg';
         file_put_contents($variantPath . '.webp', 'cached-webp-data');
-        // Need the variant path to exist for isPathWithinPublicRoot
+        // Need the variant path to exist for isPathWithinAllowedRoots
         file_put_contents($variantPath, 'placeholder');
         file_put_contents($tempDir . '/public/images/photo.jpg', 'original');
 
@@ -2325,7 +2891,7 @@ class ProcessorTest extends TestCase
         mkdir($tempDir . '/outside', 0o777, true);
 
         $refClass = new ReflectionClass(Processor::class);
-        $prop     = $refClass->getProperty('resolvedPublicPath');
+        $prop     = $refClass->getProperty('resolvedAllowedRoots');
         $prop->setValue(null, null);
 
         Environment::initialize(
