@@ -566,6 +566,8 @@ class Processor
         $allowedRoots = $this->getAllowedRoots();
 
         if ($allowedRoots === []) {
+            error_log(sprintf('[nr_image_optimize DEBUG] isPathWithinAllowedRoots: path=%s  allowedRoots=EMPTY', $path));
+
             return false;
         }
 
@@ -573,7 +575,17 @@ class Processor
         $resolvedPath = realpath($path);
 
         if ($resolvedPath !== false) {
-            return $this->isWithinAnyRoot($resolvedPath, $allowedRoots);
+            $ok = $this->isWithinAnyRoot($resolvedPath, $allowedRoots);
+            if (!$ok) {
+                error_log(sprintf(
+                    '[nr_image_optimize DEBUG] isPathWithinAllowedRoots REJECTED: path=%s  realpath=%s  allowedRoots=%s',
+                    $path,
+                    $resolvedPath,
+                    implode(';', $allowedRoots),
+                ));
+            }
+
+            return $ok;
         }
 
         // For paths that do not yet exist (variant files), resolve the
