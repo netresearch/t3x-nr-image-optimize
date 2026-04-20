@@ -12,7 +12,12 @@ parameters:
     inferPrivatePropertyTypeFromConstructor: true
     checkMissingCallableSignature: true
     checkUninitializedProperties: true
-    reportUnmatchedIgnoredErrors: true
+    # reportUnmatchedIgnoredErrors stays off on this branch while the
+    # 71-entry baseline is being reduced. Stale entries are silently
+    # tolerated instead of blocking CI — they will be pruned as the
+    # baseline shrinks in follow-up PRs. Main keeps it on because its
+    # baseline is empty.
+    reportUnmatchedIgnoredErrors: false
 
     paths:
         - %currentWorkingDirectory%/Classes/

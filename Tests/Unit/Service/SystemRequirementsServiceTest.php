@@ -435,7 +435,7 @@ class SystemRequirementsServiceTest extends TestCase
         self::assertSame('1.2.3', $result);
 
         // Cleanup
-        unlink($vendorDir . '/installed.json');
+        unlink($vendorDir . '/installed.json'); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
         rmdir($vendorDir);
         rmdir($projectPath . '/vendor');
     }
@@ -460,7 +460,7 @@ class SystemRequirementsServiceTest extends TestCase
         $result = $this->callMethod('findVersionFromComposerInstalled', 'test/package');
         self::assertSame('v1.0.0', $result);
 
-        unlink($vendorDir . '/installed.json');
+        unlink($vendorDir . '/installed.json'); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
         rmdir($vendorDir);
         rmdir($projectPath . '/vendor');
     }
@@ -483,7 +483,7 @@ class SystemRequirementsServiceTest extends TestCase
         $result = $this->callMethod('findVersionFromComposerInstalled', 'lock/package');
         self::assertSame('2.0.0', $result);
 
-        unlink($projectPath . '/composer.lock');
+        unlink($projectPath . '/composer.lock'); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
     }
 
     #[Test]
@@ -505,7 +505,7 @@ class SystemRequirementsServiceTest extends TestCase
         $result = $this->callMethod('findVersionFromComposerInstalled', 'dev/package');
         self::assertSame('3.0.0', $result);
 
-        unlink($projectPath . '/composer.lock');
+        unlink($projectPath . '/composer.lock'); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
     }
 
     #[Test]
@@ -533,8 +533,8 @@ class SystemRequirementsServiceTest extends TestCase
         $result = $this->callMethod('findVersionFromComposerInstalled', 'missing/package');
         self::assertNull($result);
 
-        unlink($vendorDir . '/installed.json');
-        unlink($projectPath . '/composer.lock');
+        unlink($vendorDir . '/installed.json'); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
+        unlink($projectPath . '/composer.lock'); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
         rmdir($vendorDir);
         rmdir($projectPath . '/vendor');
     }
@@ -559,7 +559,7 @@ class SystemRequirementsServiceTest extends TestCase
         $result = $this->callMethod('findVersionFromComposerInstalled', 'flat/package');
         self::assertSame('4.0.0', $result);
 
-        unlink($vendorDir . '/installed.json');
+        unlink($vendorDir . '/installed.json'); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
         rmdir($vendorDir);
         rmdir($projectPath . '/vendor');
     }
@@ -674,7 +674,7 @@ class SystemRequirementsServiceTest extends TestCase
         $result = $this->callMethod('findVersionFromInstalledJson', 'any/package');
         self::assertNull($result);
 
-        unlink($vendorDir . '/installed.json');
+        unlink($vendorDir . '/installed.json'); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
         rmdir($vendorDir);
         rmdir($projectPath . '/vendor');
     }
@@ -692,7 +692,7 @@ class SystemRequirementsServiceTest extends TestCase
         $result = $this->callMethod('findVersionFromInstalledJson', 'any/package');
         self::assertNull($result);
 
-        unlink($vendorDir . '/installed.json');
+        unlink($vendorDir . '/installed.json'); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
         rmdir($vendorDir);
         rmdir($projectPath . '/vendor');
     }
@@ -719,7 +719,7 @@ class SystemRequirementsServiceTest extends TestCase
 
         // Restore permissions before cleanup
         chmod($file, 0o644);
-        unlink($file);
+        unlink($file); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
         rmdir($vendorDir);
         rmdir($projectPath . '/vendor');
 
@@ -740,7 +740,7 @@ class SystemRequirementsServiceTest extends TestCase
         $result = $this->callMethod('findVersionFromComposerLock', 'any/package');
         self::assertNull($result);
 
-        unlink($projectPath . '/composer.lock');
+        unlink($projectPath . '/composer.lock'); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
     }
 
     #[Test]
@@ -753,7 +753,7 @@ class SystemRequirementsServiceTest extends TestCase
         $result = $this->callMethod('findVersionFromComposerLock', 'any/package');
         self::assertNull($result);
 
-        unlink($projectPath . '/composer.lock');
+        unlink($projectPath . '/composer.lock'); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
     }
 
     #[Test]
@@ -775,7 +775,7 @@ class SystemRequirementsServiceTest extends TestCase
         $result = $this->callMethod('findVersionFromComposerLock', 'any/package');
 
         chmod($file, 0o644);
-        unlink($file);
+        unlink($file); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
 
         self::assertNull($result);
     }
@@ -794,7 +794,7 @@ class SystemRequirementsServiceTest extends TestCase
         $result = $this->callMethod('findVersionFromComposerLock', 'missing/package');
         self::assertNull($result);
 
-        unlink($projectPath . '/composer.lock');
+        unlink($projectPath . '/composer.lock'); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
     }
 
     // -------------------------------------------------------------------------

@@ -220,11 +220,11 @@ class ProcessorTest extends TestCase
             $path = $item->getPathname();
 
             if ($item->isLink()) {
-                @unlink($path);
+                @unlink($path); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
             } elseif ($item->isDir()) {
                 @rmdir($path);
             } else {
-                @unlink($path);
+                @unlink($path); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
             }
         }
 
@@ -555,7 +555,7 @@ class ProcessorTest extends TestCase
         self::assertTrue($this->callMethod($this->processor, 'hasVariantFor', $base, 'webp'));
         self::assertFalse($this->callMethod($this->processor, 'hasVariantFor', $base, 'avif'));
 
-        unlink($webp);
+        unlink($webp); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
     }
 
     #[Test]
@@ -657,8 +657,8 @@ class ProcessorTest extends TestCase
 
         self::assertSame($response, $result);
 
-        unlink($base . '.avif');
-        unlink($base . '.webp');
+        unlink($base . '.avif'); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
+        unlink($base . '.webp'); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
     }
 
     #[Test]
@@ -679,7 +679,7 @@ class ProcessorTest extends TestCase
 
         self::assertSame($response, $result);
 
-        unlink($base . '.webp');
+        unlink($base . '.webp'); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
     }
 
     #[Test]
@@ -700,7 +700,7 @@ class ProcessorTest extends TestCase
 
         self::assertSame($response, $result);
 
-        unlink($base);
+        unlink($base); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
     }
 
     #[Test]
@@ -734,7 +734,7 @@ class ProcessorTest extends TestCase
 
         self::assertNotNull($result);
 
-        unlink($base);
+        unlink($base); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
     }
 
     #[Test]
@@ -770,9 +770,9 @@ class ProcessorTest extends TestCase
 
         self::assertNotNull($result);
 
-        unlink($base . '.avif');
-        unlink($base . '.webp');
-        unlink($base);
+        unlink($base . '.avif'); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
+        unlink($base . '.webp'); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
+        unlink($base); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
     }
 
     #[Test]
@@ -946,7 +946,7 @@ class ProcessorTest extends TestCase
 
         self::assertNotNull($result);
 
-        unlink($base);
+        unlink($base); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
     }
 
     #[Test]
@@ -987,8 +987,8 @@ class ProcessorTest extends TestCase
 
         self::assertNotNull($result);
 
-        unlink($base . '.webp');
-        unlink($base);
+        unlink($base . '.webp'); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
+        unlink($base); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
     }
 
     #[Test]
@@ -1010,7 +1010,7 @@ class ProcessorTest extends TestCase
 
         self::assertNotNull($result);
 
-        unlink($base);
+        unlink($base); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
     }
 
     #[Test]
@@ -1032,8 +1032,8 @@ class ProcessorTest extends TestCase
 
         self::assertNotNull($result);
 
-        unlink($base . '.webp');
-        unlink($base);
+        unlink($base . '.webp'); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
+        unlink($base); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
     }
 
     // -------------------------------------------------------------------------
@@ -1657,7 +1657,7 @@ class ProcessorTest extends TestCase
             if ($item->isDir()) {
                 rmdir($item->getPathname());
             } else {
-                unlink($item->getPathname());
+                unlink($item->getPathname()); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
             }
         }
 
@@ -1869,7 +1869,7 @@ class ProcessorTest extends TestCase
 
         self::assertNotNull($result);
 
-        unlink($base);
+        unlink($base); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
     }
 
     // -------------------------------------------------------------------------
@@ -2080,7 +2080,7 @@ class ProcessorTest extends TestCase
 
         self::assertSame($response, $result);
 
-        unlink($base . '.webp');
+        unlink($base . '.webp'); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
     }
 
     #[Test]
@@ -2101,7 +2101,7 @@ class ProcessorTest extends TestCase
 
         self::assertSame($response, $result);
 
-        unlink($base);
+        unlink($base); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
     }
 
     // -------------------------------------------------------------------------
@@ -2439,11 +2439,11 @@ class ProcessorTest extends TestCase
 
         if ($files !== false) {
             foreach ($files as $f) {
-                unlink($f);
+                unlink($f); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
             }
         }
 
-        unlink($originalPath);
+        unlink($originalPath); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
         rmdir($tempDir . '/processed');
         rmdir($tempDir);
     }
@@ -2521,11 +2521,11 @@ class ProcessorTest extends TestCase
 
         if ($files !== false) {
             foreach ($files as $f) {
-                unlink($f);
+                unlink($f); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
             }
         }
 
-        unlink($originalPath);
+        unlink($originalPath); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
         rmdir($tempDir . '/processed');
         rmdir($tempDir);
     }
@@ -2603,11 +2603,11 @@ class ProcessorTest extends TestCase
 
         if ($files !== false) {
             foreach ($files as $f) {
-                unlink($f);
+                unlink($f); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
             }
         }
 
-        unlink($originalPath);
+        unlink($originalPath); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
         rmdir($tempDir . '/processed');
         rmdir($tempDir);
     }
@@ -2673,11 +2673,11 @@ class ProcessorTest extends TestCase
 
         if ($files !== false) {
             foreach ($files as $f) {
-                unlink($f);
+                unlink($f); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
             }
         }
 
-        unlink($originalPath);
+        unlink($originalPath); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
         rmdir($tempDir . '/processed');
         rmdir($tempDir);
     }
@@ -2746,11 +2746,11 @@ class ProcessorTest extends TestCase
 
         if ($files !== false) {
             foreach ($files as $f) {
-                unlink($f);
+                unlink($f); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
             }
         }
 
-        unlink($originalPath);
+        unlink($originalPath); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
         rmdir($tempDir . '/processed');
         rmdir($tempDir);
     }
@@ -2814,11 +2814,11 @@ class ProcessorTest extends TestCase
 
         if ($files !== false) {
             foreach ($files as $f) {
-                unlink($f);
+                unlink($f); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
             }
         }
 
-        unlink($originalPath);
+        unlink($originalPath); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
         rmdir($tempDir . '/processed');
         rmdir($tempDir);
     }
@@ -2929,8 +2929,8 @@ class ProcessorTest extends TestCase
         self::assertSame($response400, $result);
 
         // Cleanup
-        unlink($symlinkPath);
-        unlink($tempDir . '/outside/photo.jpg');
+        unlink($symlinkPath); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
+        unlink($tempDir . '/outside/photo.jpg'); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
         rmdir($tempDir . '/outside');
         rmdir($tempDir . '/public/processed');
         rmdir($tempDir . '/public');

@@ -390,7 +390,7 @@ class SourceSetViewHelperTest extends TestCase
 
         self::assertSame($expected, $result);
 
-        unlink($absolutePath);
+        unlink($absolutePath); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
         @rmdir($directory);
     }
 
