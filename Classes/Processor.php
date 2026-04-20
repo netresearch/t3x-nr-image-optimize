@@ -271,22 +271,31 @@ class Processor
      */
     private function serveCachedVariant(string $pathVariant, string $extension): ?ResponseInterface
     {
-        // Prefer AVIF, then WebP, then the original format
-        if (!$this->isAvifImage($extension) && file_exists($pathVariant . '.avif')) {
-            return $this->buildFileResponse($pathVariant . '.avif', 'image/avif');
+        // Prefer AVIF, then WebP, then the original format. Each step falls
+        // through to the next when buildFileResponse returns null — which it
+        // does for missing AND for 0-byte files (see buildFileResponse). That
+        // matters when e.g. Imagick silently writes an empty .avif because
+        // the encoder isn't installed: we must not short-circuit on the empty
+        // file and skip a valid WebP/primary that's also on disk.
+        if (!$this->isAvifImage($extension)) {
+            $response = $this->buildFileResponse($pathVariant . '.avif', 'image/avif');
+
+            if ($response instanceof ResponseInterface) {
+                return $response;
+            }
         }
 
-        if (!$this->isWebpImage($extension) && file_exists($pathVariant . '.webp')) {
-            return $this->buildFileResponse($pathVariant . '.webp', 'image/webp');
+        if (!$this->isWebpImage($extension)) {
+            $response = $this->buildFileResponse($pathVariant . '.webp', 'image/webp');
+
+            if ($response instanceof ResponseInterface) {
+                return $response;
+            }
         }
 
-        if (file_exists($pathVariant)) {
-            $mimeType = self::EXTENSION_MIME_MAP[$extension] ?? 'application/octet-stream';
+        $mimeType = self::EXTENSION_MIME_MAP[$extension] ?? 'application/octet-stream';
 
-            return $this->buildFileResponse($pathVariant, $mimeType);
-        }
-
-        return null;
+        return $this->buildFileResponse($pathVariant, $mimeType);
     }
 
     /**
