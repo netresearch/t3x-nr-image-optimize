@@ -12,8 +12,10 @@ declare(strict_types=1);
 namespace Netresearch\NrImageOptimize\Tests\Functional\Middleware;
 
 use Netresearch\NrImageOptimize\Middleware\ProcessingMiddleware;
+use Netresearch\NrImageOptimize\Processor;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\Attributes\UsesClass;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\RequestHandlerInterface;
@@ -26,6 +28,7 @@ use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
  * Functional tests for ProcessingMiddleware PSR-15 pipeline behavior.
  */
 #[CoversClass(ProcessingMiddleware::class)]
+#[UsesClass(Processor::class)]
 final class ProcessingMiddlewareTest extends FunctionalTestCase
 {
     protected array $testExtensionsToLoad = [

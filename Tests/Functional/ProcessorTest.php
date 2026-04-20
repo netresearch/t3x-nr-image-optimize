@@ -53,8 +53,11 @@ final class ProcessorTest extends FunctionalTestCase
         $contentType = $response->getHeaderLine('Content-Type');
         self::assertNotEmpty($contentType, 'Response should have Content-Type header');
 
-        $body = (string) $response->getBody();
-        self::assertNotEmpty($body, 'Response body should contain image data');
+        // getSize() reports the backing stream's length without consuming it,
+        // which is robust against PSR-7 streams returned by TYPO3 core where
+        // (string) $body relies on __toString() + internal rewind semantics
+        // that have proven flaky under PHPUnit 11 / functional-test bootstrap.
+        self::assertGreaterThan(0, $response->getBody()->getSize(), 'Response body should contain image data');
     }
 
     #[Test]
