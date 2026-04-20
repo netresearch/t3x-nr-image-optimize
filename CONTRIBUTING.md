@@ -75,4 +75,4 @@ For security vulnerabilities, please follow the [Security Policy](SECURITY.md). 
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the GPL-2.0-or-later license, matching the extension's declared license in `composer.json`.
+By contributing, you agree that your contributions will be licensed under the [GPL-3.0-or-later](LICENSE) license.

@@ -2,7 +2,7 @@
 
 [![PHP](https://img.shields.io/badge/PHP-8.1%20|%208.2%20|%208.3%20|%208.4-blue.svg)](https://www.php.net/)
 [![TYPO3](https://img.shields.io/badge/TYPO3-12-orange.svg)](https://typo3.org/)
-[![License](https://img.shields.io/badge/License-GPL%202.0-green.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-GPL%203.0-green.svg)](LICENSE)
 
 Advanced image optimization extension for TYPO3 CMS that provides lazy image processing, modern format support, and performance optimization.
 
@@ -100,7 +100,7 @@ The extension uses a middleware approach for processing images:
 
 ## License
 
-This extension is licensed under the GPL-2.0-or-later license. See [LICENSE](LICENSE) file for details.
+This extension is licensed under the GPL-3.0-or-later license. See [LICENSE](LICENSE) file for details.
 
 ## Support
 
