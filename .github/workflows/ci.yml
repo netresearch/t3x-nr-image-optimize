@@ -2,166 +2,83 @@ name: CI
 
 on:
   push:
-    # Only run for merge commits / direct pushes to the maintenance branch.
-    # PRs still get a single run via `pull_request` (otherwise every PR push
-    # would trigger both events and duplicate every job).
-    branches:
-      - TYPO3_12
+    branches: [TYPO3_12]
   pull_request:
+  merge_group:
+  schedule:
+    - cron: '0 6 * * 1'
+
+permissions: {}
 
 jobs:
-  tests:
-    name: Tests (PHP ${{ matrix.php-version }})
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        php-version:
-          - '8.1'
-          - '8.2'
-          - '8.3'
-          - '8.4'
-        include:
-          - php-version: '8.1'
-            typo3-version: '^12.0'
-          - php-version: '8.2'
-            typo3-version: '^12.0'
-          - php-version: '8.3'
-            typo3-version: '^12.0'
-          - php-version: '8.4'
-            typo3-version: '^12.0'
+  ci:
+    uses: netresearch/typo3-ci-workflows/.github/workflows/ci.yml@main
+    permissions:
+      contents: read
+    with:
+      php-versions: '["8.2","8.3","8.4"]'
+      typo3-versions: '["^12.0"]'
+      upload-coverage: true
+      # Extension uses Intervention Image's Imagick driver + GD fallback.
+      # imagick is required by any test that instantiates the image
+      # service via the real DI container (functional tests do, unit
+      # tests don't).
+      php-extensions: intl, mbstring, xml, imagick, gd
+      run-functional-tests: true
+    secrets:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+  security:
+    uses: netresearch/typo3-ci-workflows/.github/workflows/security.yml@main
+    permissions:
+      contents: read
+      security-events: write
 
-      - name: Setup PHP
-        uses: shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f # 2.37.0
-        with:
-          php-version: ${{ matrix.php-version }}
-          extensions: mbstring, intl, json, dom, curl, xml, zip, opcache, gd
-          tools: composer:v2
-          coverage: none
+  fuzz:
+    uses: netresearch/typo3-ci-workflows/.github/workflows/fuzz.yml@main
+    permissions:
+      contents: read
+    with:
+      phpunit-config: 'Build/FuzzTests.xml'
 
-      - name: Validate composer.json
-        run: composer validate --strict
+  license-check:
+    uses: netresearch/typo3-ci-workflows/.github/workflows/license-check.yml@main
+    permissions:
+      contents: read
 
-      - name: Get composer cache directory
-        id: composer-cache
-        run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+  codeql:
+    uses: netresearch/.github/.github/workflows/codeql.yml@main
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
 
-      - name: Cache composer dependencies
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        with:
-          path: ${{ steps.composer-cache.outputs.dir }}
-          key: composer-${{ runner.os }}-${{ matrix.php-version }}-${{ hashFiles('**/composer.json') }}
-          restore-keys: |
-            composer-${{ runner.os }}-${{ matrix.php-version }}-
-            composer-${{ runner.os }}-
+  scorecard:
+    if: github.event_name == 'schedule' || (github.event_name == 'push' && github.ref_name == github.event.repository.default_branch)
+    uses: netresearch/.github/.github/workflows/scorecard.yml@main
+    permissions:
+      contents: read
+      security-events: write
+      id-token: write
+      actions: read
 
-      - name: Install dependencies
-        run: |
-          composer require typo3/cms-core:${{ matrix.typo3-version }} --no-update
-          composer update --prefer-dist --no-progress
+  dependency-review:
+    if: github.event_name == 'pull_request'
+    uses: netresearch/.github/.github/workflows/dependency-review.yml@main
+    permissions:
+      contents: read
+      pull-requests: write
 
-      - name: Run PHP CS Fixer
-        run: composer ci:test:php:cgl
+  pr-quality:
+    if: github.event_name == 'pull_request'
+    uses: netresearch/.github/.github/workflows/pr-quality.yml@main
+    permissions:
+      contents: read
+      pull-requests: write
 
-      - name: Run PHPLint
-        run: composer ci:test:php:lint
-
-      - name: Run PHPStan
-        run: composer ci:test:php:phpstan
-
-      - name: Run Rector
-        run: composer ci:test:php:rector
-
-  code-quality:
-    name: Code Quality
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - name: Setup PHP
-        uses: shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f # 2.37.0
-        with:
-          php-version: '8.3'
-          extensions: mbstring, intl, json, dom, curl, xml, zip, opcache, gd
-          tools: composer:v2
-          coverage: xdebug
-
-      - name: Install dependencies
-        run: composer install --prefer-dist --no-progress
-
-      - name: Run all tests
-        run: composer ci:test
-
-  compatibility-check:
-    name: PHP Compatibility Check
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        php-version:
-          - '8.1'
-          - '8.2'
-          - '8.3'
-          - '8.4'
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - name: Setup PHP ${{ matrix.php-version }}
-        uses: shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f # 2.37.0
-        with:
-          php-version: ${{ matrix.php-version }}
-          extensions: mbstring, intl, json
-          tools: none
-          coverage: none
-
-      - name: Check PHP ${{ matrix.php-version }} syntax compatibility
-        run: |
-          echo "Checking PHP ${{ matrix.php-version }} compatibility..."
-          errors=0
-          
-          # Check Classes directory
-          if [ -d "Classes" ]; then
-            echo "Checking Classes directory..."
-            while IFS= read -r file; do
-              if ! php -l "$file" > /dev/null 2>&1; then
-                echo "Syntax error in: $file"
-                php -l "$file"
-                errors=$((errors + 1))
-              fi
-            done < <(find Classes -name "*.php" -type f)
-          fi
-          
-          # Check Configuration directory
-          if [ -d "Configuration" ]; then
-            echo "Checking Configuration directory..."
-            while IFS= read -r file; do
-              if ! php -l "$file" > /dev/null 2>&1; then
-                echo "Syntax error in: $file"
-                php -l "$file"
-                errors=$((errors + 1))
-              fi
-            done < <(find Configuration -name "*.php" -type f)
-          fi
-          
-          # Check root PHP files if they exist
-          for file in *.php; do
-            if [ -f "$file" ]; then
-              if ! php -l "$file" > /dev/null 2>&1; then
-                echo "Syntax error in: $file"
-                php -l "$file"
-                errors=$((errors + 1))
-              fi
-            fi
-          done
-          
-          if [ $errors -eq 0 ]; then
-            echo "✅ All PHP files are compatible with PHP ${{ matrix.php-version }}"
-          else
-            echo "❌ Found $errors file(s) with syntax errors"
-            exit 1
-          fi
+  labeler:
+    if: github.event_name == 'pull_request'
+    uses: netresearch/.github/.github/workflows/labeler.yml@main
+    permissions:
+      contents: read
+      pull-requests: write

@@ -50,7 +50,7 @@ Features
 Requirements
 ============
 
--   PHP 8.1, 8.2, 8.3, or 8.4.
+-   PHP 8.2, 8.3, or 8.4.
 -   TYPO3 12.4.
 -   Intervention Image library 3.11+ (installed automatically
     via Composer).

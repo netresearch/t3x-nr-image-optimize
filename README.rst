@@ -4,7 +4,7 @@
     :target: https://github.com/netresearch/t3x-nr-image-optimize/blob/main/LICENSE
 ..  |ci| image:: https://github.com/netresearch/t3x-nr-image-optimize/actions/workflows/ci.yml/badge.svg
     :target: https://github.com/netresearch/t3x-nr-image-optimize/actions/workflows/ci.yml
-..  |php| image:: https://img.shields.io/badge/PHP-8.1%20|%208.2%20|%208.3%20|%208.4-blue.svg
+..  |php| image:: https://img.shields.io/badge/PHP-8.2%20|%208.3%20|%208.4-blue.svg
     :target: https://www.php.net/
 ..  |typo3| image:: https://img.shields.io/badge/TYPO3-12-orange.svg
     :target: https://typo3.org/
@@ -44,7 +44,7 @@ Features
 Requirements
 ============
 
--   PHP 8.1, 8.2, 8.3, or 8.4.
+-   PHP 8.2, 8.3, or 8.4.
 -   TYPO3 12.
 -   Intervention Image library (installed via Composer
     automatically).

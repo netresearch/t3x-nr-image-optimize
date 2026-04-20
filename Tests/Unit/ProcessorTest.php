@@ -120,8 +120,8 @@ class ProcessorTest extends TestCase
     private function resetAllowedRootsCache(): void
     {
         $refClass = new ReflectionClass(Processor::class);
-        $prop     = $refClass->getProperty('resolvedAllowedRoots');
-        $prop->setValue(null, null);
+        $prop     = $refClass->getProperty('resolvedAllowedRootsByPublicPath');
+        $prop->setValue(null, []);
     }
 
     /**
@@ -220,11 +220,11 @@ class ProcessorTest extends TestCase
             $path = $item->getPathname();
 
             if ($item->isLink()) {
-                @unlink($path);
+                @unlink($path); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
             } elseif ($item->isDir()) {
                 @rmdir($path);
             } else {
-                @unlink($path);
+                @unlink($path); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
             }
         }
 
@@ -555,7 +555,7 @@ class ProcessorTest extends TestCase
         self::assertTrue($this->callMethod($this->processor, 'hasVariantFor', $base, 'webp'));
         self::assertFalse($this->callMethod($this->processor, 'hasVariantFor', $base, 'avif'));
 
-        unlink($webp);
+        unlink($webp); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
     }
 
     #[Test]
@@ -657,8 +657,8 @@ class ProcessorTest extends TestCase
 
         self::assertSame($response, $result);
 
-        unlink($base . '.avif');
-        unlink($base . '.webp');
+        unlink($base . '.avif'); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
+        unlink($base . '.webp'); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
     }
 
     #[Test]
@@ -679,7 +679,7 @@ class ProcessorTest extends TestCase
 
         self::assertSame($response, $result);
 
-        unlink($base . '.webp');
+        unlink($base . '.webp'); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
     }
 
     #[Test]
@@ -700,7 +700,7 @@ class ProcessorTest extends TestCase
 
         self::assertSame($response, $result);
 
-        unlink($base);
+        unlink($base); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
     }
 
     #[Test]
@@ -734,7 +734,7 @@ class ProcessorTest extends TestCase
 
         self::assertNotNull($result);
 
-        unlink($base);
+        unlink($base); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
     }
 
     #[Test]
@@ -770,9 +770,9 @@ class ProcessorTest extends TestCase
 
         self::assertNotNull($result);
 
-        unlink($base . '.avif');
-        unlink($base . '.webp');
-        unlink($base);
+        unlink($base . '.avif'); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
+        unlink($base . '.webp'); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
+        unlink($base); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
     }
 
     #[Test]
@@ -946,7 +946,7 @@ class ProcessorTest extends TestCase
 
         self::assertNotNull($result);
 
-        unlink($base);
+        unlink($base); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
     }
 
     #[Test]
@@ -987,8 +987,8 @@ class ProcessorTest extends TestCase
 
         self::assertNotNull($result);
 
-        unlink($base . '.webp');
-        unlink($base);
+        unlink($base . '.webp'); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
+        unlink($base); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
     }
 
     #[Test]
@@ -1010,7 +1010,7 @@ class ProcessorTest extends TestCase
 
         self::assertNotNull($result);
 
-        unlink($base);
+        unlink($base); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
     }
 
     #[Test]
@@ -1032,8 +1032,8 @@ class ProcessorTest extends TestCase
 
         self::assertNotNull($result);
 
-        unlink($base . '.webp');
-        unlink($base);
+        unlink($base . '.webp'); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
+        unlink($base); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
     }
 
     // -------------------------------------------------------------------------
@@ -1044,8 +1044,8 @@ class ProcessorTest extends TestCase
     public function isPathWithinAllowedRootsAcceptsPathsInsidePublicDir(): void
     {
         $refClass = new ReflectionClass(Processor::class);
-        $prop     = $refClass->getProperty('resolvedAllowedRoots');
-        $prop->setValue(null, null);
+        $prop     = $refClass->getProperty('resolvedAllowedRootsByPublicPath');
+        $prop->setValue(null, []);
 
         $tempDir = sys_get_temp_dir() . '/nr-pio-pubroot-' . uniqid('', true);
         mkdir($tempDir . '/public/subdir', 0o777, true);
@@ -1086,7 +1086,7 @@ class ProcessorTest extends TestCase
         rmdir($tempDir . '/public');
         rmdir($tempDir);
 
-        $prop->setValue(null, null);
+        $prop->setValue(null, []);
         Environment::initialize(
             new ApplicationContext('Testing'),
             true,
@@ -1104,7 +1104,7 @@ class ProcessorTest extends TestCase
     public function isPathWithinAllowedRootsReturnsFalseWhenNoAllowedRootsAreResolvable(): void
     {
         $refClass = new ReflectionClass(Processor::class);
-        $prop     = $refClass->getProperty('resolvedAllowedRoots');
+        $prop     = $refClass->getProperty('resolvedAllowedRootsByPublicPath');
         // Simulate cached empty result (neither the public path nor any FAL
         // storage base path could be realpath'd — e.g., early bootstrap).
         $prop->setValue(null, []);
@@ -1114,14 +1114,14 @@ class ProcessorTest extends TestCase
         self::assertFalse($result);
 
         // Reset
-        $prop->setValue(null, null);
+        $prop->setValue(null, []);
     }
 
     #[Test]
     public function isPathWithinAllowedRootsReturnsFalseForNonExistentPaths(): void
     {
         $refClass = new ReflectionClass(Processor::class);
-        $prop     = $refClass->getProperty('resolvedAllowedRoots');
+        $prop     = $refClass->getProperty('resolvedAllowedRootsByPublicPath');
 
         $tempDir = sys_get_temp_dir() . '/nr-pio-walk-' . uniqid('', true);
         mkdir($tempDir . '/public/deep/nested', 0o777, true);
@@ -1138,7 +1138,7 @@ class ProcessorTest extends TestCase
             'UNIX',
         );
 
-        $prop->setValue(null, null);
+        $prop->setValue(null, []);
 
         // Non-existent file path: realpath() returns false, and the parent walk loop
         // body is unreachable due to the while-condition assignment pattern
@@ -1167,7 +1167,7 @@ class ProcessorTest extends TestCase
         rmdir($tempDir . '/public');
         rmdir($tempDir);
 
-        $prop->setValue(null, null);
+        $prop->setValue(null, []);
         Environment::initialize(
             new ApplicationContext('Testing'),
             true,
@@ -1615,7 +1615,7 @@ class ProcessorTest extends TestCase
     /**
      * Set up a real temp directory for tests that exercise generateAndSend (needs real filesystem for path validation).
      *
-     * @return array{tempDir: string, prop: ReflectionProperty} Temp dir path and resolvedAllowedRoots property
+     * @return array{tempDir: string, prop: ReflectionProperty} Temp dir path and resolvedAllowedRootsByPublicPath property
      */
     private function setUpRealEnvironment(): array
     {
@@ -1624,8 +1624,8 @@ class ProcessorTest extends TestCase
         mkdir($tempDir . '/public/images', 0o777, true);
 
         $refClass = new ReflectionClass(Processor::class);
-        $prop     = $refClass->getProperty('resolvedAllowedRoots');
-        $prop->setValue(null, null);
+        $prop     = $refClass->getProperty('resolvedAllowedRootsByPublicPath');
+        $prop->setValue(null, []);
 
         Environment::initialize(
             new ApplicationContext('Testing'),
@@ -1657,13 +1657,13 @@ class ProcessorTest extends TestCase
             if ($item->isDir()) {
                 rmdir($item->getPathname());
             } else {
-                unlink($item->getPathname());
+                unlink($item->getPathname()); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
             }
         }
 
         rmdir($tempDir);
 
-        $prop->setValue(null, null);
+        $prop->setValue(null, []);
         Environment::initialize(
             new ApplicationContext('Testing'),
             true,
@@ -1869,7 +1869,7 @@ class ProcessorTest extends TestCase
 
         self::assertNotNull($result);
 
-        unlink($base);
+        unlink($base); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
     }
 
     // -------------------------------------------------------------------------
@@ -2080,7 +2080,7 @@ class ProcessorTest extends TestCase
 
         self::assertSame($response, $result);
 
-        unlink($base . '.webp');
+        unlink($base . '.webp'); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
     }
 
     #[Test]
@@ -2101,7 +2101,7 @@ class ProcessorTest extends TestCase
 
         self::assertSame($response, $result);
 
-        unlink($base);
+        unlink($base); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
     }
 
     // -------------------------------------------------------------------------
@@ -2439,11 +2439,11 @@ class ProcessorTest extends TestCase
 
         if ($files !== false) {
             foreach ($files as $f) {
-                unlink($f);
+                unlink($f); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
             }
         }
 
-        unlink($originalPath);
+        unlink($originalPath); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
         rmdir($tempDir . '/processed');
         rmdir($tempDir);
     }
@@ -2521,11 +2521,11 @@ class ProcessorTest extends TestCase
 
         if ($files !== false) {
             foreach ($files as $f) {
-                unlink($f);
+                unlink($f); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
             }
         }
 
-        unlink($originalPath);
+        unlink($originalPath); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
         rmdir($tempDir . '/processed');
         rmdir($tempDir);
     }
@@ -2603,11 +2603,11 @@ class ProcessorTest extends TestCase
 
         if ($files !== false) {
             foreach ($files as $f) {
-                unlink($f);
+                unlink($f); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
             }
         }
 
-        unlink($originalPath);
+        unlink($originalPath); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
         rmdir($tempDir . '/processed');
         rmdir($tempDir);
     }
@@ -2673,11 +2673,11 @@ class ProcessorTest extends TestCase
 
         if ($files !== false) {
             foreach ($files as $f) {
-                unlink($f);
+                unlink($f); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
             }
         }
 
-        unlink($originalPath);
+        unlink($originalPath); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
         rmdir($tempDir . '/processed');
         rmdir($tempDir);
     }
@@ -2746,11 +2746,11 @@ class ProcessorTest extends TestCase
 
         if ($files !== false) {
             foreach ($files as $f) {
-                unlink($f);
+                unlink($f); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
             }
         }
 
-        unlink($originalPath);
+        unlink($originalPath); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
         rmdir($tempDir . '/processed');
         rmdir($tempDir);
     }
@@ -2814,11 +2814,11 @@ class ProcessorTest extends TestCase
 
         if ($files !== false) {
             foreach ($files as $f) {
-                unlink($f);
+                unlink($f); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
             }
         }
 
-        unlink($originalPath);
+        unlink($originalPath); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
         rmdir($tempDir . '/processed');
         rmdir($tempDir);
     }
@@ -2891,8 +2891,8 @@ class ProcessorTest extends TestCase
         mkdir($tempDir . '/outside', 0o777, true);
 
         $refClass = new ReflectionClass(Processor::class);
-        $prop     = $refClass->getProperty('resolvedAllowedRoots');
-        $prop->setValue(null, null);
+        $prop     = $refClass->getProperty('resolvedAllowedRootsByPublicPath');
+        $prop->setValue(null, []);
 
         Environment::initialize(
             new ApplicationContext('Testing'),
@@ -2929,14 +2929,14 @@ class ProcessorTest extends TestCase
         self::assertSame($response400, $result);
 
         // Cleanup
-        unlink($symlinkPath);
-        unlink($tempDir . '/outside/photo.jpg');
+        unlink($symlinkPath); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
+        unlink($tempDir . '/outside/photo.jpg'); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
         rmdir($tempDir . '/outside');
         rmdir($tempDir . '/public/processed');
         rmdir($tempDir . '/public');
         rmdir($tempDir);
 
-        $prop->setValue(null, null);
+        $prop->setValue(null, []);
         Environment::initialize(
             new ApplicationContext('Testing'),
             true,

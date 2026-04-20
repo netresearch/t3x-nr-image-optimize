@@ -97,7 +97,7 @@ class MaintenanceControllerTest extends TestCase
             if ($item->isDir()) {
                 rmdir($item->getPathname());
             } else {
-                unlink($item->getPathname());
+                unlink($item->getPathname()); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
             }
         }
 

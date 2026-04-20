@@ -48,7 +48,7 @@ final class SystemRequirementsService
     /**
      * Minimum required PHP version.
      */
-    private const MIN_PHP_VERSION = '8.1.0';
+    private const MIN_PHP_VERSION = '8.2.0';
 
     /**
      * Minimum required TYPO3 version.
