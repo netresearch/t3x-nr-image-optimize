@@ -1445,6 +1445,55 @@ class ProcessorTest extends TestCase
     }
 
     /**
+     * Defensive coverage: when a whitelisted public child (e.g.
+     * `public/processed`) is a DANGLING symlink (target does not exist on
+     * disk), realpath() returns false and the expansion must silently skip
+     * that child without throwing or polluting the allowed-roots set.
+     *
+     * Hits the `$resolvedChild === false` branch in the hardcoded-children
+     * loop, ensuring a broken EFS mount at container start doesn't crash
+     * path validation for other roots.
+     */
+    #[Test]
+    public function isPathWithinAllowedRootsIgnoresDanglingSymlinkedPublicChildren(): void
+    {
+        $tempDir = sys_get_temp_dir() . '/nr-pio-efs-dangling-' . uniqid('', true);
+        $public  = $tempDir . '/public';
+
+        mkdir($public, 0o777, true);
+        // Symlink target intentionally does NOT exist — realpath() returns false.
+        symlink($tempDir . '/does-not-exist', $public . '/processed');
+
+        try {
+            $this->initializeEnvironment($tempDir, $public);
+
+            $processor = $this->createProcessor();
+            $this->resetAllowedRootsCache();
+
+            // Path validation still works for the public root itself even
+            // though the processed symlink is dangling.
+            self::assertTrue($this->callMethod(
+                $processor,
+                'isPathWithinAllowedRoots',
+                $public,
+            ));
+
+            // A path that resolves under the dangling symlink is rejected
+            // (no allowed root covers it) — not accepted just because the
+            // symlink exists.
+            self::assertFalse($this->callMethod(
+                $processor,
+                'isPathWithinAllowedRoots',
+                $tempDir . '/does-not-exist/secret.jpg',
+            ));
+        } finally {
+            $this->removeOwnedTempTree($tempDir);
+            $this->resetAllowedRootsCache();
+            $this->initializeDefaultEnvironment();
+        }
+    }
+
+    /**
      * Security guarantee: even when a symlinked fileadmin is accepted, a
      * symlink placed INSIDE that storage that points to a location outside
      * every allowed root must still be rejected.
