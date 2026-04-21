@@ -1274,6 +1274,12 @@ class ProcessorTest extends TestCase
         // "realpath succeeds" code path, and the pathVariant branch hits the
         // "parent walk" code path (variant file does not exist yet).
         file_put_contents($efs . '/fileadmin/user_upload/photo.jpg', 'image-bytes');
+        // A real source image inside the legacy uploads folder so the
+        // pathOriginal branch for /processed/uploads/* URLs (which map back
+        // to an original at $publicPath/uploads/...) hits the
+        // "realpath succeeds" code path too.
+        mkdir($efs . '/uploads/legacy', 0o777, true);
+        file_put_contents($efs . '/uploads/legacy/document.png', 'image-bytes');
 
         try {
             $this->initializeEnvironment($tempDir, $public);
@@ -1299,13 +1305,23 @@ class ProcessorTest extends TestCase
                 $public . '/processed/fileadmin/user_upload/photo.w540h0m1q100.jpg',
             ));
 
-            // Same failure mode for variants that land directly in symlinked
-            // public/uploads (legacy extbase upload folder wired as a FAL
-            // storage in some setups but not always).
+            // pathOriginal lookup for a legacy source image under symlinked
+            // public/uploads. Without adding uploads to allowedRoots, realpath
+            // resolves through the symlink to efs/uploads and the match fails.
             self::assertTrue($this->callMethod(
                 $processor,
                 'isPathWithinAllowedRoots',
-                $public . '/uploads/legacy/document-thumb.w200h200m0q90.png',
+                $public . '/uploads/legacy/document.png',
+            ));
+
+            // pathVariant for that same /uploads/ original: the generated URL
+            // is /processed/uploads/legacy/document.w200h200m0q90.png, so the
+            // variant path lives under public/processed/uploads/... — also
+            // subject to the parent-walk through symlinked public/processed.
+            self::assertTrue($this->callMethod(
+                $processor,
+                'isPathWithinAllowedRoots',
+                $public . '/processed/uploads/legacy/document.w200h200m0q90.png',
             ));
         } finally {
             $this->removeOwnedTempTree($tempDir);
@@ -1316,9 +1332,9 @@ class ProcessorTest extends TestCase
 
     /**
      * Security guarantee for the "symlinked public children" fix: adding the
-     * realpath of symlinked direct children of publicPath to the allowed roots
-     * must still reject paths that traverse OUT of those roots via a nested
-     * symlink.
+     * realpath of symlinked `public/processed` / `public/uploads` to the
+     * allowed roots must still reject paths that resolve to an unrelated
+     * location through a nested symlink inside those newly-accepted roots.
      */
     #[Test]
     public function isPathWithinAllowedRootsRejectsTraversalThroughSymlinkedPublicChildren(): void
@@ -1358,6 +1374,68 @@ class ProcessorTest extends TestCase
                 $processor,
                 'isPathWithinAllowedRoots',
                 $public . '/processed/escape/nonexistent.w100h100m0q100.jpg',
+            ));
+        } finally {
+            $this->removeOwnedTempTree($tempDir);
+            $this->resetAllowedRootsCache();
+            $this->initializeDefaultEnvironment();
+        }
+    }
+
+    /**
+     * Security guarantee: the "symlinked public children" expansion is
+     * restricted to the hardcoded TYPO3 namespaces `processed` and `uploads`.
+     * An arbitrary admin-created symlink under publicPath that points at a
+     * sensitive directory (e.g. `public/etc -> /etc`) must NOT widen the
+     * allow-list.
+     *
+     * Also verifies that a symlink whose target is a *file* (not a directory)
+     * cannot become an allowed root via the equality branch of
+     * isWithinAnyRoot() — defense in depth for `public/uploads -> /etc/passwd`
+     * style misconfigurations.
+     */
+    #[Test]
+    public function isPathWithinAllowedRootsOnlyExpandsKnownPublicChildren(): void
+    {
+        $tempDir    = sys_get_temp_dir() . '/nr-pio-efs-nonwhitelist-' . uniqid('', true);
+        $public     = $tempDir . '/public';
+        $attackerFs = $tempDir . '/attacker';
+        $attackerFi = $tempDir . '/attacker-file';
+
+        mkdir($public, 0o777, true);
+        mkdir($attackerFs, 0o777, true);
+        file_put_contents($attackerFs . '/secret.txt', 'sensitive');
+        file_put_contents($attackerFi, 'sensitive-file');
+
+        // Admin-created symlink under publicPath that is NOT one of the
+        // hardcoded known children — must be ignored by the expansion.
+        symlink($attackerFs, $public . '/etc');
+
+        // Symlink named `uploads` but pointing to a file (not a directory).
+        // Even though `uploads` IS in the known-children list, the is_dir()
+        // guard must prevent adding a file path as an allowed root.
+        symlink($attackerFi, $public . '/uploads');
+
+        try {
+            $this->initializeEnvironment($tempDir, $public);
+
+            $processor = $this->createProcessor();
+            $this->resetAllowedRootsCache();
+
+            // `public/etc` is a symlink but not in the hardcoded whitelist:
+            // its target must not widen the allow-list.
+            self::assertFalse($this->callMethod(
+                $processor,
+                'isPathWithinAllowedRoots',
+                $public . '/etc/secret.txt',
+            ));
+
+            // `public/uploads` IS in the whitelist, but its target is a
+            // regular file — is_dir() guard must reject it.
+            self::assertFalse($this->callMethod(
+                $processor,
+                'isPathWithinAllowedRoots',
+                $attackerFi,
             ));
         } finally {
             $this->removeOwnedTempTree($tempDir);

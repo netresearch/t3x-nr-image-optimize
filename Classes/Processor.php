@@ -45,7 +45,6 @@ use function preg_match;
 use function preg_match_all;
 use function realpath;
 use function round;
-use function scandir;
 use function sprintf;
 use function str_contains;
 use function str_starts_with;
@@ -716,49 +715,48 @@ class Processor
             ));
         }
 
-        // Also add the realpath-resolved target of every symlinked immediate
-        // child of the public path. Deployments frequently symlink
-        // public/processed and public/uploads (alongside public/fileadmin)
-        // to a shared external mount such as AWS EFS, e.g.:
+        // The FAL-storage lookup above resolves fileadmin (its basePath is
+        // declared in sys_file_storage). TYPO3 deployments also commonly
+        // symlink two non-FAL directories to a shared external mount:
         //
-        //   ln -sf /mnt/efs/cms/fileadmin  /var/www/public/fileadmin
         //   ln -sf /mnt/efs/cms/processed  /var/www/public/processed
         //   ln -sf /mnt/efs/cms/uploads    /var/www/public/uploads
         //
-        // The FAL-storage lookup above resolves fileadmin (its basePath is
-        // declared in sys_file_storage), but `processed` and `uploads` are
-        // not FAL storages, so their symlink targets would otherwise be
-        // absent from the allowed-roots set. When a not-yet-existing variant
-        // path under /processed/ is validated, isPathWithinAllowedRoots()
-        // walks up parents, hits public/processed, and realpath() resolves
-        // through the symlink to the external mount -- which would be
-        // rejected without this expansion, causing HTTP 400 on every
-        // uncached variant request.
+        // public/processed is this extension's own variant cache;
+        // public/uploads is the legacy extbase/FAL upload directory. When a
+        // not-yet-existing variant path under /processed/ is validated,
+        // isPathWithinAllowedRoots() walks up parents, hits public/processed,
+        // and realpath() resolves through the symlink to the external mount
+        // -- which would be rejected without this expansion, causing HTTP
+        // 400 on every uncached variant request.
+        //
+        // Restricted to this hardcoded set (rather than every symlinked
+        // child of publicPath) so an arbitrary admin-created symlink such as
+        // `public/etc -> /etc` does NOT silently widen the allow-list to an
+        // unrelated sensitive directory. Only the two well-known TYPO3
+        // namespaces relevant to image serving are covered.
         if ($publicPath !== false) {
-            $entries = @scandir($publicPathRaw);
+            foreach (['processed', 'uploads'] as $knownChild) {
+                $childPath = $publicPathRaw . DIRECTORY_SEPARATOR . $knownChild;
 
-            if ($entries !== false) {
-                foreach ($entries as $entry) {
-                    if ($entry === '.') {
-                        continue;
-                    }
-
-                    if ($entry === '..') {
-                        continue;
-                    }
-
-                    $childPath = $publicPathRaw . DIRECTORY_SEPARATOR . $entry;
-
-                    if (!is_link($childPath)) {
-                        continue;
-                    }
-
-                    $resolvedChild = realpath($childPath);
-
-                    if ($resolvedChild !== false) {
-                        $roots[$resolvedChild] = true;
-                    }
+                if (!is_link($childPath)) {
+                    continue;
                 }
+
+                $resolvedChild = realpath($childPath);
+
+                if ($resolvedChild === false) {
+                    continue;
+                }
+
+                // A symlinked *file* (e.g. public/uploads -> /etc/passwd)
+                // must not become an allowed root via the equality branch in
+                // isWithinAnyRoot(). Require the target to be a directory.
+                if (!is_dir($resolvedChild)) {
+                    continue;
+                }
+
+                $roots[$resolvedChild] = true;
             }
         }
 
