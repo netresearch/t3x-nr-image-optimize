@@ -26,7 +26,6 @@ jobs:
           fi
 
       - name: Get version
-        id: get-version
         run: |
           # Strip 'refs/tags/' prefix, then strip optional 'v' prefix so
           # `tailor ter:publish` gets the bare version (1.2.3), matching
@@ -35,16 +34,22 @@ jobs:
           TAG="${GITHUB_REF#refs/tags/}"
           echo "version=${TAG#v}" >> "$GITHUB_ENV"
 
-      - name: Get comment
-        id: get-comment
+      - name: Build comment
+        env:
+          VERSION: ${{ env.version }}
+          EXT_KEY: ${{ env.TYPO3_EXTENSION_KEY }}
+          SERVER_URL: ${{ github.server_url }}
+          REPOSITORY: ${{ github.repository }}
         run: |
-          readonly local comment=$(git tag -n10 -l "${{ env.version }}" "v${{ env.version }}" | sed "s/^v\?[0-9.]*[ ]*//g")
-
-          if [[ -z "${comment// }" ]]; then
-            echo "comment=Released version ${{ env.version }} of ${{ env.TYPO3_EXTENSION_KEY }} -- for details see $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases" >> $GITHUB_ENV
-          else
-            echo "comment=$comment -- for details see $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases" >> $GITHUB_ENV
-          fi
+          # Always build a deterministic single-line comment that points to the
+          # GitHub release. Previous versions tried to derive the comment from
+          # `git tag -n10` annotations, which is unreliable: actions/checkout
+          # does a shallow fetch that frequently drops tag annotations, so the
+          # command falls through to the commit's subject+body — often
+          # multi-line content that GitHub Actions rejects when writing to
+          # $GITHUB_ENV ("Invalid format '## Summary'"). The GitHub release
+          # body is the authoritative, user-visible changelog anyway.
+          echo "comment=Released version ${VERSION} of ${EXT_KEY} -- for details see ${SERVER_URL}/${REPOSITORY}/releases/tag/v${VERSION}" >> "$GITHUB_ENV"
 
       - name: Setup PHP
         uses: shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f # 2.37.0
@@ -57,4 +62,7 @@ jobs:
         run: composer global require typo3/tailor --prefer-dist --no-progress --no-suggest
 
       - name: Publish to TER
-        run: php ~/.composer/vendor/bin/tailor ter:publish --comment "${{ env.comment }}" ${{ env.version }}
+        env:
+          COMMENT: ${{ env.comment }}
+          VERSION: ${{ env.version }}
+        run: php ~/.composer/vendor/bin/tailor ter:publish --comment "$COMMENT" "$VERSION"
