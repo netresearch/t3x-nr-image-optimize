@@ -22,6 +22,7 @@ use function gmdate;
 use Intervention\Image\Interfaces\ImageInterface;
 
 use function is_dir;
+use function is_link;
 use function is_string;
 use function max;
 use function md5;
@@ -51,6 +52,7 @@ use function round;
 
 use RuntimeException;
 
+use function scandir;
 use function sprintf;
 use function str_contains;
 use function str_starts_with;
@@ -797,6 +799,52 @@ class Processor implements LoggerAwareInterface, ProcessorInterface
                 'Path validation limited to public root; StorageRepository unavailable',
                 ['exception' => $e],
             );
+        }
+
+        // Also add the realpath-resolved target of every symlinked immediate
+        // child of the public path. Deployments frequently symlink
+        // public/processed and public/uploads (alongside public/fileadmin)
+        // to a shared external mount such as AWS EFS, e.g.:
+        //
+        //   ln -sf /mnt/efs/cms/fileadmin  /var/www/public/fileadmin
+        //   ln -sf /mnt/efs/cms/processed  /var/www/public/processed
+        //   ln -sf /mnt/efs/cms/uploads    /var/www/public/uploads
+        //
+        // The FAL-storage lookup above resolves fileadmin (its basePath is
+        // declared in sys_file_storage), but `processed` and `uploads` are
+        // not FAL storages, so their symlink targets would otherwise be
+        // absent from the allowed-roots set. When a not-yet-existing variant
+        // path under /processed/ is validated, isPathWithinAllowedRoots()
+        // walks up parents, hits public/processed, and realpath() resolves
+        // through the symlink to the external mount -- which would be
+        // rejected without this expansion, causing HTTP 400 on every
+        // uncached variant request.
+        if ($publicPath !== false) {
+            $entries = @scandir($publicPathRaw);
+
+            if ($entries !== false) {
+                foreach ($entries as $entry) {
+                    if ($entry === '.') {
+                        continue;
+                    }
+
+                    if ($entry === '..') {
+                        continue;
+                    }
+
+                    $childPath = $publicPathRaw . DIRECTORY_SEPARATOR . $entry;
+
+                    if (!is_link($childPath)) {
+                        continue;
+                    }
+
+                    $resolvedChild = realpath($childPath);
+
+                    if ($resolvedChild !== false) {
+                        $roots[$resolvedChild] = true;
+                    }
+                }
+            }
         }
 
         $resolved = array_keys($roots);
