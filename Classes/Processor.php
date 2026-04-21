@@ -34,6 +34,7 @@ use function filemtime;
 use function filesize;
 use function gmdate;
 use function is_dir;
+use function is_link;
 use function is_string;
 use function max;
 use function md5;
@@ -712,6 +713,51 @@ class Processor
                 'nr_image_optimize: path validation limited to public root; StorageRepository unavailable: %s',
                 $e->getMessage(),
             ));
+        }
+
+        // The FAL-storage lookup above resolves fileadmin (its basePath is
+        // declared in sys_file_storage). TYPO3 deployments also commonly
+        // symlink two non-FAL directories to a shared external mount:
+        //
+        //   ln -sf /mnt/efs/cms/processed  /var/www/public/processed
+        //   ln -sf /mnt/efs/cms/uploads    /var/www/public/uploads
+        //
+        // public/processed is this extension's own variant cache;
+        // public/uploads is the legacy extbase/FAL upload directory. When a
+        // not-yet-existing variant path under /processed/ is validated,
+        // isPathWithinAllowedRoots() walks up parents, hits public/processed,
+        // and realpath() resolves through the symlink to the external mount
+        // -- which would be rejected without this expansion, causing HTTP
+        // 400 on every uncached variant request.
+        //
+        // Restricted to this hardcoded set (rather than every symlinked
+        // child of publicPath) so an arbitrary admin-created symlink such as
+        // `public/etc -> /etc` does NOT silently widen the allow-list to an
+        // unrelated sensitive directory. Only the two well-known TYPO3
+        // namespaces relevant to image serving are covered.
+        if ($publicPath !== false) {
+            foreach (['processed', 'uploads'] as $knownChild) {
+                $childPath = $publicPathRaw . DIRECTORY_SEPARATOR . $knownChild;
+
+                if (!is_link($childPath)) {
+                    continue;
+                }
+
+                $resolvedChild = realpath($childPath);
+
+                if ($resolvedChild === false) {
+                    continue;
+                }
+
+                // A symlinked *file* (e.g. public/uploads -> /etc/passwd)
+                // must not become an allowed root via the equality branch in
+                // isWithinAnyRoot(). Require the target to be a directory.
+                if (!is_dir($resolvedChild)) {
+                    continue;
+                }
+
+                $roots[$resolvedChild] = true;
+            }
         }
 
         $resolved = array_keys($roots);
