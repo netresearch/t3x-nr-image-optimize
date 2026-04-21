@@ -1230,6 +1230,143 @@ class ProcessorTest extends TestCase
     }
 
     /**
+     * Regression test for issue #70 follow-up: on AWS/ECS + EFS (and similar
+     * deployments) the container's post-deployment script symlinks not only
+     * `public/fileadmin` but also `public/processed` (and `public/uploads`)
+     * to the shared mount:
+     *
+     *   ln -sf /mnt/efs/cms/fileadmin  /var/www/public/fileadmin
+     *   ln -sf /mnt/efs/cms/processed  /var/www/public/processed
+     *   ln -sf /mnt/efs/cms/uploads    /var/www/public/uploads
+     *
+     * The FAL-storage lookup in getAllowedRoots() resolves `fileadmin` via the
+     * sys_file_storage record, but `processed` and `uploads` are not FAL
+     * storages, so their symlink targets never get added to the allowed roots.
+     *
+     * When a variant under `/processed/` is requested for the first time, the
+     * variant file does not exist on disk. isPathWithinAllowedRoots() walks up
+     * parents looking for an existing directory; it hits `public/processed`,
+     * realpath() follows the symlink to `/mnt/efs/cms/processed`, and that
+     * target is rejected because it does not match any allowed root. Every
+     * uncached variant then returns HTTP 400.
+     *
+     * @see https://github.com/netresearch/t3x-nr-image-optimize/issues/70
+     */
+    #[Test]
+    public function isPathWithinAllowedRootsAcceptsVariantsUnderSymlinkedPublicChildren(): void
+    {
+        $tempDir = sys_get_temp_dir() . '/nr-pio-efs-processed-' . uniqid('', true);
+        $public  = $tempDir . '/public';
+        $efs     = $tempDir . '/efs';
+
+        mkdir($public, 0o777, true);
+        mkdir($efs . '/fileadmin/user_upload', 0o777, true);
+        mkdir($efs . '/processed', 0o777, true);
+        mkdir($efs . '/uploads', 0o777, true);
+
+        // Mirror the AWS post-deployment layout: all three directories under
+        // public/ are symlinks pointing into the shared EFS mount.
+        symlink($efs . '/fileadmin', $public . '/fileadmin');
+        symlink($efs . '/processed', $public . '/processed');
+        symlink($efs . '/uploads', $public . '/uploads');
+
+        // Place a real source image so the pathOriginal branch hits the
+        // "realpath succeeds" code path, and the pathVariant branch hits the
+        // "parent walk" code path (variant file does not exist yet).
+        file_put_contents($efs . '/fileadmin/user_upload/photo.jpg', 'image-bytes');
+
+        try {
+            $this->initializeEnvironment($tempDir, $public);
+
+            $processor = $this->createProcessor(
+                storageRepository: $this->createLocalStorageRepository('fileadmin/', 'relative'),
+            );
+            $this->resetAllowedRootsCache();
+
+            // Existing original under the symlinked fileadmin.
+            self::assertTrue($this->callMethod(
+                $processor,
+                'isPathWithinAllowedRoots',
+                $public . '/fileadmin/user_upload/photo.jpg',
+            ));
+
+            // The bug: non-existent variant path under symlinked public/processed.
+            // Parent walk resolves public/processed via the symlink to
+            // efs/processed, which is NOT in allowedRoots without the fix.
+            self::assertTrue($this->callMethod(
+                $processor,
+                'isPathWithinAllowedRoots',
+                $public . '/processed/fileadmin/user_upload/photo.w540h0m1q100.jpg',
+            ));
+
+            // Same failure mode for variants that land directly in symlinked
+            // public/uploads (legacy extbase upload folder wired as a FAL
+            // storage in some setups but not always).
+            self::assertTrue($this->callMethod(
+                $processor,
+                'isPathWithinAllowedRoots',
+                $public . '/uploads/legacy/document-thumb.w200h200m0q90.png',
+            ));
+        } finally {
+            $this->removeOwnedTempTree($tempDir);
+            $this->resetAllowedRootsCache();
+            $this->initializeDefaultEnvironment();
+        }
+    }
+
+    /**
+     * Security guarantee for the "symlinked public children" fix: adding the
+     * realpath of symlinked direct children of publicPath to the allowed roots
+     * must still reject paths that traverse OUT of those roots via a nested
+     * symlink.
+     */
+    #[Test]
+    public function isPathWithinAllowedRootsRejectsTraversalThroughSymlinkedPublicChildren(): void
+    {
+        $tempDir = sys_get_temp_dir() . '/nr-pio-efs-processed-esc-' . uniqid('', true);
+        $public  = $tempDir . '/public';
+        $efs     = $tempDir . '/efs';
+        $secret  = $tempDir . '/secret';
+
+        mkdir($public, 0o777, true);
+        mkdir($efs . '/processed', 0o777, true);
+        mkdir($secret, 0o777, true);
+
+        symlink($efs . '/processed', $public . '/processed');
+        // A malicious symlink INSIDE the processed mount that escapes to
+        // $secret: even though public/processed is now an accepted root, the
+        // escape target must NOT be accepted.
+        symlink($secret, $efs . '/processed/escape');
+        file_put_contents($secret . '/shadow', 'not-an-image');
+
+        try {
+            $this->initializeEnvironment($tempDir, $public);
+
+            $processor = $this->createProcessor();
+            $this->resetAllowedRootsCache();
+
+            // Attack 1: existing file behind a nested malicious symlink.
+            self::assertFalse($this->callMethod(
+                $processor,
+                'isPathWithinAllowedRoots',
+                $public . '/processed/escape/shadow',
+            ));
+
+            // Attack 2: non-existent path under the malicious symlink
+            // (parent-walk branch), also rejected.
+            self::assertFalse($this->callMethod(
+                $processor,
+                'isPathWithinAllowedRoots',
+                $public . '/processed/escape/nonexistent.w100h100m0q100.jpg',
+            ));
+        } finally {
+            $this->removeOwnedTempTree($tempDir);
+            $this->resetAllowedRootsCache();
+            $this->initializeDefaultEnvironment();
+        }
+    }
+
+    /**
      * Security guarantee: even when a symlinked fileadmin is accepted, a
      * symlink placed INSIDE that storage that points to a location outside
      * every allowed root must still be rejected.
