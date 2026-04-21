@@ -51,13 +51,3 @@ jobs:
             --issues="https://github.com/netresearch/t3x-nr-image-optimize/issues" \
             --repository="https://github.com/netresearch/t3x-nr-image-optimize" \
             nr_image_optimize
-
-  slsa-provenance:
-    needs: release
-    uses: netresearch/typo3-ci-workflows/.github/workflows/slsa-provenance.yml@main
-    permissions:
-      actions: read
-      contents: write
-      id-token: write
-    with:
-      version: ${{ github.ref_name }}
