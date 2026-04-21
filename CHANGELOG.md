@@ -7,15 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.2]
+
 ### Fixed
 
-- Serve images from storage directories that are symlinks (e.g. `fileadmin`
-  mounted on AWS EFS/NFS) instead of returning HTTP 400 for every uncached
-  variant. Path validation now resolves every configured Local FAL storage
-  base path in addition to the TYPO3 public root, while still rejecting
-  paths that escape those roots via symlinks inside a storage ([#70]).
+- Serve image variants when `public/processed` and/or `public/uploads` are
+  symlinked to an external mount (e.g. AWS EFS on ECS via the container's
+  post-deployment script). The symlink fix released in 2.2.1 only covered
+  `fileadmin` (resolved via FAL storage lookup); variants under the other
+  two directories still returned HTTP 400 for every uncached request
+  because the parent-walk in path validation resolved them to targets
+  outside the allowed-roots set. `getAllowedRoots()` now also resolves
+  symlinked `public/processed` and `public/uploads` — restricted to this
+  hardcoded TYPO3 namespace set to prevent an arbitrary admin-created
+  symlink such as `public/etc -> /etc` from silently widening the
+  allow-list. Target must be a directory (defense in depth for
+  `public/uploads -> /etc/passwd` style misconfigurations) ([#70], [#76]).
+
+### Changed
+
+- CI: removed broken `slsa-provenance` job from the release workflow that
+  referenced a non-existent shared workflow. SBOMs, Cosign signing, and
+  build-provenance attestations are now handled end-to-end inside the
+  reusable release workflow ([#78]).
 
 [#70]: https://github.com/netresearch/t3x-nr-image-optimize/issues/70
+[#76]: https://github.com/netresearch/t3x-nr-image-optimize/pull/76
+[#78]: https://github.com/netresearch/t3x-nr-image-optimize/pull/78
 
 ## [2.2.1]
 
