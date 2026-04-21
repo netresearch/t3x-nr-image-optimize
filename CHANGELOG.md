@@ -1,3 +1,26 @@
+# 1.1.1
+
+## BUGFIX
+
+- Serve image variants when `public/processed` and/or `public/uploads` are
+  symlinked to an external mount (e.g. AWS EFS on ECS via the container's
+  post-deployment script). The symlink fix released in 1.1.0 only covered
+  `fileadmin` (resolved via FAL storage lookup); variants under the other
+  two directories still returned HTTP 400 for every uncached request
+  because the parent-walk in path validation resolved them to targets
+  outside the allowed-roots set. `getAllowedRoots()` now also resolves
+  symlinked `public/processed` and `public/uploads` — restricted to this
+  hardcoded TYPO3 namespace set to prevent an arbitrary admin-created
+  symlink such as `public/etc -> /etc` from silently widening the
+  allow-list. Target must be a directory (defense in depth for
+  `public/uploads -> /etc/passwd` style misconfigurations).
+  See [#70](https://github.com/netresearch/t3x-nr-image-optimize/issues/70),
+  [#77](https://github.com/netresearch/t3x-nr-image-optimize/pull/77).
+
+## Contributors
+
+- Sebastian Mendel
+
 # 1.1.0
 
 ## MISC
