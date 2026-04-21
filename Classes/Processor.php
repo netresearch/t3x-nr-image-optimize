@@ -714,6 +714,31 @@ class Processor implements LoggerAwareInterface, ProcessorInterface
                 return true;
             }
 
+            // Normal case: check that $resolvedPath lives beneath $root by
+            // requiring "$root/" as a prefix. This prevents the classic
+            // /var/www vs /var/wwwsecret confusion while still accepting
+            // /var/www/fileadmin/foo.jpg.
+            //
+            // Edge case: when $root is the POSIX filesystem root "/",
+            // appending DIRECTORY_SEPARATOR produces "//", which
+            // `str_starts_with` never finds in a real absolute path.
+            // In that case, any absolute path is by definition "within"
+            // the root, so accept anything starting with a forward slash.
+            // Unusual in practice (TYPO3 installations do not typically
+            // chroot to /) but matters for minimal container setups that
+            // mount the app directly at / and for completeness on the
+            // path-traversal hardening. Windows drive roots (`C:\`, etc.)
+            // are NOT handled here -- this extension targets POSIX
+            // filesystems only (TYPO3 container images are Linux-only and
+            // Windows dev support was dropped years ago).
+            if ($root === DIRECTORY_SEPARATOR) {
+                if (str_starts_with($resolvedPath, DIRECTORY_SEPARATOR)) {
+                    return true;
+                }
+
+                continue;
+            }
+
             if (str_starts_with($resolvedPath, $root . DIRECTORY_SEPARATOR)) {
                 return true;
             }
