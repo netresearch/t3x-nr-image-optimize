@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.2.2] — 2026-04-21
+## [2.2.2]
 
 > **Versioning note.** 2.2.2 is tagged as a patch but contains ~196 commits
 > since 2.2.1, including new user-facing features (CLI commands, upload
@@ -53,23 +53,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Symlinked FAL storage directories** — path validation now resolves
+  every configured Local FAL storage base path in addition to the TYPO3
+  public root, so `fileadmin` mounted from NFS/EFS is servable while
+  symlinks inside storages that escape to unrelated locations are still
+  rejected. Reported as issue [#70]: the new `isPathWithinPublicRoot()`
+  hardening (introduced elsewhere in this release) rejected every
+  uncached variant on AWS/EFS-style deployments, because `realpath()`
+  resolved the variant path through the symlink to a target outside
+  the public root. Fix landed in [#71].
 - **Serve image variants when `public/processed` / `public/uploads` are
-  symlinked to an external mount** (AWS EFS on ECS, NFS). The symlink
-  fix in 2.2.1 only covered `fileadmin` via the FAL storage lookup; the
-  other two TYPO3-native namespaces still returned HTTP 400 for every
-  uncached variant because the parent-walk in path validation resolved
-  them to targets outside the allowed-roots set. `getAllowedRoots()` now
-  also resolves symlinked `public/processed` and `public/uploads` —
-  restricted to this hardcoded TYPO3 namespace set so an arbitrary
-  admin-created symlink such as `public/etc -> /etc` does NOT silently
-  widen the allow-list. Targets must be directories (defense in depth
-  for `public/uploads -> /etc/passwd` style misconfigurations)
-  ([#70], [#76]).
-- **Symlinked FAL storage directories** (the 2.2.1 fix) — path
-  validation now resolves every configured Local FAL storage base path
-  in addition to the TYPO3 public root, so `fileadmin` mounted from
-  NFS/EFS is servable while symlinks inside storages that escape to
-  unrelated locations are still rejected.
+  symlinked to an external mount** (AWS EFS on ECS, NFS). The fix above
+  covers `fileadmin` via the FAL storage lookup, but the AWS/ECS
+  post-deployment script also symlinks `public/processed` and
+  `public/uploads` to the shared mount, and neither is a FAL storage.
+  Variants under either directory kept returning HTTP 400 because the
+  parent-walk in path validation resolved them to targets outside the
+  allowed-roots set. `getAllowedRoots()` now also resolves symlinked
+  `public/processed` and `public/uploads` — restricted to this hardcoded
+  TYPO3 namespace set so an arbitrary admin-created symlink such as
+  `public/etc -> /etc` does NOT silently widen the allow-list. Targets
+  must be directories (defense in depth for `public/uploads -> /etc/passwd`
+  style misconfigurations) ([#76], also resolves [#70]).
 - **Allowed-roots cache keyed by public path** — functional-test
   environments and long-running workers that reinitialise
   `Environment` no longer get stale allowed-roots from a previous
@@ -128,6 +133,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > ```
 
 [#70]: https://github.com/netresearch/t3x-nr-image-optimize/issues/70
+[#71]: https://github.com/netresearch/t3x-nr-image-optimize/pull/71
 [#76]: https://github.com/netresearch/t3x-nr-image-optimize/pull/76
 [#78]: https://github.com/netresearch/t3x-nr-image-optimize/pull/78
 
@@ -215,7 +221,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Corrected crop variant examples.
 - Improved lazy loading behavior.
 
-[Unreleased]: https://github.com/netresearch/t3x-nr-image-optimize/compare/2.2.1...HEAD
+[Unreleased]: https://github.com/netresearch/t3x-nr-image-optimize/compare/v2.2.2...HEAD
+[2.2.2]: https://github.com/netresearch/t3x-nr-image-optimize/compare/2.2.1...v2.2.2
 [2.2.1]: https://github.com/netresearch/t3x-nr-image-optimize/compare/2.2.0...2.2.1
 [2.2.0]: https://github.com/netresearch/t3x-nr-image-optimize/compare/2.1.0...2.2.0
 [2.1.0]: https://github.com/netresearch/t3x-nr-image-optimize/compare/2.0.1...2.1.0
