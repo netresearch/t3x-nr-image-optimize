@@ -1494,6 +1494,101 @@ class ProcessorTest extends TestCase
     }
 
     /**
+     * Edge case raised on the original symlink backport (#72 review): when
+     * the TYPO3 public path is the filesystem root itself ("/") the
+     * prefix check `str_starts_with($resolvedPath, $root . DIRECTORY_SEPARATOR)`
+     * compares against the literal string "//", which never matches a real
+     * absolute path, so every path under / would be rejected. Unusual in
+     * practice (production TYPO3 installs don't chroot to /) but matters
+     * for minimal container setups that mount the app directly at / and
+     * for completeness on the path-traversal hardening.
+     *
+     * The isWithinAnyRoot() guard now detects a root == DIRECTORY_SEPARATOR
+     * and accepts any absolute path, while still rejecting relative paths.
+     */
+    #[Test]
+    public function isPathWithinAllowedRootsHandlesFilesystemRootAsPublicPath(): void
+    {
+        if (DIRECTORY_SEPARATOR !== '/') {
+            self::markTestSkipped(
+                'This test exercises the POSIX filesystem-root edge case ("/"). '
+                . 'Windows has a different path model (drive letters) and the '
+                . 'code under test does not handle drive roots -- the extension '
+                . 'targets POSIX filesystems only.',
+            );
+        }
+
+        $publicPath = '/';
+
+        $storageRepository = $this->createMock(StorageRepository::class);
+        $storageRepository->method('findAll')->willReturn([]);
+
+        $processor = $this->createProcessor(storageRepository: $storageRepository);
+        $this->resetAllowedRootsCache();
+
+        try {
+            $this->initializeEnvironment($publicPath, $publicPath);
+
+            // Any absolute path under / must be accepted — / is the root.
+            self::assertTrue($this->callMethod(
+                $processor,
+                'isWithinAnyRoot',
+                '/etc/passwd',
+                ['/'],
+            ), '/etc/passwd under root "/" should be accepted');
+
+            self::assertTrue($this->callMethod(
+                $processor,
+                'isWithinAnyRoot',
+                '/',
+                ['/'],
+            ), 'root path "/" itself is within root "/"');
+
+            self::assertTrue($this->callMethod(
+                $processor,
+                'isWithinAnyRoot',
+                '/var/www/public/fileadmin/foo.jpg',
+                ['/'],
+            ), 'deeply nested absolute path under root "/" is accepted');
+
+            // Relative paths must still be rejected even when root is /.
+            self::assertFalse($this->callMethod(
+                $processor,
+                'isWithinAnyRoot',
+                'relative/path.jpg',
+                ['/'],
+            ), 'relative path must not be treated as within root "/"');
+
+            // Independence of non-root entries: a list that contains ONLY
+            // '/var/www/public' (no '/' root) must still enforce its own
+            // prefix and reject siblings outside it. This asserts the
+            // normal-case branch remains strict, ruling out a regression
+            // where adding the root=='/' guard accidentally made other
+            // roots permissive.
+            self::assertFalse($this->callMethod(
+                $processor,
+                'isWithinAnyRoot',
+                '/some/other/path.jpg',
+                ['/var/www/public'],
+            ), 'paths outside a non-root allowed root are still rejected');
+
+            // Mixed-root list: when '/' IS in the list alongside a more
+            // specific root, the '/' entry grants access but siblings
+            // still do their normal prefix check. Asserts that the guard
+            // is per-root (not a blanket override).
+            self::assertTrue($this->callMethod(
+                $processor,
+                'isWithinAnyRoot',
+                '/some/other/path.jpg',
+                ['/var/www/public', '/'],
+            ), 'root "/" in a multi-root list accepts paths outside the specific root');
+        } finally {
+            $this->resetAllowedRootsCache();
+            $this->initializeDefaultEnvironment();
+        }
+    }
+
+    /**
      * Security guarantee: even when a symlinked fileadmin is accepted, a
      * symlink placed INSIDE that storage that points to a location outside
      * every allowed root must still be rejected.
