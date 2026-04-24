@@ -31,32 +31,31 @@ There are no `FlexForms/`, `TCA/`, or frontend image assets here. This is a back
 - **Fluid templates**: `Resources/Private/Templates/Maintenance/<Action>.html`. Partials/Layouts only if introduced — none yet.
 - **Language**: `Resources/Private/Language/locallang.xlf` — use `LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:key` references. Never hard-code UI strings in PHP.
 - **Icons**: SVGs under `Resources/Public/Icons/`, registered by identifier in `Configuration/Icons.php`. Reference via the registered identifier, not a path.
-- **CSS/JS**: minimal backend-module assets under `Resources/Public/{Css,JavaScript}/`. Backend module pages pull them via `<f:asset.*>`.
+- **CSS/JS**: minimal backend-module assets under `Resources/Public/{Css,JavaScript}/`. Maintenance templates load them via `<f:be.pageRenderer includeJsFiles="..." includeCssFiles="...">` with `EXT:nr_image_optimize/Resources/Public/...` paths.
 <!-- AGENTS-GENERATED:END types -->
 
 <!-- AGENTS-GENERATED:START organization -->
-## Organization conventions
-- Group resources by type: `templates/`, `images/`, `locales/`
-- Use consistent naming: lowercase, hyphens for spaces
-- Keep related resources together
-- Version large binary assets carefully (consider Git LFS)
+## Organization conventions (TYPO3-standard)
+- Directory casing is **TitleCase** (`Resources/Private/Templates/Maintenance/Index.html`) — TYPO3 expects this exactly. Don't use the generic `templates/` / `images/` lowercase layout.
+- Templates: filename = action name (e.g. `MaintenanceController::indexAction()` → `Maintenance/Index.html`).
+- Public assets are referenced via `EXT:nr_image_optimize/Resources/Public/...` paths, never relative paths.
 <!-- AGENTS-GENERATED:END organization -->
 
 <!-- AGENTS-GENERATED:START code-style -->
 ## Code style & conventions
-- Use descriptive file names: `user-profile-template.html` not `template1.html`
-- Keep templates simple - logic belongs in code, not templates
-- Use consistent indentation in structured files (JSON, YAML, XML)
-- Document template variables and their expected values
-- Optimize images before committing (compress, resize)
+- Keep Fluid templates declarative — business logic belongs in PHP, not in `<f:if>` chains.
+- One template per controller action.
+- Optimize images (`pngcrush`/`optipng` for PNG, `cwebp` for WebP) before committing — this extension is itself an image optimizer.
+- XLIFF: keep `<source>` lines short, use clear keys (`labels.foo`, not `text1`).
 <!-- AGENTS-GENERATED:END code-style -->
 
 <!-- AGENTS-GENERATED:START templates -->
-## Template best practices
-- Use clear placeholder syntax: `{{variable}}` or `${variable}`
-- Document all required variables in comments or README
-- Keep templates focused - one purpose per template
-- Use partials/includes for reusable components
+## Fluid template syntax
+- Variable output: `{variable}` (auto-escaped) or `{variable -> f:format.raw()}` (explicit raw, only when safe).
+- ViewHelpers: `<f:link.action ...>`, `<f:translate key="..."/>`, `<f:be.pageRenderer ...>`.
+- Custom ViewHelper from this extension: `<nrio:sourceSet ... />` (namespace declared in template).
+- Translation labels: `<f:translate key="LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:key"/>` or shorthand `{f:translate(key: '...') }`.
+- Conditionals: `<f:if condition="{var}">` — keep terse, push complex logic into the controller.
 <!-- AGENTS-GENERATED:END templates -->
 
 <!-- AGENTS-GENERATED:START security -->
@@ -79,9 +78,9 @@ There are no `FlexForms/`, `TCA/`, or frontend image assets here. This is a back
 <!-- AGENTS-GENERATED:END checklist -->
 
 <!-- AGENTS-GENERATED:START examples -->
-## Patterns to Follow
-> **Prefer looking at real code in this repo over generic examples.**
-> See **Golden Samples** section above for files that demonstrate correct patterns.
+## Reference templates in this repo
+- `Resources/Private/Templates/Maintenance/Index.html` — backend module landing page with `<f:be.pageRenderer>` JS includes.
+- `Resources/Private/Templates/Maintenance/SystemRequirements.html` — system requirements view with both JS and CSS includes.
 <!-- AGENTS-GENERATED:END examples -->
 
 <!-- AGENTS-GENERATED:START help -->

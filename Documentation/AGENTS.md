@@ -30,7 +30,9 @@ TYPO3 extension documentation (RST format for docs.typo3.org). **Use the `typo3-
 |---------|-----------|
 | Main entry | `Documentation/Index.rst` |
 | Cross-referenced doc page | `Documentation/Developer/Index.rst` (events) |
-| Screenshot with `:zoom: lightbox` | (see any `figure` directive under `Documentation/Maintenance/`) |
+| Per-version release notes | `Documentation/Changelog/<X.Y.Z>.rst` |
+
+> No screenshots have been added yet. When introducing one, use `.. figure::` with `:alt:`, `:class: with-border with-shadow`, and `:zoom: lightbox`.
 <!-- AGENTS-GENERATED:END golden-samples -->
 
 <!-- AGENTS-GENERATED:START structure -->

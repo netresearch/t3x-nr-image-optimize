@@ -71,7 +71,7 @@ Tests/
 | Unit tests | `composer ci:test:php:unit` or `Build/Scripts/runTests.sh -s unit` |
 | Functional tests | `composer ci:test:php:functional` or `Build/Scripts/runTests.sh -s functional` |
 | Single file | `Build/Scripts/runTests.sh -s unit -p Tests/Unit/Path/To/Test.php` |
-| Coverage | `composer ci:test:php:unit -- --coverage-html .Build/coverage` |
+| Coverage | `composer ci:test:php:unit:coverage` (HTML report → `.build/coverage/`) |
 <!-- AGENTS-GENERATED:END commands -->
 
 <!-- AGENTS-GENERATED:START patterns -->
@@ -82,7 +82,7 @@ Tests/
   - When a PR changes DI in `Classes/Processor.php` / `Classes/Middleware/*` / `Classes/Event/*` / `Classes/Service/*`, re-check `#[UsesClass]` lists in `Tests/Functional/{ProcessorTest,ProcessingMiddlewareTest,ProcessorSymlinkedFileadminTest}.php`.
 - **Coverage driver**: xdebug (not pcov). Local/CI parity is enforced. Don't switch to pcov without updating `.github/workflows/ci.yml`.
 - **Imagick**: Functional tests that encode images require the `imagick` PHP extension. CI installs it via `shivammathur/setup-php --extensions: imagick`. Locally, use `make test-functional` (Docker image has Imagick) or install `pecl imagick` on host PHP.
-- **Real DB**: functional tests use SQLite by default on CI. Pass `-s functional --database-driver mysqli` via `runTests.sh` if you need MariaDB.
+- **Real DB**: functional tests use SQLite by default on CI. To run against MariaDB/MySQL locally, pass the DBMS via `-d`: `Build/Scripts/runTests.sh -s functional -d mariadb` (or `-d mysql`, `-d postgres`).
 - **Mocks**: use PHPUnit `createMock()`. Avoid Prophecy (project uses PHPUnit's built-in mock builder).
 <!-- AGENTS-GENERATED:END patterns -->
 

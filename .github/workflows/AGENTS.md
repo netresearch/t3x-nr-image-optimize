@@ -39,131 +39,77 @@ No `actions/` local composite actions. All reusable logic lives in `netresearch/
 <!-- AGENTS-GENERATED:END structure -->
 
 <!-- AGENTS-GENERATED:START code-style -->
-## Workflow conventions
-- **Pin action versions** with full SHA, not tags (`uses: actions/checkout@abc123...`)
-- **Minimal permissions**: Use `permissions:` block, never use `permissions: write-all`
-- **Reusable workflows**: Extract common patterns to `.github/workflows/reusable-*.yml`
-- **Job dependencies**: Use `needs:` to express dependencies
-- **Caching**: Use `actions/cache` for dependencies (npm, composer, go)
+## Workflow conventions (this repo)
+- **Caller workflows reference reusables by tag**, e.g. `uses: netresearch/typo3-ci-workflows/.github/workflows/ci.yml@main`. The reusable repo is the place where actions are SHA-pinned; consumers don't re-pin.
+- **No local reusables**: don't create `.github/workflows/reusable-*.yml` here. New shared logic goes upstream in `netresearch/typo3-ci-workflows` as a PR.
+- **Minimal permissions**: each `permissions:` block lists only what the job needs; never `write-all`.
+- **Never `secrets: inherit`**: pass each secret explicitly into the reusable workflow call. Supply-chain hygiene — limits blast radius if any action in the chain is compromised.
+- **Required-checks list** is enforced by the `CI Required Checks` ruleset (see root AGENTS.md → Repository Settings). Any new matrix cell that becomes "required" must be added to that ruleset, not assumed.
 
-### Naming conventions
+### Naming
 | Type | Convention | Example |
 |------|------------|---------|
-| Workflow file | `<purpose>.yml` | `ci.yml`, `release.yml` |
-| Workflow name | Title Case | `CI Pipeline`, `Release` |
-| Job ID | kebab-case | `build-and-test`, `deploy-staging` |
-| Step name | Sentence case | `Install dependencies` |
-| Secret | SCREAMING_SNAKE | `DEPLOY_TOKEN`, `NPM_TOKEN` |
+| Workflow file | `<purpose>.yml` (lowercase, hyphens) | `ci.yml`, `release.yml`, `auto-merge-deps.yml` |
+| Workflow `name:` | Title Case | `CI`, `Release`, `Republish` |
+| Job ID | kebab-case | `lint`, `phpstan`, `unit-tests` |
+| Step `name:` | Sentence case | `Install dependencies` |
+| Secret | SCREAMING_SNAKE | `TER_API_TOKEN`, `CODECOV_TOKEN` |
 <!-- AGENTS-GENERATED:END code-style -->
 
 <!-- AGENTS-GENERATED:START patterns -->
-## Common patterns
+## Pattern (this repo): thin caller of a reusable workflow
 
-### Basic CI workflow
 ```yaml
+# .github/workflows/ci.yml — abridged
 name: CI
 on:
   push:
-    branches: [main]
+    branches: [main, TYPO3_12]
   pull_request:
-    branches: [main]
 
 permissions:
   contents: read
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
-        with:
-          node-version: '20'
-          cache: 'npm'
-      - run: npm ci
-      - run: npm test
+  ci:
+    uses: netresearch/typo3-ci-workflows/.github/workflows/ci.yml@main
+    with:
+      run-functional-tests: true
+      functional-test-db: 'sqlite'
+      php-extensions: 'intl, mbstring, xml, imagick, gd'
+      coverage-tool: 'xdebug'
+    secrets:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}   # explicit pass-through; never `secrets: inherit`
 ```
 
-### Matrix builds
-```yaml
-jobs:
-  test:
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-        node: ['18', '20', '22']
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
-        with:
-          node-version: ${{ matrix.node }}
-```
-
-### Reusable workflow
-```yaml
-# .github/workflows/reusable-test.yml
-on:
-  workflow_call:
-    inputs:
-      node-version:
-        type: string
-        default: '20'
-
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ inputs.node-version }}
-```
-
-### Conditional deployment
-```yaml
-jobs:
-  deploy:
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    needs: [test, build]
-    environment: production
-    steps:
-      - name: Deploy
-        run: ./deploy.sh
-```
+The reusable workflow handles matrix expansion, action pinning, and PHPStan/PHPUnit invocation. To change matrix dimensions or add a tool, open a PR on `netresearch/typo3-ci-workflows` rather than forking the logic here.
 <!-- AGENTS-GENERATED:END patterns -->
 
 <!-- AGENTS-GENERATED:START security -->
 ## Security & safety
-- **NEVER** expose secrets in logs: use `::add-mask::` for dynamic secrets
-- **Pin actions** to full commit SHA, not mutable tags
-- **Minimal permissions**: Start with `contents: read`, add only what's needed
-- **Environment protection**: Use environments with required reviewers for deploys
-- **Secret scanning**: Enable in repository settings
-- **Dependency review**: Use `actions/dependency-review-action` for PRs
-- **OIDC**: Prefer OIDC over long-lived secrets for cloud providers
+- Never `secrets: inherit` — pass each secret explicitly into the reusable-workflow call.
+- Action pinning lives in the reusable workflows (`netresearch/typo3-ci-workflows`); consumers reference reusables by tag.
+- Minimal `permissions:` block per job. Default to `contents: read`; add `pull-requests: write` only where needed (auto-approve, labeller).
+- Don't echo secrets. If a step constructs a secret-derived value, use `::add-mask::` before the first emission.
 <!-- AGENTS-GENERATED:END security -->
 
 <!-- AGENTS-GENERATED:START checklist -->
 ## PR/commit checklist
-- [ ] Actions pinned to full SHA (not tags)
-- [ ] Permissions block uses minimal required permissions
-- [ ] Secrets are not exposed in logs
-- [ ] Workflow syntax valid: `actionlint` or GitHub UI validation
-- [ ] Matrix strategy covers required versions/platforms
-- [ ] Caching configured for dependencies
+- [ ] Workflow syntax valid (`actionlint` runs in CI via reviewdog, `fail_level: error`).
+- [ ] No `secrets: inherit`. Each secret passed explicitly.
+- [ ] If a new check needs to be merge-blocking, add it to the `CI Required Checks` ruleset (admin action).
+- [ ] If duplicating logic that exists in `netresearch/typo3-ci-workflows`, open the PR there instead.
 <!-- AGENTS-GENERATED:END checklist -->
 
 <!-- AGENTS-GENERATED:START examples -->
-## Patterns to Follow
-> **Prefer looking at real code in this repo over generic examples.**
-> See **Golden Samples** section above for files that demonstrate correct patterns.
+## Reference
+- This repo's `ci.yml`, `release.yml`, `republish.yml` are the canonical thin-caller examples.
+- Reusable workflow source: https://github.com/netresearch/typo3-ci-workflows/.github/workflows/
 <!-- AGENTS-GENERATED:END examples -->
 
 <!-- AGENTS-GENERATED:START help -->
 ## When stuck
-- GitHub Actions docs: https://docs.github.com/en/actions
-- Workflow syntax: https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions
-- Action marketplace: https://github.com/marketplace?type=actions
-- Use `act` for local testing: https://github.com/nektos/act
-- Check existing workflows in this repo for patterns
+- The reusable-workflow source lives in `netresearch/typo3-ci-workflows` — read its `.github/workflows/*.yml` to understand inputs/secrets/jobs.
+- GitHub Actions reference: https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions
+- For local dry-runs of the matrix expansion: use `act` against a checkout of the reusable repo (not this one).
 <!-- AGENTS-GENERATED:END help -->

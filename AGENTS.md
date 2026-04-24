@@ -93,7 +93,7 @@ composer.json    → Composer metadata (authoritative version + PHP/TYPO3 constr
 <!-- AGENTS-GENERATED:START heuristics -->
 | When | Do |
 |------|-----|
-| Adding class | Follow PSR-4 in `Classes/` or `src/` |
+| Adding class | Follow PSR-4 in `Classes/` (no `src/` here) |
 | Adding controller | Create in `Classes/Controller/` |
 | Adding service | Create in `Classes/Service/` |
 | Running tasks | Check `make help` for available commands |

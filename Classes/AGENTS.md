@@ -14,7 +14,7 @@ PHP source of the `nr_image_optimize` extension. Namespace `Netresearch\NrImageO
 | `Classes/Processor.php` | Main dispatcher: parses `/processed/...` URL, checks allowed roots (symlink-aware), acquires lock, encodes/streams variant, dispatches `ImageProcessedEvent`/`VariantServedEvent`. |
 | `Classes/ProcessorInterface.php` | DI contract for `Processor`. |
 | `Classes/Middleware/ProcessingMiddleware.php` | PSR-15 middleware; delegates matching requests to `Processor`. Registered in `Configuration/RequestMiddlewares.php`. |
-| `Classes/Controller/MaintenanceController.php` | TYPO3 backend module (Extbase `ActionController`). Uses `$GLOBALS['TYPO3_REQUEST']` for BE context. |
+| `Classes/Controller/MaintenanceController.php` | TYPO3 backend module (Extbase `ActionController`). Uses `$this->request` (Extbase-provided) when creating the `ModuleTemplate`. |
 | `Classes/ViewHelpers/SourceSetViewHelper.php` | Fluid ViewHelper generating `srcset`/`sizes` markup; uses static `getimagesize()` cache keyed on resolved public path. |
 | `Classes/Command/AbstractImageCommand.php` | Shared template method for image-scan commands. Final helpers (`parseStorageUidsOption`, `getIntOption`, `iterateViaIndex`, etc.). |
 | `Classes/Command/AnalyzeImagesCommand.php`, `OptimizeImagesCommand.php` | Symfony console commands (auto-discovered via `Configuration/Services.yaml`). |
@@ -43,7 +43,7 @@ PHP source of the `nr_image_optimize` extension. Namespace `Netresearch\NrImageO
 - PHP: >=8.2; TYPO3: `^13.4 || ^14.0` on `main`, `^12.4` on `TYPO3_12` branch.
 - PHP extension: Intervention Image uses Imagick if available, else GD — both supported via `Classes/Service/ImageManagerFactory`.
 - External binaries (optional, for `ImageOptimizer`): `optipng`, `jpegoptim`, `cwebp`, `avifenc`. Missing binaries degrade gracefully.
-- No `ddev`/Docker wrapper — use `composer` directly or the `make` targets (which invoke `Build/Scripts/runTests.sh` for CI parity).
+- `make` targets invoke `Build/Scripts/runTests.sh`, which runs each task inside a Docker (or Podman) PHP image — that's the CI-parity path. Use it when host PHP/Imagick differs from the matrix. Plain `composer` works too if your host has compatible PHP + extensions.
 <!-- AGENTS-GENERATED:END setup -->
 
 <!-- AGENTS-GENERATED:START structure -->
