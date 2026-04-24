@@ -19,6 +19,12 @@ jobs:
         php-versions: '["8.2","8.3","8.4","8.5"]'
         typo3-versions: '["^13.4","^14.0"]'
         upload-coverage: true
+        # Functional tests drive the full middleware -> Processor path
+        # including real image processing. Imagick is required by the
+        # default Intervention\Image driver; gd is the fallback.
+        run-functional-tests: true
+        functional-test-db: 'sqlite'
+        php-extensions: 'intl, mbstring, xml, imagick, gd'
     secrets:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 

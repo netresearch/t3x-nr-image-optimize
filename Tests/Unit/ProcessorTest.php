@@ -1777,6 +1777,79 @@ class ProcessorTest extends TestCase
     }
 
     /**
+     * Regression test for bootstrap-race concern raised on #70 follow-up: a
+     * transient failure of StorageRepository::findAll() (TCA not yet loaded,
+     * DB hiccup, cache rebuild in flight, …) used to permanently poison the
+     * static allowed-roots cache for the rest of the PHP-FPM worker's life,
+     * silently returning HTTP 400 for every storage-backed variant request
+     * even after the underlying condition had cleared.
+     *
+     * After the fix, the degraded fallback (public root only) is returned
+     * for the current request but NOT cached, so a subsequent request with
+     * a healthy StorageRepository rebuilds the full allow-list including
+     * FAL storages.
+     */
+    #[Test]
+    public function isPathWithinAllowedRootsDoesNotCacheDegradedFallbackOnStorageThrow(): void
+    {
+        $tempDir = sys_get_temp_dir() . '/nr-pio-no-cache-err-' . uniqid('', true);
+        mkdir($tempDir . '/public/fileadmin', 0o777, true);
+
+        $healthyStorage = $this->createMock(ResourceStorage::class);
+        $healthyStorage->method('getDriverType')->willReturn('Local');
+        $healthyStorage->method('getConfiguration')->willReturn([
+            'basePath' => 'fileadmin/',
+            'pathType' => 'relative',
+        ]);
+
+        // First call throws (degraded result must NOT be cached); second call
+        // succeeds (now the full allow-list must be built from scratch).
+        $storageRepository = $this->createMock(StorageRepository::class);
+        $storageRepository->expects(self::exactly(2))
+            ->method('findAll')
+            ->willReturnOnConsecutiveCalls(
+                self::throwException(new RuntimeException('TCA not yet initialised')),
+                [$healthyStorage],
+            );
+
+        try {
+            $this->initializeEnvironment($tempDir, $tempDir . '/public');
+
+            $processor = $this->createProcessor(storageRepository: $storageRepository);
+            $this->resetAllowedRootsCache();
+
+            // First call hits the throw: fileadmin path is only accepted if
+            // the processor also falls back to accepting paths under the
+            // public root (fileadmin lives inside public/, so this passes).
+            // This simulates request N where findAll() throws.
+            self::assertTrue($this->callMethod(
+                $processor,
+                'isPathWithinAllowedRoots',
+                $tempDir . '/public/fileadmin',
+            ));
+
+            // Simulate the next incoming request by resetting the instance-
+            // level requestAllowedRoots cache (in production, generateAndSend()
+            // does this at its entry). Without this reset the test would not
+            // catch the degraded-static-cache bug — only the instance cache
+            // would shield the second call from findAll() re-invocation.
+            $this->setProperty($processor, 'requestAllowedRoots', null);
+
+            // Second call must trigger findAll() AGAIN — that's the whole
+            // point: recover once the transient error has cleared.
+            self::assertTrue($this->callMethod(
+                $processor,
+                'isPathWithinAllowedRoots',
+                $tempDir . '/public/fileadmin',
+            ));
+        } finally {
+            $this->removeOwnedTempTree($tempDir);
+            $this->resetAllowedRootsCache();
+            $this->initializeDefaultEnvironment();
+        }
+    }
+
+    /**
      * The static cache on getAllowedRoots() must short-circuit repeat
      * invocations: StorageRepository::findAll() should be consulted at most
      * once per process (and once per manual cache reset).
