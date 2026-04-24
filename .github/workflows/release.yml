@@ -9,7 +9,7 @@ permissions: {}
 
 jobs:
   release:
-    uses: netresearch/typo3-ci-workflows/.github/workflows/release.yml@main
+    uses: netresearch/typo3-ci-workflows/.github/workflows/release-typo3-extension.yml@main
     permissions:
       contents: write
       id-token: write
@@ -17,37 +17,6 @@ jobs:
     with:
       archive-prefix: nr-image-optimize
       package-name: netresearch/nr-image-optimize
-
-  publish-to-ter:
-    uses: netresearch/typo3-ci-workflows/.github/workflows/publish-to-ter.yml@main
-    permissions:
-      contents: read
+      extension-key: nr_image_optimize
     secrets:
-      TYPO3_EXTENSION_KEY: ${{ secrets.TYPO3_EXTENSION_KEY }}
       TYPO3_TER_ACCESS_TOKEN: ${{ secrets.TYPO3_TER_ACCESS_TOKEN }}
-
-  ter-metadata:
-    name: Update TER Metadata
-    needs: publish-to-ter
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - name: Harden Runner
-        uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2.19.0
-        with:
-          egress-policy: audit
-
-      - name: Install tailor
-        run: composer global require typo3/tailor
-
-      - name: Update TER metadata
-        env:
-          TYPO3_API_TOKEN: ${{ secrets.TYPO3_TER_ACCESS_TOKEN }}
-        run: |
-          ~/.composer/vendor/bin/tailor ter:update \
-            --composer="netresearch/nr-image-optimize" \
-            --manual="https://github.com/netresearch/t3x-nr-image-optimize" \
-            --issues="https://github.com/netresearch/t3x-nr-image-optimize/issues" \
-            --repository="https://github.com/netresearch/t3x-nr-image-optimize" \
-            nr_image_optimize
