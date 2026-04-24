@@ -40,7 +40,16 @@ parameters:
           reportUnmatched: false
         - identifier: ergebnis.noParameterWithNullDefaultValue
           reportUnmatched: false
-        - identifier: ergebnis.noExtends                # controllers / commands must extend framework
+        # ergebnis.noExtends — only allowed where the framework requires inheritance
+        # (Symfony Command, TYPO3 ActionController, Fluid ViewHelper, TYPO3 FunctionalTestCase).
+        # Path-scoped so a new `extends` in Services/Events/Middleware would get caught.
+        - identifier: ergebnis.noExtends
+          paths:
+              - %currentWorkingDirectory%/Classes/Command/*
+              - %currentWorkingDirectory%/Classes/Controller/*
+              - %currentWorkingDirectory%/Classes/ViewHelpers/*
+              - %currentWorkingDirectory%/Tests/Functional/*
+              - %currentWorkingDirectory%/Tests/Unit/Command/AbstractImageCommandTest.php
           reportUnmatched: false
         - identifier: ergebnis.noIsset                  # idiomatic for array-key-exists
           reportUnmatched: false
