@@ -7,6 +7,115 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [2.2.3] - 2026-04-24
+
+### Fixed
+
+- **#70 follow-up: silent HTTP 400 responses now log diagnostics.** Both
+  the URL-pattern-mismatch and the path-outside-allowed-roots branches
+  in `Processor::generateAndSend()` now emit PSR logs. URL-mismatch is
+  logged at `info` (vulnerability scanners hit this path constantly, so
+  `warning` would drown out genuine config issues). Path-validation
+  failure is logged at `warning` with the full diagnostic payload
+  (`url`, `pathOriginal`, `pathVariant`, which check failed,
+  `allowedRoots`, `publicPath`) so admins chasing *"images disappeared
+  after upgrade"* have something to grep against.
+- **Transient `StorageRepository` failure no longer poisons the
+  allowed-roots cache for the worker's lifetime.** Before: a single
+  `findAll()` throw during early TYPO3 bootstrap populated the
+  per-process cache with a degraded fallback (public root only, no FAL
+  storages); every subsequent storage-backed variant request returned
+  400 until the PHP-FPM worker recycled. Now: the degraded fallback is
+  kept only for the current request; the next request retries.
+- **Redundant lookups and log floods within a single failing request.**
+  `getAllowedRoots()` was invoked three times per failing request
+  (`pathOriginal`, `pathVariant`, and the log context), each retry
+  re-invoking `findAll()` and re-emitting the warning. Added
+  per-request memoization (`$requestAllowedRoots` instance property,
+  reset at the top of `generateAndSend()`), so the lookup runs at most
+  once per request.
+
+### Tests
+
+- **New functional regression test `ProcessorSymlinkedFileadminTest`**
+  reproduces the exact Chemnitz AWS/ECS + EFS production layout (all
+  three of `public/fileadmin`, `public/processed`, `public/uploads`
+  symlinked to `/mnt/efs/cms/...`). Drives the real DI container + FAL
+  LocalDriver, not a mocked boundary. Empirically verified to fail
+  when either the #70 core fix or the #76 follow-up is disabled — not
+  a vacuous regression test.
+- New unit regression
+  `isPathWithinAllowedRootsDoesNotCacheDegradedFallbackOnStorageThrow`
+  locks in the cache-non-poisoning semantics described above.
+- **Restored `beStrictAboutCoverageMetadata="true"` on functional
+  tests.** All 17 tests that were previously flagged as "risky"
+  (executing classes outside their `#[CoversClass]` declarations) now
+  declare precise `#[UsesClass]` attributes for the transitive
+  dependency chain (`ImageManagerAdapter`, `ImageManagerFactory`,
+  `ImageProcessedEvent`, `VariantServedEvent`). Future DI refactorings
+  that add new transitive executions will surface as risky failures —
+  the whole point of the strict policy.
+- **Fixed 2 pre-existing wrong acceptance assertions.**
+  `SourceSetViewHelperHtmlOutputTest::sourceElementHasCorrectTypeAttribute`
+  and `::sourceElementHasCorrectTypeForPng` asserted `type="image/jpeg"`
+  and `type="image/png"` on generated `<source>` elements — but the
+  view helper **deliberately omits** the `type` attribute for JPEG /
+  PNG / GIF (universally supported formats; the hint is pure noise).
+  Replaced with five tests covering both branches of the intentional
+  decision: three `hasNoTypeAttribute` cases for JPEG / PNG / GIF,
+  plus two `hasCorrectType` cases for the next-gen formats WEBP and
+  AVIF that actually benefit from the browser skip-signal.
+- Unblocked `MaintenanceControllerTest::maintenanceControllerIsRegisteredInContainer`,
+  which had errored since the test was written because it resolved
+  `ActionController`'s DI without a request in scope. Fixed by
+  planting a minimal backend `ServerRequest` into
+  `$GLOBALS['TYPO3_REQUEST']` inside the test; the error was invisible
+  until PR #91 actually enabled functional tests to run in CI.
+
+### CI
+
+- **Coverage driver switched from pcov to xdebug.** Matches the local
+  `XDEBUG_MODE=coverage` dev driver, gives branch + path coverage
+  instead of pcov's line-only signal, and eliminates "green locally,
+  red in CI" drift around `beStrictAboutCoverageMetadata`. ~2-3 min
+  extra runtime across the 8-job matrix; the richer signal is worth it.
+  Consumes the new org-wide default from
+  [netresearch/typo3-ci-workflows#72](https://github.com/netresearch/typo3-ci-workflows/pull/72).
+- **Functional tests now actually run in CI.** Previously
+  `run-functional-tests` defaulted to `false` on the reusable workflow,
+  so every matrix variant was silently SKIPPED — the pre-existing
+  `MaintenanceControllerTest` error and `SourceSetViewHelperHtmlOutputTest`
+  wrong assertions were invisible. Enabled together with `imagick` +
+  `gd` PHP extensions required by the Intervention Image driver.
+- **`Build/Scripts/runTests.sh` builds a thin derived Docker image**
+  (`nr-image-optimize-testing-php${PHP_VERSION}`) with Imagick enabled
+  via `pecl install imagick` + `docker-php-ext-enable imagick` on top
+  of the upstream `ghcr.io/typo3/core-testing-*` image. Functional
+  tests now run locally too without CI-only workarounds.
+
+### Related
+
+- PRs: [#91](https://github.com/netresearch/t3x-nr-image-optimize/pull/91),
+  [#93](https://github.com/netresearch/t3x-nr-image-optimize/pull/93),
+  [#95](https://github.com/netresearch/t3x-nr-image-optimize/pull/95)
+- Issue: [#70](https://github.com/netresearch/t3x-nr-image-optimize/issues/70)
+- TYPO3 v12 line: the same fixes ship as **v1.1.2** on the `TYPO3_12`
+  branch ([#92](https://github.com/netresearch/t3x-nr-image-optimize/pull/92),
+  [#94](https://github.com/netresearch/t3x-nr-image-optimize/pull/94),
+  [#96](https://github.com/netresearch/t3x-nr-image-optimize/pull/96)).
+
 ## [2.2.2]
 
 > **Versioning note.** 2.2.2 is tagged as a patch but contains ~196 commits
