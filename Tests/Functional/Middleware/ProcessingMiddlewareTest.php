@@ -11,8 +11,11 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Tests\Functional\Middleware;
 
+use Netresearch\NrImageOptimize\Event\VariantServedEvent;
 use Netresearch\NrImageOptimize\Middleware\ProcessingMiddleware;
 use Netresearch\NrImageOptimize\Processor;
+use Netresearch\NrImageOptimize\Service\ImageManagerAdapter;
+use Netresearch\NrImageOptimize\Service\ImageManagerFactory;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\Attributes\UsesClass;
@@ -26,9 +29,18 @@ use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
 
 /**
  * Functional tests for ProcessingMiddleware PSR-15 pipeline behavior.
+ *
+ * Declares UsesClass for everything the middleware transitively exercises
+ * when it delegates to Processor (image processing service chain + events).
+ * beStrictAboutCoverageMetadata fails the run on anything unlisted here
+ * so this list must stay in sync with what the Processor actually pulls
+ * in via DI — growing pains of integration tests.
  */
 #[CoversClass(ProcessingMiddleware::class)]
 #[UsesClass(Processor::class)]
+#[UsesClass(ImageManagerAdapter::class)]
+#[UsesClass(ImageManagerFactory::class)]
+#[UsesClass(VariantServedEvent::class)]
 final class ProcessingMiddlewareTest extends FunctionalTestCase
 {
     protected array $testExtensionsToLoad = [

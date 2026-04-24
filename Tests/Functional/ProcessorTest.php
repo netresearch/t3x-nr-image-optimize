@@ -13,9 +13,14 @@ namespace Netresearch\NrImageOptimize\Tests\Functional;
 
 use function getimagesize;
 
+use Netresearch\NrImageOptimize\Event\ImageProcessedEvent;
+use Netresearch\NrImageOptimize\Event\VariantServedEvent;
 use Netresearch\NrImageOptimize\Processor;
+use Netresearch\NrImageOptimize\Service\ImageManagerAdapter;
+use Netresearch\NrImageOptimize\Service\ImageManagerFactory;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\Attributes\UsesClass;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Http\ServerRequest;
 use TYPO3\CMS\Core\Http\Uri;
@@ -25,9 +30,16 @@ use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
  * Functional tests for the Processor with real image fixtures.
  *
  * These tests verify actual image processing (resize/crop) behavior
- * against test fixture images.
+ * against test fixture images. They drive the full image-processing chain
+ * the Processor delegates into (ImageManager adapter/factory) and dispatch
+ * the pre-/post-processing events, so those classes must be declared via
+ * UsesClass to satisfy beStrictAboutCoverageMetadata.
  */
 #[CoversClass(Processor::class)]
+#[UsesClass(ImageManagerAdapter::class)]
+#[UsesClass(ImageManagerFactory::class)]
+#[UsesClass(ImageProcessedEvent::class)]
+#[UsesClass(VariantServedEvent::class)]
 final class ProcessorTest extends FunctionalTestCase
 {
     protected array $testExtensionsToLoad = [

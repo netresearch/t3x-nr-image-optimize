@@ -25,6 +25,12 @@ jobs:
         run-functional-tests: true
         functional-test-db: 'sqlite'
         php-extensions: 'intl, mbstring, xml, imagick, gd'
+        # Use xdebug instead of pcov for coverage. xdebug delivers branch
+        # coverage + path coverage and matches the local dev driver
+        # (composer ci:test:php:unit:coverage sets XDEBUG_MODE=coverage).
+        # pcov is faster but line-only; in our matrix the ~2-3 min extra
+        # CI time is worth the richer signal + local/CI parity.
+        coverage-tool: 'xdebug'
     secrets:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
