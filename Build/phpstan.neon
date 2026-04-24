@@ -46,8 +46,6 @@ parameters:
           reportUnmatched: false
         - identifier: ergebnis.noErrorSuppression       # `@` sometimes unavoidable with core PHP funcs
           reportUnmatched: false
-        - identifier: ergebnis.noPhpstanIgnore          # surgical inline suppressions auditable in diff
-          reportUnmatched: false
 
         # --- Pragmatic PHPStan ignores ---
         # Intervention\Image v3 renamed `decode()` to `read()`. We dispatch
