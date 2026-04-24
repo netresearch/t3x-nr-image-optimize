@@ -40,13 +40,35 @@ parameters:
           reportUnmatched: false
         - identifier: ergebnis.noParameterWithNullDefaultValue
           reportUnmatched: false
-        - identifier: ergebnis.noExtends                # controllers / commands must extend framework
+        # ergebnis.noExtends — only allowed where the framework requires inheritance
+        # (Symfony Command, TYPO3 ActionController, Fluid ViewHelper, TYPO3 FunctionalTestCase).
+        # Path-scoped so a new `extends` in Services/Events/Middleware would get caught.
+        - identifier: ergebnis.noExtends
+          paths:
+              - %currentWorkingDirectory%/Classes/Command/*
+              - %currentWorkingDirectory%/Classes/Controller/*
+              - %currentWorkingDirectory%/Classes/ViewHelpers/*
+              - %currentWorkingDirectory%/Tests/Functional/*
+              - %currentWorkingDirectory%/Tests/Unit/Command/AbstractImageCommandTest.php
           reportUnmatched: false
-        - identifier: ergebnis.noIsset                  # idiomatic for array-key-exists
+        # ergebnis.noIsset — production code replaced isset() with
+        # array_key_exists() where idiomatic. Tests still use isset() for
+        # terseness in fixture setup; scope the suppression there.
+        - identifier: ergebnis.noIsset
+          paths:
+              - %currentWorkingDirectory%/Tests/*
           reportUnmatched: false
-        - identifier: ergebnis.noErrorSuppression       # `@` sometimes unavoidable with core PHP funcs
-          reportUnmatched: false
-        - identifier: ergebnis.noPhpstanIgnore          # surgical inline suppressions auditable in diff
+        # ergebnis.noErrorSuppression — only allowed in files that wrap PHP
+        # native filesystem/image functions whose error contract is "returns
+        # false, set_error_handler can't replace the idiom" (mkdir+is_dir
+        # race-safe, filesize/unlink/getimagesize). New `@` elsewhere flags.
+        - identifier: ergebnis.noErrorSuppression
+          paths:
+              - %currentWorkingDirectory%/Classes/Processor.php
+              - %currentWorkingDirectory%/Classes/Service/ImageOptimizer.php
+              - %currentWorkingDirectory%/Classes/Service/SystemRequirementsService.php
+              - %currentWorkingDirectory%/Classes/ViewHelpers/SourceSetViewHelper.php
+              - %currentWorkingDirectory%/Tests/*
           reportUnmatched: false
 
         # --- Pragmatic PHPStan ignores ---

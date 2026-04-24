@@ -648,7 +648,7 @@ final class Processor implements LoggerAwareInterface, ProcessorInterface
 
             for ($i = 0; $i < $count; ++$i) {
                 // First occurrence wins (matches original behavior of array_search)
-                if (!isset($values[$matches[1][$i]])) {
+                if (!array_key_exists($matches[1][$i], $values)) {
                     $values[$matches[1][$i]] = (int) $matches[2][$i];
                 }
             }
@@ -827,7 +827,7 @@ final class Processor implements LoggerAwareInterface, ProcessorInterface
 
         $publicPathRaw = Environment::getPublicPath();
 
-        if (isset(self::$resolvedAllowedRootsByPublicPath[$publicPathRaw])) {
+        if (array_key_exists($publicPathRaw, self::$resolvedAllowedRootsByPublicPath)) {
             return $this->requestAllowedRoots = self::$resolvedAllowedRootsByPublicPath[$publicPathRaw];
         }
 
