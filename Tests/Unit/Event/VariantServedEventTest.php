@@ -22,7 +22,7 @@ use ReflectionClass;
  * No CoversClass attribute: final readonly classes cannot be instrumented
  * by PCOV on PHP 8.5, causing PHPUnit coverage warnings.
  */
-class VariantServedEventTest extends TestCase
+final class VariantServedEventTest extends TestCase
 {
     #[Test]
     public function constructorSetsAllProperties(): void

@@ -56,7 +56,7 @@ use function unlink;
  * No CoversClass attribute: final classes cannot be instrumented
  * by PCOV on PHP 8.5, causing PHPUnit coverage warnings.
  */
-class OptimizeOnUploadListenerTest extends TestCase
+final class OptimizeOnUploadListenerTest extends TestCase
 {
     private OptimizeOnUploadListener $listener;
 

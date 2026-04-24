@@ -32,7 +32,7 @@ use TYPO3\CMS\Core\Core\Environment;
  * a browser would receive.
  */
 #[CoversClass(SourceSetViewHelper::class)]
-class SourceSetViewHelperHtmlOutputTest extends TestCase
+final class SourceSetViewHelperHtmlOutputTest extends TestCase
 {
     private SourceSetViewHelper $viewHelper;
 

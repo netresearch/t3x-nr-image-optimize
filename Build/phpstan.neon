@@ -27,6 +27,36 @@ parameters:
     tmpDir: %currentWorkingDirectory%/.build/var/phpstan
 
     ignoreErrors:
+        # --- ergebnis/phpstan-rules opinions that don't fit TYPO3 ---
+        # The ergebnis rule set ships opinionated style rules; several are
+        # at odds with idiomatic TYPO3 extension code. Suppress rather than
+        # fight the framework. Rules that catch real bugs (type safety,
+        # architecture layering via phpat, ergebnis.final*) stay active.
+        - identifier: ergebnis.noNamedArgument          # PHP 8 idiom
+          reportUnmatched: false
+        - identifier: ergebnis.noParameterWithNullableTypeDeclaration
+          reportUnmatched: false
+        - identifier: ergebnis.noNullableReturnTypeDeclaration
+          reportUnmatched: false
+        - identifier: ergebnis.noParameterWithNullDefaultValue
+          reportUnmatched: false
+        - identifier: ergebnis.noExtends                # controllers / commands must extend framework
+          reportUnmatched: false
+        - identifier: ergebnis.noIsset                  # idiomatic for array-key-exists
+          reportUnmatched: false
+        - identifier: ergebnis.noErrorSuppression       # `@` sometimes unavoidable with core PHP funcs
+          reportUnmatched: false
+        - identifier: ergebnis.noPhpstanIgnore          # surgical inline suppressions auditable in diff
+          reportUnmatched: false
+
+        # --- Pragmatic PHPStan ignores ---
+        # Intervention\Image v3 renamed `decode()` to `read()`. We dispatch
+        # via dynamic method name to stay compatible with both. This is
+        # narrow, deliberate polymorphism — not a code smell.
+        - identifier: method.dynamicName
+          path: %currentWorkingDirectory%/Classes/Service/ImageManagerAdapter.php
+          reportUnmatched: false
+
         # --- Test infrastructure (from shared config) ---
         - identifier: offsetAccess.nonOffsetAccessible
           path: %currentWorkingDirectory%/Tests/Unit/*

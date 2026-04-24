@@ -21,7 +21,7 @@ use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\UriInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 
-class ProcessingMiddlewareTest extends TestCase
+final class ProcessingMiddlewareTest extends TestCase
 {
     #[Test]
     public function processDelegatesToNextHandlerForNonProcessedPaths(): void

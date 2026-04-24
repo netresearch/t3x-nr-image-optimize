@@ -46,7 +46,7 @@ use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper;
  * @author  Rico Sonntag <rico.sonntag@netresearch.de>
  * @license Netresearch https://www.netresearch.de
  */
-class SourceSetViewHelper extends AbstractViewHelper
+final class SourceSetViewHelper extends AbstractViewHelper
 {
     /**
      * Default width variants if none are provided or all are invalid.

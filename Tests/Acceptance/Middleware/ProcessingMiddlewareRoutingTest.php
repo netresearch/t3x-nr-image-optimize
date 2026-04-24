@@ -61,7 +61,7 @@ use function unlink;
  */
 #[CoversClass(ProcessingMiddleware::class)]
 #[CoversClass(Processor::class)]
-class ProcessingMiddlewareRoutingTest extends TestCase
+final class ProcessingMiddlewareRoutingTest extends TestCase
 {
     private string $publicPath;
 

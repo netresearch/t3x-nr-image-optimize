@@ -19,7 +19,7 @@ use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 
-class ImageManagerFactoryTest extends TestCase
+final class ImageManagerFactoryTest extends TestCase
 {
     private ImageManagerFactory $factory;
 

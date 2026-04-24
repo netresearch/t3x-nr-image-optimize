@@ -33,7 +33,7 @@ use TYPO3\CMS\Core\Core\Environment;
  * No CoversClass attribute: final classes cannot be instrumented
  * by PCOV on PHP 8.5, causing PHPUnit coverage warnings.
  */
-class MaintenanceControllerTest extends TestCase
+final class MaintenanceControllerTest extends TestCase
 {
     private MaintenanceController $controller;
 
@@ -346,13 +346,11 @@ class MaintenanceControllerTest extends TestCase
         // 1536 bytes = 1.5 KB (must NOT be '1.50 KB' or '1.500 KB')
         $result = $this->callMethod('formatBytes', 1536);
         self::assertSame('1.5 KB', $result);
-        assert(is_string($result)); // @phpstan-ignore function.alreadyNarrowedType
         self::assertStringNotContainsString('.50', $result);
 
         // 1075 bytes = 1.05 KB (must NOT be '1.050 KB')
         $result2 = $this->callMethod('formatBytes', 1075);
         self::assertSame('1.05 KB', $result2);
-        assert(is_string($result2)); // @phpstan-ignore function.alreadyNarrowedType
         self::assertStringNotContainsString('.050', $result2);
     }
 
@@ -366,7 +364,6 @@ class MaintenanceControllerTest extends TestCase
         self::assertSame('5 TB', $result);
 
         // Verify it ends with ' TB' and not ' GB' or any other unit
-        assert(is_string($result)); // @phpstan-ignore function.alreadyNarrowedType
         self::assertStringEndsWith(' TB', $result);
     }
 
