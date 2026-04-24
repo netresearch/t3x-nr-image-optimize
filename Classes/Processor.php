@@ -222,15 +222,39 @@ class Processor implements LoggerAwareInterface, ProcessorInterface
 
         $urlInfo = $this->gatherInformationBasedOnUrl($variantUrl);
 
-        // Reject requests that did not match the expected URL pattern
+        // Reject requests that did not match the expected URL pattern.
+        // Logged at info level: path-traversal and vulnerability scanners
+        // hit this constantly on public image endpoints, so warning would
+        // drown out genuine configuration issues below.
         if ($urlInfo === null) {
+            $this->getLogger()->info(
+                'Rejecting variant request with 400: URL does not match expected pattern',
+                [
+                    'url' => $variantUrl,
+                ],
+            );
+
             return $this->responseFactory->createResponse(400);
         }
 
         // Validate that both resolved paths stay within an allowed root
-        if (!$this->isPathWithinAllowedRoots($urlInfo['pathOriginal'])
-            || !$this->isPathWithinAllowedRoots($urlInfo['pathVariant'])
-        ) {
+        $originalAllowed = $this->isPathWithinAllowedRoots($urlInfo['pathOriginal']);
+        $variantAllowed  = $this->isPathWithinAllowedRoots($urlInfo['pathVariant']);
+
+        if (!$originalAllowed || !$variantAllowed) {
+            $this->getLogger()->warning(
+                'Rejecting variant request with 400: path outside allowed roots',
+                [
+                    'url'             => $variantUrl,
+                    'pathOriginal'    => $urlInfo['pathOriginal'],
+                    'pathVariant'     => $urlInfo['pathVariant'],
+                    'originalAllowed' => $originalAllowed,
+                    'variantAllowed'  => $variantAllowed,
+                    'allowedRoots'    => $this->getAllowedRoots(),
+                    'publicPath'      => Environment::getPublicPath(),
+                ],
+            );
+
             return $this->responseFactory->createResponse(400);
         }
 
@@ -785,6 +809,8 @@ class Processor implements LoggerAwareInterface, ProcessorInterface
         // ReflectionClass::newInstanceWithoutConstructor() without injecting
         // this readonly property — accessing an uninitialized typed property
         // throws Error, which extends Throwable.
+        $storageLookupFailed = false;
+
         try {
             foreach ($this->storageRepository->findAll() as $storage) {
                 if ($storage->getDriverType() !== 'Local') {
@@ -823,6 +849,8 @@ class Processor implements LoggerAwareInterface, ProcessorInterface
                 'Path validation limited to public root; StorageRepository unavailable',
                 ['exception' => $e],
             );
+
+            $storageLookupFailed = true;
         }
 
         // Also add the realpath-resolved target of every symlinked immediate
@@ -873,7 +901,16 @@ class Processor implements LoggerAwareInterface, ProcessorInterface
 
         $resolved = array_keys($roots);
 
-        self::$resolvedAllowedRootsByPublicPath[$publicPathRaw] = $resolved;
+        // Only cache successful lookups. If the StorageRepository threw, the
+        // allow-list is degraded (public root only, without FAL storages).
+        // Caching that would persist the degraded result for the rest of the
+        // PHP-FPM worker's lifetime — every storage-backed variant request
+        // would return 400 until the worker recycles, even after the
+        // transient failure (TCA not yet loaded, DB hiccup, cache rebuild,
+        // etc.) has cleared. Retry on the next request instead.
+        if (!$storageLookupFailed) {
+            self::$resolvedAllowedRootsByPublicPath[$publicPathRaw] = $resolved;
+        }
 
         return $resolved;
     }
