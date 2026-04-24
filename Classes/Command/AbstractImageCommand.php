@@ -171,7 +171,7 @@ abstract class AbstractImageCommand extends Command
      */
     final protected function buildLabel(array $record): string
     {
-        if (isset($record['identifier']) && is_string($record['identifier']) && $record['identifier'] !== '') {
+        if (array_key_exists('identifier', $record) && is_string($record['identifier']) && $record['identifier'] !== '') {
             return $record['identifier'];
         }
 

@@ -44,7 +44,7 @@ final class OptimizeOnUploadListener
         // FAL identifiers are only unique within a storage, so key the guard
         // on storage UID + identifier to avoid cross-storage collisions.
         $id = $storage->getUid() . ':' . $file->getIdentifier();
-        if (isset($this->guard[$id])) {
+        if (array_key_exists($id, $this->guard)) {
             return; // Re-entrancy guard (e.g. triggered by replaceFile)
         }
 

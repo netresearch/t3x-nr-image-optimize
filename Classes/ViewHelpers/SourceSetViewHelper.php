@@ -371,7 +371,7 @@ final class SourceSetViewHelper extends AbstractViewHelper
         if ($width === 0 && $height === 0) {
             // Use static cache to avoid repeated getimagesize() disk I/O
             // for the same source image across multiple variant URLs.
-            if (!isset(self::$imageSizeCache[$path])) {
+            if (!array_key_exists($path, self::$imageSizeCache)) {
                 self::$imageSizeCache[$path] = @getimagesize(Environment::getPublicPath() . $path);
             }
 
@@ -390,7 +390,7 @@ final class SourceSetViewHelper extends AbstractViewHelper
 
         $pathInfo = PathUtility::pathinfo($path);
 
-        if (isset($pathInfo['extension']) && strtolower($pathInfo['extension']) === 'svg') {
+        if (array_key_exists('extension', $pathInfo) && strtolower($pathInfo['extension']) === 'svg') {
             return $path;
         }
 
@@ -565,7 +565,7 @@ final class SourceSetViewHelper extends AbstractViewHelper
      */
     private function getAttributes(): array
     {
-        if (!isset($this->arguments['attributes'])
+        if (!array_key_exists('attributes', $this->arguments)
             || !is_array($this->arguments['attributes'])
         ) {
             return [];

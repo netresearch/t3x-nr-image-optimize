@@ -51,7 +51,12 @@ parameters:
               - %currentWorkingDirectory%/Tests/Functional/*
               - %currentWorkingDirectory%/Tests/Unit/Command/AbstractImageCommandTest.php
           reportUnmatched: false
-        - identifier: ergebnis.noIsset                  # idiomatic for array-key-exists
+        # ergebnis.noIsset — production code replaced isset() with
+        # array_key_exists() where idiomatic. Tests still use isset() for
+        # terseness in fixture setup; scope the suppression there.
+        - identifier: ergebnis.noIsset
+          paths:
+              - %currentWorkingDirectory%/Tests/*
           reportUnmatched: false
         # ergebnis.noErrorSuppression — only allowed in files that wrap PHP
         # native filesystem/image functions whose error contract is "returns

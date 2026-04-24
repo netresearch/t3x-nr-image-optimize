@@ -246,7 +246,7 @@ final class SystemRequirementsService
         }
 
         $info      = gd_info();
-        $gdVersion = isset($info['GD Version']) && is_string($info['GD Version']) ? $info['GD Version'] : null;
+        $gdVersion = array_key_exists('GD Version', $info) && is_string($info['GD Version']) ? $info['GD Version'] : null;
         $items[]   = $this->makeItem(
             'sysreq.gdVersion',
             $gdVersion,
