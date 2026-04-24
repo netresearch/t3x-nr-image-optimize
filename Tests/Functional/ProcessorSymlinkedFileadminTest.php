@@ -29,6 +29,7 @@ use function is_link;
 use function mkdir;
 use function rmdir;
 use function scandir;
+use function sprintf;
 use function symlink;
 use function uniqid;
 use function unlink;
