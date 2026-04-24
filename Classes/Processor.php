@@ -33,6 +33,7 @@ use function file_exists;
 use function filemtime;
 use function filesize;
 use function gmdate;
+use function implode;
 use function is_dir;
 use function is_link;
 use function is_string;
@@ -156,6 +157,25 @@ class Processor
     private static array $resolvedAllowedRootsByPublicPath = [];
 
     /**
+     * Per-request memoization of the resolved allowed-roots list.
+     *
+     * Reset at the top of generateAndSend() so a single request computes the
+     * list at most once — even on the error path where StorageRepository
+     * throws. Without this, getAllowedRoots() would be invoked three times
+     * per failing request (once per pathOriginal, pathVariant, and for the
+     * log context), each invocation retrying findAll() and emitting the
+     * "StorageRepository unavailable" log. That log flood surfaced in the
+     * #91/#92 PR review as a real observability concern.
+     *
+     * The static per-process cache ($resolvedAllowedRootsByPublicPath)
+     * handles the happy path across requests. This instance cache handles
+     * repeated calls within one request — on the failure path especially.
+     *
+     * @var list<string>|null
+     */
+    private ?array $requestAllowedRoots = null;
+
+    /**
      * Initialize the image processor with all required dependencies.
      *
      * @param ImageManager             $imageManager      Intervention Image manager used to read/encode images
@@ -198,19 +218,47 @@ class Processor
      */
     public function generateAndSend(RequestInterface $request): ResponseInterface
     {
+        // Reset the per-request allowed-roots memoization so a fresh list
+        // (or a fresh retry of StorageRepository::findAll() if it was
+        // unavailable earlier) is computed on the first call below.
+        $this->requestAllowedRoots = null;
+
         $variantUrl = urldecode($request->getUri()->getPath());
 
         $urlInfo = $this->gatherInformationBasedOnUrl($variantUrl);
 
-        // Reject requests that did not match the expected URL pattern
+        // Reject requests that did not match the expected URL pattern.
+        // Intentionally logged via error_log() (not the PSR logger) for
+        // consistency with the existing catch-branch diagnostic in
+        // getAllowedRoots(): this TYPO3_12 maintenance-branch keeps a
+        // narrow dependency surface and does not pull in LoggerAwareTrait.
         if ($urlInfo === null) {
+            error_log(sprintf(
+                'nr_image_optimize: rejecting variant request with 400 (URL does not match expected pattern): url=%s',
+                $variantUrl,
+            ));
+
             return $this->responseFactory->createResponse(400);
         }
 
         // Validate that both resolved paths stay within an allowed root
-        if (!$this->isPathWithinAllowedRoots($urlInfo['pathOriginal'])
-            || !$this->isPathWithinAllowedRoots($urlInfo['pathVariant'])
-        ) {
+        $originalAllowed = $this->isPathWithinAllowedRoots($urlInfo['pathOriginal']);
+        $variantAllowed  = $this->isPathWithinAllowedRoots($urlInfo['pathVariant']);
+
+        if (!$originalAllowed || !$variantAllowed) {
+            error_log(sprintf(
+                'nr_image_optimize: rejecting variant request with 400 (path outside allowed roots): '
+                . 'url=%s pathOriginal=%s pathVariant=%s originalAllowed=%s variantAllowed=%s '
+                . 'allowedRoots=[%s] publicPath=%s',
+                $variantUrl,
+                $urlInfo['pathOriginal'],
+                $urlInfo['pathVariant'],
+                $originalAllowed ? '1' : '0',
+                $variantAllowed ? '1' : '0',
+                implode(', ', $this->getAllowedRoots()),
+                Environment::getPublicPath(),
+            ));
+
             return $this->responseFactory->createResponse(400);
         }
 
@@ -686,10 +734,19 @@ class Processor
      */
     private function getAllowedRoots(): array
     {
+        // Per-request memoization: return the list computed earlier in
+        // this same request (including any degraded fallback from a
+        // StorageRepository throw), avoiding a redundant findAll() +
+        // duplicate warning log for the log-context and second
+        // isPathWithinAllowedRoots() call below.
+        if ($this->requestAllowedRoots !== null) {
+            return $this->requestAllowedRoots;
+        }
+
         $publicPathRaw = Environment::getPublicPath();
 
         if (isset(self::$resolvedAllowedRootsByPublicPath[$publicPathRaw])) {
-            return self::$resolvedAllowedRootsByPublicPath[$publicPathRaw];
+            return $this->requestAllowedRoots = self::$resolvedAllowedRootsByPublicPath[$publicPathRaw];
         }
 
         $roots      = [];
@@ -698,6 +755,12 @@ class Processor
         if ($publicPath !== false) {
             $roots[$publicPath] = true;
         }
+
+        // The try/catch also protects tests that construct Processor via
+        // ReflectionClass::newInstanceWithoutConstructor() without injecting
+        // this readonly property — accessing an uninitialized typed property
+        // throws Error, which extends Throwable.
+        $storageLookupFailed = false;
 
         try {
             foreach ($this->storageRepository->findAll() as $storage) {
@@ -738,6 +801,8 @@ class Processor
                 'nr_image_optimize: path validation limited to public root; StorageRepository unavailable: %s',
                 $e->getMessage(),
             ));
+
+            $storageLookupFailed = true;
         }
 
         // The FAL-storage lookup above resolves fileadmin (its basePath is
@@ -787,7 +852,22 @@ class Processor
 
         $resolved = array_keys($roots);
 
-        self::$resolvedAllowedRootsByPublicPath[$publicPathRaw] = $resolved;
+        // Always populate the per-request cache so follow-up calls in the
+        // same request (second isPathWithinAllowedRoots, log context, …)
+        // reuse this result instead of retrying findAll() and re-emitting
+        // the StorageRepository-unavailable log line.
+        $this->requestAllowedRoots = $resolved;
+
+        // Only populate the static per-process cache on success. A degraded
+        // fallback (public root only, without FAL storages) must not be
+        // cached across requests — otherwise a single transient failure
+        // (TCA not yet loaded, DB hiccup, cache rebuild, …) poisons every
+        // storage-backed variant request for the rest of the PHP-FPM
+        // worker's lifetime. generateAndSend() resets the per-request
+        // cache on the next invocation, giving findAll() another chance.
+        if (!$storageLookupFailed) {
+            self::$resolvedAllowedRootsByPublicPath[$publicPathRaw] = $resolved;
+        }
 
         return $resolved;
     }
