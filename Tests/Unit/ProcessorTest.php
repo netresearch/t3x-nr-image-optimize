@@ -46,7 +46,7 @@ use TYPO3\CMS\Core\Locking\LockingStrategyInterface;
 use TYPO3\CMS\Core\Resource\ResourceStorage;
 use TYPO3\CMS\Core\Resource\StorageRepository;
 
-class ProcessorTest extends TestCase
+final class ProcessorTest extends TestCase
 {
     private MockObject $lockFactory;
 

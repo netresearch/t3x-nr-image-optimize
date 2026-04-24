@@ -11,9 +11,10 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Tests\Unit\Service;
 
+use function class_implements;
+
 use Intervention\Image\Drivers\Gd\Driver;
 use Intervention\Image\ImageManager;
-use Intervention\Image\Interfaces\ImageInterface;
 use Netresearch\NrImageOptimize\Service\ImageManagerAdapter;
 use Netresearch\NrImageOptimize\Service\ImageReaderInterface;
 use PHPUnit\Framework\Attributes\CoversNothing;
@@ -28,14 +29,20 @@ use ReflectionClass;
  * by PCOV for code coverage analysis.
  */
 #[CoversNothing]
-class ImageManagerAdapterTest extends TestCase
+final class ImageManagerAdapterTest extends TestCase
 {
     #[Test]
     public function implementsImageReaderInterface(): void
     {
-        $adapter = new ImageManagerAdapter(new ImageManager(Driver::class));
-
-        self::assertInstanceOf(ImageReaderInterface::class, $adapter); // @phpstan-ignore staticMethod.alreadyNarrowedType
+        // Runtime reflection check — PHPStan narrows `instanceof` on a
+        // freshly-constructed typed object, making `assertInstanceOf()`
+        // redundant from its perspective. `class_implements()` isn't
+        // narrowed, so the assertion survives and a mutation that removes
+        // `implements ImageReaderInterface` from the class declaration
+        // would be caught.
+        $implementedInterfaces = class_implements(ImageManagerAdapter::class);
+        self::assertIsArray($implementedInterfaces);
+        self::assertContains(ImageReaderInterface::class, $implementedInterfaces);
     }
 
     #[Test]
@@ -52,7 +59,6 @@ class ImageManagerAdapterTest extends TestCase
             $adapter      = new ImageManagerAdapter($imageManager);
             $image        = $adapter->read($tmpFile);
 
-            self::assertInstanceOf(ImageInterface::class, $image); // @phpstan-ignore staticMethod.alreadyNarrowedType
             self::assertSame(2, $image->width());
             self::assertSame(3, $image->height());
         } finally {

@@ -53,7 +53,7 @@ final readonly class ImageManagerAdapter implements ImageReaderInterface
         $method = method_exists($manager, 'read') ? 'read' : 'decode';
 
         /** @var Closure(string): ImageInterface */
-        return $manager->{$method}(...); // @phpstan-ignore method.dynamicName
+        return $manager->{$method}(...);
     }
 
     public function read(string $path): ImageInterface

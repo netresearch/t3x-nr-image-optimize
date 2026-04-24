@@ -81,7 +81,7 @@ use function usleep;
  * @author  Rico Sonntag <rico.sonntag@netresearch.de>
  * @license Netresearch https://www.netresearch.de
  */
-class Processor implements LoggerAwareInterface, ProcessorInterface
+final class Processor implements LoggerAwareInterface, ProcessorInterface
 {
     use LoggerAwareTrait;
 

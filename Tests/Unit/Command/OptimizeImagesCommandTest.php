@@ -60,7 +60,7 @@ use function unlink;
  * No CoversClass attribute: final classes cannot be instrumented
  * by PCOV on PHP 8.5, causing PHPUnit coverage warnings.
  */
-class OptimizeImagesCommandTest extends TestCase
+final class OptimizeImagesCommandTest extends TestCase
 {
     /** @var list<string> */
     private array $tempFiles = [];

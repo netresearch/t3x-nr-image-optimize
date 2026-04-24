@@ -34,7 +34,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  * No CoversClass attribute: final/abstract classes cannot always be instrumented
  * by PCOV on PHP 8.5, causing PHPUnit coverage warnings.
  */
-class AbstractImageCommandTest extends TestCase
+final class AbstractImageCommandTest extends TestCase
 {
     private AbstractImageCommandTestFixture $command;
 

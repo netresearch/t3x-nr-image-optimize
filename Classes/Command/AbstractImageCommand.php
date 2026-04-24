@@ -41,7 +41,7 @@ abstract class AbstractImageCommand extends Command
      *
      * @return list<int>
      */
-    protected function parseStorageUidsOption(array $values): array
+    final protected function parseStorageUidsOption(array $values): array
     {
         $uids = [];
         foreach ($values as $val) {
@@ -62,7 +62,7 @@ abstract class AbstractImageCommand extends Command
     /**
      * Returns an integer option value or the default if the option is not a numeric string.
      */
-    protected function getIntOption(mixed $value, int $default): int
+    final protected function getIntOption(mixed $value, int $default): int
     {
         if (is_numeric($value)) {
             return (int) $value;
@@ -76,7 +76,7 @@ abstract class AbstractImageCommand extends Command
      *
      * @throws Exception
      */
-    protected function countImages(array $onlyStorageUids): int
+    final protected function countImages(array $onlyStorageUids): int
     {
         $fileConn = GeneralUtility::makeInstance(ConnectionPool::class)->getConnectionForTable('sys_file');
         $qb       = $fileConn->createQueryBuilder();
@@ -111,7 +111,7 @@ abstract class AbstractImageCommand extends Command
      *
      * @throws Exception
      */
-    protected function iterateViaIndex(array $onlyStorageUids): Generator
+    final protected function iterateViaIndex(array $onlyStorageUids): Generator
     {
         $fileConn = GeneralUtility::makeInstance(ConnectionPool::class)->getConnectionForTable('sys_file');
         $qb       = $fileConn->createQueryBuilder();
@@ -144,7 +144,7 @@ abstract class AbstractImageCommand extends Command
     /**
      * @return array{progress: ProgressBar, messageMax: int}
      */
-    protected function createProgress(SymfonyStyle $io, int $count): array
+    final protected function createProgress(SymfonyStyle $io, int $count): array
     {
         $progress = $io->createProgressBar($count);
         $progress->setFormat(' %current%/%max% [%bar%] %percent:3s%% | %elapsed:6s% | %message%');
@@ -159,7 +159,7 @@ abstract class AbstractImageCommand extends Command
     /**
      * @param array<string,mixed> $record
      */
-    protected function extractUid(array $record): int
+    final protected function extractUid(array $record): int
     {
         $uid = $record['uid'] ?? null;
 
@@ -169,7 +169,7 @@ abstract class AbstractImageCommand extends Command
     /**
      * @param array<string,mixed> $record
      */
-    protected function buildLabel(array $record): string
+    final protected function buildLabel(array $record): string
     {
         if (isset($record['identifier']) && is_string($record['identifier']) && $record['identifier'] !== '') {
             return $record['identifier'];
@@ -180,7 +180,7 @@ abstract class AbstractImageCommand extends Command
         return '#' . (is_scalar($uid) ? (string) $uid : '?');
     }
 
-    protected function shortenLabel(string $text, int $maxLen): string
+    final protected function shortenLabel(string $text, int $maxLen): string
     {
         $plain = preg_replace('/\s+/', ' ', $text) ?? $text;
         if ($maxLen <= 3) {
@@ -196,7 +196,7 @@ abstract class AbstractImageCommand extends Command
         return substr($plain, 0, $keep) . '…' . substr($plain, -$keep);
     }
 
-    protected function formatMbGb(int $bytes): string
+    final protected function formatMbGb(int $bytes): string
     {
         $mb = $bytes / 1048576;
         $gb = $bytes / 1073741824;

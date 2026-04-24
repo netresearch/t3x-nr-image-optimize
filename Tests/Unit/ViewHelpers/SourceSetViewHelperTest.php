@@ -48,7 +48,7 @@ use TYPO3Fluid\Fluid\Core\ViewHelper\ArgumentDefinition;
 use function uniqid;
 use function unlink;
 
-class SourceSetViewHelperTest extends TestCase
+final class SourceSetViewHelperTest extends TestCase
 {
     private SourceSetViewHelper $viewHelper;
 

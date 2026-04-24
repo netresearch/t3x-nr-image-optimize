@@ -26,7 +26,7 @@ use TYPO3\CMS\Core\Core\Environment;
  * No CoversClass attribute: final classes cannot be instrumented
  * by PCOV on PHP 8.5, causing PHPUnit coverage warnings.
  */
-class SystemRequirementsServiceTest extends TestCase
+final class SystemRequirementsServiceTest extends TestCase
 {
     private SystemRequirementsService $service;
 
