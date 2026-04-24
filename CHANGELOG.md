@@ -1,3 +1,69 @@
+# 1.1.2
+
+## BUGFIX
+
+- **#70 follow-up diagnosability & cache robustness.** The 1.1.0/1.1.1 fixes
+  silently returned HTTP 400 to clients when path validation rejected a
+  request, leaving admins no signal to diagnose from. `Processor::generateAndSend()`
+  now logs both 400 branches via `error_log()`: the URL-pattern-mismatch
+  path at info level (scanners hit this constantly, so warning would drown
+  out genuine issues) and the path-outside-allowed-roots path at warning
+  level with full diagnostic context (url, pathOriginal, pathVariant,
+  which check failed, allowedRoots, publicPath).
+- **Cache poisoning on transient `StorageRepository` failure.** Previously a
+  single `findAll()` throw during early TYPO3 bootstrap (TCA not yet loaded,
+  DB hiccup, cache rebuild) populated the per-process allowed-roots cache
+  with a degraded fallback (public root only, without FAL storages), and
+  every subsequent storage-backed variant request in the same PHP-FPM
+  worker returned 400 until the worker recycled. The degraded fallback is
+  now kept only for the current request; the next request retries the
+  lookup, so a transient failure no longer sticks.
+- **Redundant work + log floods on a single request.** `getAllowedRoots()`
+  was invoked three times per failing request (once per `pathOriginal`,
+  `pathVariant`, and for the log context), each retry re-invoking
+  `findAll()` and re-emitting the unavailable-log line. Added per-request
+  memoization so the lookup runs at most once per request.
+- **Filesystem-root as public path.** When `Environment::getPublicPath()`
+  returns `/` (minimal container setups), the prefix check compared against
+  literal `//` which no real absolute path starts with, rejecting every
+  valid path. Detect this case and accept any absolute path while still
+  rejecting relative paths.
+  See [#88](https://github.com/netresearch/t3x-nr-image-optimize/pull/88).
+
+## TESTS
+
+- New functional test `ProcessorSymlinkedFileadminTest` reproduces the
+  exact Chemnitz AWS/ECS + EFS production layout (all three of
+  `public/fileadmin`, `public/processed`, `public/uploads` symlinked to
+  `/mnt/efs/cms/...`) against the real DI container and FAL LocalDriver.
+  Empirically verified to fail when either the #70 core or the #76
+  follow-up fix is disabled, so this closes the end-to-end loop the prior
+  unit tests missed.
+- New unit regression
+  `isPathWithinAllowedRootsDoesNotCacheDegradedFallbackOnStorageThrow`
+  covers the bootstrap-race cache-poisoning semantics described above.
+
+## CI
+
+- Coverage driver switched from pcov to xdebug via
+  `coverage-tool: xdebug` on the reusable `netresearch/typo3-ci-workflows`
+  ci.yml. Matches the local dev driver (`XDEBUG_MODE=coverage`) and gives
+  branch + path coverage instead of pcov's line-only signal. ~2-3 min
+  extra runtime across the matrix.
+- Functional tests now also run in CI (previously skipped because
+  `run-functional-tests` defaulted to false; now enabled together with
+  `imagick` + `gd` PHP extensions required by the Intervention\Image
+  driver).
+- `Build/Scripts/runTests.sh` builds a thin derived Docker image
+  (`nr-image-optimize-testing-php${PHP_VERSION}`) that adds Imagick
+  on top of the upstream `ghcr.io/typo3/core-testing-*` image via
+  `pecl install imagick` + `docker-php-ext-enable`, so functional tests
+  run locally too without CI-only workarounds.
+
+## Contributors
+
+- Sebastian Mendel
+
 # 1.1.1
 
 ## BUGFIX
