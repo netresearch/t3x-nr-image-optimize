@@ -259,8 +259,17 @@ class SourceSetViewHelperHtmlOutputTest extends TestCase
         self::assertStringContainsString('/processed/fileadmin/product.w600h400m0q100.jpg 2x', $srcset);
     }
 
+    /**
+     * For universally-supported formats (JPEG, PNG, GIF) the view helper
+     * deliberately omits the `type` attribute — every browser that supports
+     * `<picture>` also supports those formats, so the type hint would only
+     * add markup noise without giving the browser any skip-signal.
+     *
+     * See `SourceSetViewHelper::EXTENSION_MIME_MAP` for the intentional
+     * format whitelist (webp, avif only).
+     */
     #[Test]
-    public function sourceElementHasCorrectTypeAttribute(): void
+    public function sourceElementHasNoTypeAttributeForJpeg(): void
     {
         $this->viewHelper->setArguments([
             'path'   => '/fileadmin/product.jpg',
@@ -276,11 +285,14 @@ class SourceSetViewHelperHtmlOutputTest extends TestCase
 
         $source = $this->getFirstElement($doc, 'source');
         self::assertNotNull($source);
-        self::assertSame('image/jpeg', $source->getAttribute('type'));
+        self::assertFalse(
+            $source->hasAttribute('type'),
+            'source elements for JPEG must not carry a type attribute (universally supported format)',
+        );
     }
 
     #[Test]
-    public function sourceElementHasCorrectTypeForPng(): void
+    public function sourceElementHasNoTypeAttributeForPng(): void
     {
         $this->viewHelper->setArguments([
             'path'   => '/fileadmin/product.png',
@@ -296,7 +308,78 @@ class SourceSetViewHelperHtmlOutputTest extends TestCase
 
         $source = $this->getFirstElement($doc, 'source');
         self::assertNotNull($source);
-        self::assertSame('image/png', $source->getAttribute('type'));
+        self::assertFalse(
+            $source->hasAttribute('type'),
+            'source elements for PNG must not carry a type attribute (universally supported format)',
+        );
+    }
+
+    #[Test]
+    public function sourceElementHasNoTypeAttributeForGif(): void
+    {
+        $this->viewHelper->setArguments([
+            'path'   => '/fileadmin/animation.gif',
+            'width'  => 600,
+            'height' => 400,
+            'set'    => [
+                480 => ['width' => 300, 'height' => 200],
+            ],
+        ]);
+
+        $html = $this->viewHelper->render();
+        $doc  = $this->parseHtml($html);
+
+        $source = $this->getFirstElement($doc, 'source');
+        self::assertNotNull($source);
+        self::assertFalse(
+            $source->hasAttribute('type'),
+            'source elements for GIF must not carry a type attribute (universally supported format)',
+        );
+    }
+
+    /**
+     * For next-gen formats (webp, avif) the type attribute lets the browser
+     * skip downloading a `<source>` it can't decode, so the view helper
+     * emits it explicitly.
+     */
+    #[Test]
+    public function sourceElementHasCorrectTypeForWebp(): void
+    {
+        $this->viewHelper->setArguments([
+            'path'   => '/fileadmin/photo.webp',
+            'width'  => 600,
+            'height' => 400,
+            'set'    => [
+                480 => ['width' => 300, 'height' => 200],
+            ],
+        ]);
+
+        $html = $this->viewHelper->render();
+        $doc  = $this->parseHtml($html);
+
+        $source = $this->getFirstElement($doc, 'source');
+        self::assertNotNull($source);
+        self::assertSame('image/webp', $source->getAttribute('type'));
+    }
+
+    #[Test]
+    public function sourceElementHasCorrectTypeForAvif(): void
+    {
+        $this->viewHelper->setArguments([
+            'path'   => '/fileadmin/photo.avif',
+            'width'  => 600,
+            'height' => 400,
+            'set'    => [
+                480 => ['width' => 300, 'height' => 200],
+            ],
+        ]);
+
+        $html = $this->viewHelper->render();
+        $doc  = $this->parseHtml($html);
+
+        $source = $this->getFirstElement($doc, 'source');
+        self::assertNotNull($source);
+        self::assertSame('image/avif', $source->getAttribute('type'));
     }
 
     // ──────────────────────────────────────────────────
