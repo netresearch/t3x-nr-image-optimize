@@ -95,7 +95,12 @@ final class ProcessorSymlinkedFileadminTest extends FunctionalTestCase
         // same case and only populates pathsToProvideInTestInstance on the
         // first test, so subsequent setUps rely on the staged copy still
         // being readable at its original location.
-        copy($fixture, $this->externalMount . '/fileadmin/test-image.png');
+        $fixtureTarget = $this->externalMount . '/fileadmin/test-image.png';
+        self::assertTrue(
+            copy($fixture, $fixtureTarget),
+            sprintf('Fixture copy failed: %s -> %s', $fixture, $fixtureTarget),
+        );
+        self::assertFileExists($fixtureTarget, 'Fixture copy silently produced no file');
 
         // Replace the real public/fileadmin directory (created by the
         // testing framework) with a symlink pointing into the external
@@ -216,11 +221,11 @@ final class ProcessorSymlinkedFileadminTest extends FunctionalTestCase
     private function replaceDirWithSymlink(string $linkTarget, string $linkDestination): void
     {
         if (is_link($linkTarget)) {
-            unlink($linkTarget);
+            unlink($linkTarget); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp symlink
         } elseif (is_dir($linkTarget)) {
             $this->removeRecursive($linkTarget);
         } elseif (file_exists($linkTarget)) {
-            unlink($linkTarget);
+            unlink($linkTarget); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
         }
 
         symlink($linkDestination, $linkTarget);
@@ -234,7 +239,7 @@ final class ProcessorSymlinkedFileadminTest extends FunctionalTestCase
     private function removeRecursive(string $path): void
     {
         if (is_link($path) || is_file($path)) {
-            unlink($path);
+            unlink($path); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp files
 
             return;
         }

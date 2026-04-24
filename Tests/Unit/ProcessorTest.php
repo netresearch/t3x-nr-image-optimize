@@ -1892,12 +1892,20 @@ class ProcessorTest extends TestCase
 
             // First call hits the throw: fileadmin path is only accepted if
             // the processor also falls back to accepting paths under the
-            // public root (fileadmin lives inside public/, so this passes)
+            // public root (fileadmin lives inside public/, so this passes).
+            // This simulates request N where findAll() throws.
             self::assertTrue($this->callMethod(
                 $processor,
                 'isPathWithinAllowedRoots',
                 $tempDir . '/public/fileadmin',
             ));
+
+            // Simulate the next incoming request by resetting the instance-
+            // level requestAllowedRoots cache (in production, generateAndSend()
+            // does this at its entry). Without this reset the test would not
+            // catch the degraded-static-cache bug — only the instance cache
+            // would shield the second call from findAll() re-invocation.
+            $this->setProperty($processor, 'requestAllowedRoots', null);
 
             // Second call must trigger findAll() AGAIN — that's the whole
             // point: recover once the transient error has cleared.
