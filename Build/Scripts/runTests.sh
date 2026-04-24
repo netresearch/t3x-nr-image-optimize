@@ -154,9 +154,6 @@ IMAGE_MARIADB="docker.io/mariadb:10"
 IMAGE_MYSQL="docker.io/mysql:8.0"
 IMAGE_POSTGRES="docker.io/postgres:16-alpine"
 
-# PHP version without dot, used for apk package names (php84-pecl-imagick)
-PHP_VERSION_NODOT="${PHP_VERSION//./}"
-
 # Build (or rebuild) a thin derived image that adds the Imagick PHP
 # extension to the upstream core-testing image. The intervention/image
 # driver used by the Processor requires imagick; the upstream core-testing
@@ -165,6 +162,11 @@ PHP_VERSION_NODOT="${PHP_VERSION//./}"
 # "Imagick PHP extension must be installed to use this driver".
 # CI sets this up via shivammathur/setup-php with php-extensions input —
 # this step gives local runs the same environment.
+#
+# The upstream image is docker-php based (php installs under /usr/local),
+# NOT the alpine-apk PHP, so the matching toolchain is pecl + the
+# docker-php-ext-enable helper. apk packages like php84-pecl-imagick
+# target the alpine /etc/php84 install and would not be picked up.
 ensure_imagick_image() {
     local base="${IMAGE_PHP_BASE}"
     local tagged="${IMAGE_PHP}"
@@ -176,7 +178,11 @@ ensure_imagick_image() {
         echo "Building ${tagged} (adding imagick on top of ${base})..."
         ${CONTAINER_BIN} build --quiet --tag "${tagged}" - <<EOF
 FROM ${base}
-RUN apk add --no-cache php${PHP_VERSION_NODOT}-pecl-imagick
+RUN set -eux; \
+    apk add --no-cache --virtual .build-deps \$PHPIZE_DEPS imagemagick-dev pkgconf; \
+    pecl install imagick; \
+    docker-php-ext-enable imagick; \
+    apk del --no-network .build-deps
 EOF
     fi
 }
