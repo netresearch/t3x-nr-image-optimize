@@ -147,16 +147,44 @@ case "${DBMS}" in
 esac
 
 # Docker images
-IMAGE_PHP="ghcr.io/typo3/core-testing-$(echo "php${PHP_VERSION}" | sed -e 's/\.//'):latest"
+IMAGE_PHP_BASE="ghcr.io/typo3/core-testing-$(echo "php${PHP_VERSION}" | sed -e 's/\.//'):latest"
+IMAGE_PHP="nr-image-optimize-testing-php${PHP_VERSION}:latest"
 IMAGE_ALPINE="docker.io/alpine:3.22"
 IMAGE_MARIADB="docker.io/mariadb:10"
 IMAGE_MYSQL="docker.io/mysql:8.0"
 IMAGE_POSTGRES="docker.io/postgres:16-alpine"
 
+# PHP version without dot, used for apk package names (php84-pecl-imagick)
+PHP_VERSION_NODOT="${PHP_VERSION//./}"
+
+# Build (or rebuild) a thin derived image that adds the Imagick PHP
+# extension to the upstream core-testing image. The intervention/image
+# driver used by the Processor requires imagick; the upstream core-testing
+# containers ship GD but NOT imagick, which makes every functional test
+# that constructs the Processor fail locally with
+# "Imagick PHP extension must be installed to use this driver".
+# CI sets this up via shivammathur/setup-php with php-extensions input —
+# this step gives local runs the same environment.
+ensure_imagick_image() {
+    local base="${IMAGE_PHP_BASE}"
+    local tagged="${IMAGE_PHP}"
+
+    # Refresh if the base image was just pulled or if the derived image
+    # does not exist yet; rebuilding is idempotent and the Dockerfile
+    # below has exactly one cache-friendly RUN layer.
+    if [ "${UPDATE_IMAGES}" = "yes" ] || ! ${CONTAINER_BIN} image inspect "${tagged}" >/dev/null 2>&1; then
+        echo "Building ${tagged} (adding imagick on top of ${base})..."
+        ${CONTAINER_BIN} build --quiet --tag "${tagged}" - <<EOF
+FROM ${base}
+RUN apk add --no-cache php${PHP_VERSION_NODOT}-pecl-imagick
+EOF
+    fi
+}
+
 # Update images if requested
 if [ "${UPDATE_IMAGES}" = "yes" ]; then
     echo "Pulling latest Docker images..."
-    ${CONTAINER_BIN} pull "${IMAGE_PHP}"
+    ${CONTAINER_BIN} pull "${IMAGE_PHP_BASE}"
     case "${DBMS}" in
         mariadb)  ${CONTAINER_BIN} pull "${IMAGE_MARIADB}" ;;
         mysql)    ${CONTAINER_BIN} pull "${IMAGE_MYSQL}" ;;
@@ -164,6 +192,11 @@ if [ "${UPDATE_IMAGES}" = "yes" ]; then
     esac
     echo ""
 fi
+
+# Ensure the imagick-enabled derived image exists before any suite that
+# might run PHP against this project's codebase (cheap cache hit if
+# already built).
+ensure_imagick_image
 
 # Common container parameters
 CONTAINER_COMMON_PARAMS="--rm ${CI_PARAMS} --network ${NETWORK} -v ${ROOT_DIR}:${ROOT_DIR} -w ${ROOT_DIR}"

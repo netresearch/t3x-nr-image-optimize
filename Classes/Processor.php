@@ -173,6 +173,25 @@ class Processor implements LoggerAwareInterface, ProcessorInterface
     private static array $resolvedAllowedRootsByPublicPath = [];
 
     /**
+     * Per-request memoization of the resolved allowed-roots list.
+     *
+     * Reset at the top of generateAndSend() so a single request computes the
+     * list at most once — even on the error path where StorageRepository
+     * throws. Without this, getAllowedRoots() would be invoked three times
+     * per failing request (once per pathOriginal, pathVariant, and for the
+     * log context), each invocation retrying findAll() and emitting the
+     * "StorageRepository unavailable" warning. That log flood surfaced in
+     * the #91/#92 PR review as a real observability concern.
+     *
+     * The static per-process cache ($resolvedAllowedRootsByPublicPath)
+     * handles the happy path across requests. This instance cache handles
+     * repeated calls within one request — on the failure path especially.
+     *
+     * @var list<string>|null
+     */
+    private ?array $requestAllowedRoots = null;
+
+    /**
      * Initialize the image processor with all required dependencies.
      *
      * @param ImageReaderInterface     $imageReader       Adapter for loading images (v3/v4 compatible)
@@ -218,6 +237,11 @@ class Processor implements LoggerAwareInterface, ProcessorInterface
      */
     public function generateAndSend(ServerRequestInterface $request): ResponseInterface
     {
+        // Reset the per-request allowed-roots memoization so a fresh list
+        // (or a fresh retry of StorageRepository::findAll() if it was
+        // unavailable earlier) is computed on the first call below.
+        $this->requestAllowedRoots = null;
+
         $variantUrl = urldecode($request->getUri()->getPath());
 
         $urlInfo = $this->gatherInformationBasedOnUrl($variantUrl);
@@ -792,10 +816,19 @@ class Processor implements LoggerAwareInterface, ProcessorInterface
      */
     private function getAllowedRoots(): array
     {
+        // Per-request memoization: return the list computed earlier in
+        // this same request (including any degraded fallback from a
+        // StorageRepository throw), avoiding a redundant findAll() +
+        // duplicate warning log for the log-context and second
+        // isPathWithinAllowedRoots() call below.
+        if ($this->requestAllowedRoots !== null) {
+            return $this->requestAllowedRoots;
+        }
+
         $publicPathRaw = Environment::getPublicPath();
 
         if (isset(self::$resolvedAllowedRootsByPublicPath[$publicPathRaw])) {
-            return self::$resolvedAllowedRootsByPublicPath[$publicPathRaw];
+            return $this->requestAllowedRoots = self::$resolvedAllowedRootsByPublicPath[$publicPathRaw];
         }
 
         $roots      = [];
@@ -901,13 +934,19 @@ class Processor implements LoggerAwareInterface, ProcessorInterface
 
         $resolved = array_keys($roots);
 
-        // Only cache successful lookups. If the StorageRepository threw, the
-        // allow-list is degraded (public root only, without FAL storages).
-        // Caching that would persist the degraded result for the rest of the
-        // PHP-FPM worker's lifetime — every storage-backed variant request
-        // would return 400 until the worker recycles, even after the
-        // transient failure (TCA not yet loaded, DB hiccup, cache rebuild,
-        // etc.) has cleared. Retry on the next request instead.
+        // Always populate the per-request cache so follow-up calls in the
+        // same request (second isPathWithinAllowedRoots, log context, …)
+        // reuse this result instead of retrying findAll() and re-emitting
+        // the StorageRepository-unavailable warning.
+        $this->requestAllowedRoots = $resolved;
+
+        // Only populate the static per-process cache on success. A degraded
+        // fallback (public root only, without FAL storages) must not be
+        // cached across requests — otherwise a single transient failure
+        // (TCA not yet loaded, DB hiccup, cache rebuild, …) poisons every
+        // storage-backed variant request for the rest of the PHP-FPM
+        // worker's lifetime. generateAndSend() resets the per-request
+        // cache on the next invocation, giving findAll() another chance.
         if (!$storageLookupFailed) {
             self::$resolvedAllowedRootsByPublicPath[$publicPathRaw] = $resolved;
         }
