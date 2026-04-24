@@ -19,6 +19,8 @@ use Netresearch\NrImageOptimize\Controller\MaintenanceController;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use TYPO3\CMS\Core\Core\Environment;
+use TYPO3\CMS\Core\Core\SystemEnvironmentBuilder;
+use TYPO3\CMS\Core\Http\ServerRequest;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
 
@@ -45,8 +47,22 @@ final class MaintenanceControllerTest extends FunctionalTestCase
         // (ModuleTemplateFactory, SystemRequirementsService, LanguageServiceFactory).
         // A ContainerExceptionInterface is thrown if any dependency is missing.
         // The expectation is implicit: no exception = success.
-        $this->get(MaintenanceController::class);
-        $this->addToAssertionCount(1);
+        //
+        // MaintenanceController extends Extbase's ActionController whose
+        // constructor resolves ConfigurationManager; that manager reads
+        // from $GLOBALS['TYPO3_REQUEST'] and calls ApplicationType::fromRequest,
+        // which requires an `applicationType` request attribute.
+        // Functional tests don't set that up, so plant a minimal backend
+        // request here — the controller is only instantiated, not invoked.
+        $GLOBALS['TYPO3_REQUEST'] = (new ServerRequest('https://example.com/typo3/'))
+            ->withAttribute('applicationType', SystemEnvironmentBuilder::REQUESTTYPE_BE);
+
+        try {
+            $this->get(MaintenanceController::class);
+            $this->addToAssertionCount(1);
+        } finally {
+            unset($GLOBALS['TYPO3_REQUEST']);
+        }
     }
 
     #[Test]
