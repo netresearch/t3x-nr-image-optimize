@@ -32,13 +32,48 @@ parameters:
         # at odds with idiomatic TYPO3 extension code. Suppress rather than
         # fight the framework. Rules that catch real bugs (type safety,
         # architecture layering via phpat, ergebnis.final*) stay active.
-        - identifier: ergebnis.noNamedArgument          # PHP 8 idiom
+        # ergebnis.noNamedArgument — PHP 8 named arguments are idiomatic
+        # (improves constructor-call readability for DTOs/events with many
+        # params). Kept blanket-suppressed; the rule is a style preference
+        # we explicitly reject.
+        - identifier: ergebnis.noNamedArgument
           reportUnmatched: false
+        # ergebnis.noParameterWithNullableTypeDeclaration — `?X` parameters
+        # model the "Maybe<X>" pattern (unconstrained dimension, optional
+        # quality override, optional display label). Introducing sentinels
+        # or builder objects would be strictly worse than the PHP-native
+        # idiom. Path-scoped so new nullable params outside these files
+        # still flag.
         - identifier: ergebnis.noParameterWithNullableTypeDeclaration
+          paths:
+              - %currentWorkingDirectory%/Classes/Controller/MaintenanceController.php
+              - %currentWorkingDirectory%/Classes/Event/ImageProcessedEvent.php
+              - %currentWorkingDirectory%/Classes/Processor.php
+              - %currentWorkingDirectory%/Classes/Service/ImageOptimizer.php
+              - %currentWorkingDirectory%/Classes/Service/SystemRequirementsService.php
+              - %currentWorkingDirectory%/Tests/*
           reportUnmatched: false
+        # ergebnis.noNullableReturnTypeDeclaration — `?X` return types model
+        # "find-or-null" lookup semantics (cache miss, file-not-found,
+        # binary-not-available, version-not-detected). Throwing exceptions
+        # for each not-found case would invert the control flow for purely
+        # optional queries. Path-scoped.
         - identifier: ergebnis.noNullableReturnTypeDeclaration
+          paths:
+              - %currentWorkingDirectory%/Classes/Processor.php
+              - %currentWorkingDirectory%/Classes/Service/ImageOptimizer.php
+              - %currentWorkingDirectory%/Classes/Service/SystemRequirementsService.php
+              - %currentWorkingDirectory%/Tests/*
           reportUnmatched: false
+        # ergebnis.noParameterWithNullDefaultValue — `?X $x = null` is the
+        # PHP-native "use configured default when absent" pattern. The two
+        # affected services load their real defaults from constructor
+        # config at call time. Path-scoped.
         - identifier: ergebnis.noParameterWithNullDefaultValue
+          paths:
+              - %currentWorkingDirectory%/Classes/Service/ImageOptimizer.php
+              - %currentWorkingDirectory%/Classes/Service/SystemRequirementsService.php
+              - %currentWorkingDirectory%/Tests/*
           reportUnmatched: false
         # ergebnis.noExtends — only allowed where the framework requires inheritance
         # (Symfony Command, TYPO3 ActionController, Fluid ViewHelper, TYPO3 FunctionalTestCase).
