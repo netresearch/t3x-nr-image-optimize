@@ -33,6 +33,7 @@ use function file_exists;
 use function filemtime;
 use function filesize;
 use function gmdate;
+use function implode;
 use function is_dir;
 use function is_link;
 use function is_string;
@@ -202,15 +203,38 @@ class Processor
 
         $urlInfo = $this->gatherInformationBasedOnUrl($variantUrl);
 
-        // Reject requests that did not match the expected URL pattern
+        // Reject requests that did not match the expected URL pattern.
+        // Intentionally logged via error_log() (not the PSR logger) for
+        // consistency with the existing catch-branch diagnostic in
+        // getAllowedRoots(): this TYPO3_12 maintenance-branch keeps a
+        // narrow dependency surface and does not pull in LoggerAwareTrait.
         if ($urlInfo === null) {
+            error_log(sprintf(
+                'nr_image_optimize: rejecting variant request with 400 (URL does not match expected pattern): url=%s',
+                $variantUrl,
+            ));
+
             return $this->responseFactory->createResponse(400);
         }
 
         // Validate that both resolved paths stay within an allowed root
-        if (!$this->isPathWithinAllowedRoots($urlInfo['pathOriginal'])
-            || !$this->isPathWithinAllowedRoots($urlInfo['pathVariant'])
-        ) {
+        $originalAllowed = $this->isPathWithinAllowedRoots($urlInfo['pathOriginal']);
+        $variantAllowed  = $this->isPathWithinAllowedRoots($urlInfo['pathVariant']);
+
+        if (!$originalAllowed || !$variantAllowed) {
+            error_log(sprintf(
+                'nr_image_optimize: rejecting variant request with 400 (path outside allowed roots): '
+                . 'url=%s pathOriginal=%s pathVariant=%s originalAllowed=%s variantAllowed=%s '
+                . 'allowedRoots=[%s] publicPath=%s',
+                $variantUrl,
+                $urlInfo['pathOriginal'],
+                $urlInfo['pathVariant'],
+                $originalAllowed ? '1' : '0',
+                $variantAllowed ? '1' : '0',
+                implode(', ', $this->getAllowedRoots()),
+                Environment::getPublicPath(),
+            ));
+
             return $this->responseFactory->createResponse(400);
         }
 
@@ -699,6 +723,12 @@ class Processor
             $roots[$publicPath] = true;
         }
 
+        // The try/catch also protects tests that construct Processor via
+        // ReflectionClass::newInstanceWithoutConstructor() without injecting
+        // this readonly property — accessing an uninitialized typed property
+        // throws Error, which extends Throwable.
+        $storageLookupFailed = false;
+
         try {
             foreach ($this->storageRepository->findAll() as $storage) {
                 if ($storage->getDriverType() !== 'Local') {
@@ -738,6 +768,8 @@ class Processor
                 'nr_image_optimize: path validation limited to public root; StorageRepository unavailable: %s',
                 $e->getMessage(),
             ));
+
+            $storageLookupFailed = true;
         }
 
         // The FAL-storage lookup above resolves fileadmin (its basePath is
@@ -787,7 +819,16 @@ class Processor
 
         $resolved = array_keys($roots);
 
-        self::$resolvedAllowedRootsByPublicPath[$publicPathRaw] = $resolved;
+        // Only cache successful lookups. If the StorageRepository threw, the
+        // allow-list is degraded (public root only, without FAL storages).
+        // Caching that would persist the degraded result for the rest of the
+        // PHP-FPM worker's lifetime — every storage-backed variant request
+        // would return 400 until the worker recycles, even after the
+        // transient failure (TCA not yet loaded, DB hiccup, cache rebuild,
+        // etc.) has cleared. Retry on the next request instead.
+        if (!$storageLookupFailed) {
+            self::$resolvedAllowedRootsByPublicPath[$publicPathRaw] = $resolved;
+        }
 
         return $resolved;
     }

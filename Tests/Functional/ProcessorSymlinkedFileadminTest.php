@@ -1,6 +1,6 @@
 <?php
 
-/*
+/**
  * This file is part of the package netresearch/nr-image-optimize.
  *
  * For the full copyright and license information, please read the
@@ -19,6 +19,19 @@ use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Http\ServerRequest;
 use TYPO3\CMS\Core\Http\Uri;
 use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
+
+use function copy;
+use function dirname;
+use function file_exists;
+use function is_dir;
+use function is_file;
+use function is_link;
+use function mkdir;
+use function rmdir;
+use function scandir;
+use function symlink;
+use function uniqid;
+use function unlink;
 
 /**
  * Functional regression tests for issue #70 and its follow-ups, exercising
