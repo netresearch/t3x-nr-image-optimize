@@ -5,11 +5,14 @@
 - **#70 follow-up diagnosability & cache robustness.** The 1.1.0/1.1.1 fixes
   silently returned HTTP 400 to clients when path validation rejected a
   request, leaving admins no signal to diagnose from. `Processor::generateAndSend()`
-  now logs both 400 branches via `error_log()`: the URL-pattern-mismatch
-  path at info level (scanners hit this constantly, so warning would drown
-  out genuine issues) and the path-outside-allowed-roots path at warning
-  level with full diagnostic context (url, pathOriginal, pathVariant,
-  which check failed, allowedRoots, publicPath).
+  now logs both 400 branches via `error_log()` so the rejection reason
+  reaches the SAPI error log: the URL-pattern-mismatch path with a short
+  one-line message (scanners hit this constantly, so a longer dump would
+  drown out genuine issues) and the path-outside-allowed-roots path with
+  full diagnostic context (url, pathOriginal, pathVariant, which check
+  failed, allowedRoots, publicPath). Both lines are written at the same
+  SAPI level — `error_log()` does not expose distinct severity tiers; the
+  two paths are distinguishable by message content, not log level.
 - **Cache poisoning on transient `StorageRepository` failure.** Previously a
   single `findAll()` throw during early TYPO3 bootstrap (TCA not yet loaded,
   DB hiccup, cache rebuild) populated the per-process allowed-roots cache
