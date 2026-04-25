@@ -47,7 +47,7 @@
         "intervention/image": "3.7.2 || 3.11.1"
     },
     "require-dev": {
-        "netresearch/typo3-ci-workflows": "^1.1"
+        "netresearch/typo3-ci-workflows": "~1.2.0"
     },
     "replace": {
         "saschaegerer/phpstan-typo3": "2.1.1"
