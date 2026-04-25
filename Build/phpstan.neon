@@ -43,7 +43,9 @@ parameters:
         # quality override, optional display label). Introducing sentinels
         # or builder objects would be strictly worse than the PHP-native
         # idiom. Path-scoped so new nullable params outside these files
-        # still flag.
+        # still flag. Tests/* is included because fixtures and data
+        # providers exercise the same prod signatures (otherwise every
+        # `?int $width` test case would re-flag the rule).
         - identifier: ergebnis.noParameterWithNullableTypeDeclaration
           paths:
               - %currentWorkingDirectory%/Classes/Controller/MaintenanceController.php
@@ -57,7 +59,8 @@ parameters:
         # "find-or-null" lookup semantics (cache miss, file-not-found,
         # binary-not-available, version-not-detected). Throwing exceptions
         # for each not-found case would invert the control flow for purely
-        # optional queries. Path-scoped.
+        # optional queries. Path-scoped. Tests/* is included because test
+        # doubles and helper methods mirror the prod return shapes.
         - identifier: ergebnis.noNullableReturnTypeDeclaration
           paths:
               - %currentWorkingDirectory%/Classes/Processor.php
@@ -68,7 +71,9 @@ parameters:
         # ergebnis.noParameterWithNullDefaultValue — `?X $x = null` is the
         # PHP-native "use configured default when absent" pattern. The two
         # affected services load their real defaults from constructor
-        # config at call time. Path-scoped.
+        # config at call time. Path-scoped. Tests/* is included because
+        # tests instantiate these services directly and re-use the same
+        # `?X $x = null` signatures.
         - identifier: ergebnis.noParameterWithNullDefaultValue
           paths:
               - %currentWorkingDirectory%/Classes/Service/ImageOptimizer.php
