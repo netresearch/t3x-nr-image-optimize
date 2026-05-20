@@ -137,7 +137,7 @@
             </trans-unit>
             <trans-unit id="sysreq.details" resname="sysreq.details">
                 <source>Details</source>
-                <note from="developer">Table column header for a row-level info icon that reveals additional technical details via a tooltip. Short label.</note>
+                <note from="developer">Table column header showing inline diagnostic info per check (e.g. PHP build, ImageMagick delegates, CLI binary path + version, Composer source).</note>
             </trans-unit>
             <trans-unit id="sysreq.status.available" resname="sysreq.status.available">
                 <source>Available</source>
