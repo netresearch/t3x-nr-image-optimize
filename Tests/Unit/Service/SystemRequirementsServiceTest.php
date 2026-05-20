@@ -400,24 +400,26 @@ final class SystemRequirementsServiceTest extends TestCase
     public function makeFormatSupportItemReturnsCorrectStructureWhenSupported(): void
     {
         /** @var array<string, mixed> $result */
-        $result = $this->callMethod('makeFormatSupportItem', 'sysreq.webpSupport', true);
+        $result = $this->callMethod('makeFormatSupportItem', 'sysreq.webpSupport', true, 'Imagick delegate');
 
         self::assertSame('sysreq.webpSupport', $result['labelKey']);
         self::assertSame('success', $result['status']);
         self::assertSame('sysreq.yes', $result['currentKey']);
         self::assertSame('sysreq.optional', $result['requiredKey']);
+        self::assertSame('Provided by Imagick delegate', $result['details']);
     }
 
     #[Test]
     public function makeFormatSupportItemReturnsCorrectStructureWhenNotSupported(): void
     {
         /** @var array<string, mixed> $result */
-        $result = $this->callMethod('makeFormatSupportItem', 'sysreq.avifSupport', false);
+        $result = $this->callMethod('makeFormatSupportItem', 'sysreq.avifSupport', false, 'GD libavif');
 
         self::assertSame('sysreq.avifSupport', $result['labelKey']);
         self::assertSame('warning', $result['status']);
         self::assertSame('sysreq.no', $result['currentKey']);
         self::assertSame('sysreq.optional', $result['requiredKey']);
+        self::assertSame('Not provided by GD libavif', $result['details']);
     }
 
     #[Test]
