@@ -217,7 +217,7 @@
             </trans-unit>
             <trans-unit id="sysreq.optional" resname="sysreq.optional">
                 <source>Optional</source>
-                <note from="developer">Short "Required" value indicating that the component is not mandatory. Rendered inside a small muted badge.</note>
+                <note from="developer">Short "Required" value indicating that the component is not mandatory. Rendered as muted text in the Required column.</note>
             </trans-unit>
             <trans-unit id="sysreq.supportedFormats" resname="sysreq.supportedFormats">
                 <source>Supported Formats</source>
@@ -225,7 +225,7 @@
             </trans-unit>
             <trans-unit id="sysreq.unavailable" resname="sysreq.unavailable">
                 <source>unavailable</source>
-                <note from="developer">Lowercase "Current" value used when a feature/library could not be queried. Rendered inside a code-style pill.</note>
+                <note from="developer">Lowercase "Current" value used when a feature/library could not be queried (or its environment cannot be probed, e.g. exec disabled). Rendered as inline code-colored text.</note>
             </trans-unit>
             <trans-unit id="sysreq.recommended" resname="sysreq.recommended">
                 <source>Recommended</source>
@@ -305,7 +305,7 @@
             </trans-unit>
             <trans-unit id="sysreq.unknown" resname="sysreq.unknown">
                 <source>unknown</source>
-                <note from="developer">Lowercase "Current" value used when a version could not be determined. Rendered inside a code-style pill.</note>
+                <note from="developer">Lowercase "Current" value used when a version could not be determined. Rendered as inline code-colored text.</note>
             </trans-unit>
         </body>
     </file>

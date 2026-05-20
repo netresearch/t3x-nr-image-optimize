@@ -33,7 +33,6 @@ use function ini_get;
 use function is_array;
 use function is_file;
 use function json_decode;
-use function php_sapi_name;
 use function phpversion;
 use function shell_exec;
 
@@ -153,7 +152,8 @@ final class SystemRequirementsService
             $loaded     = extension_loaded($ext);
             $isOptional = in_array($ext, self::OPTIONAL_PHP_EXTENSIONS, true);
             $status     = $loaded ? 'success' : ($isOptional ? 'warning' : 'error');
-            $extVersion = $loaded ? (phpversion($ext) !== false ? phpversion($ext) : null) : null;
+            $rawVersion = $loaded ? phpversion($ext) : false;
+            $extVersion = $rawVersion !== false ? $rawVersion : null;
 
             $items[] = $this->makeItem(
                 'sysreq.phpExtension',
@@ -174,15 +174,7 @@ final class SystemRequirementsService
      */
     private function getPhpDetails(): string
     {
-        $parts = ['Zend Engine ' . zend_version()];
-
-        $sapi = php_sapi_name();
-
-        if ($sapi !== false) {
-            $parts[] = 'SAPI: ' . $sapi;
-        }
-
-        return implode(', ', $parts);
+        return 'Zend Engine ' . zend_version() . ', SAPI: ' . PHP_SAPI;
     }
 
     /**
@@ -392,7 +384,7 @@ final class SystemRequirementsService
                 : null;
 
             if ($installed) {
-                $source = 'Composer\\InstalledVersions';
+                $source = InstalledVersions::class;
             } else {
                 [$version, $source] = $this->findVersionFromComposerInstalledWithSource($name);
                 $installed          = $version !== null;
@@ -464,16 +456,29 @@ final class SystemRequirementsService
         );
 
         foreach (self::CLI_TOOLS as $cmd => $labelKey) {
-            $res    = $this->checkBinaryAvailability($cmd, $execAllowed);
-            $status = $res['available'] === true ? 'success' : 'warning';
+            $res = $this->checkBinaryAvailability($cmd, $execAllowed);
+
+            if ($res['available'] === null) {
+                $items[] = $this->makeItem(
+                    $labelKey,
+                    null,
+                    null,
+                    'warning',
+                    details: 'Cannot probe binary while exec is disabled',
+                    currentKey: 'sysreq.unavailable',
+                    requiredKey: 'sysreq.optional',
+                );
+
+                continue;
+            }
 
             $items[] = $this->makeItem(
                 $labelKey,
                 $res['version'],
                 null,
-                $status,
+                $res['available'] ? 'success' : 'warning',
                 details: $this->buildCliDetails($res),
-                currentKey: $res['available'] === true ? 'sysreq.found' : 'sysreq.notFound',
+                currentKey: $res['available'] ? 'sysreq.found' : 'sysreq.notFound',
                 requiredKey: 'sysreq.optional',
             );
         }
@@ -482,7 +487,7 @@ final class SystemRequirementsService
     }
 
     /**
-     * Build the tooltip details string for a CLI tool item.
+     * Build the inline details string for a CLI tool item (binary path + full version output).
      *
      * @param array{available: bool|null, version: string|null, path?: string|null, fullVersion?: string|null} $res
      */
@@ -548,25 +553,6 @@ final class SystemRequirementsService
             'path'        => $path,
             'fullVersion' => $ver !== '' ? $ver : null,
         ];
-    }
-
-    /**
-     * Find package version from composer installed.json or composer.lock.
-     *
-     * Kept as a thin convenience wrapper around the source-tracking variant
-     * because the test suite invokes it directly via reflection.
-     *
-     * @param string $package Composer package name (e.g., 'vendor/package')
-     *
-     * @return string|null Package version or null if not found
-     *
-     * @phpstan-ignore method.unused
-     */
-    private function findVersionFromComposerInstalled(string $package): ?string
-    {
-        [$version] = $this->findVersionFromComposerInstalledWithSource($package);
-
-        return $version;
     }
 
     /**
