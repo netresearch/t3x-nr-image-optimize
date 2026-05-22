@@ -13,12 +13,16 @@ use Netresearch\NrImageOptimize\Controller\MaintenanceController;
 
 return [
     'nr_image_optimize' => [
-        'parent'            => 'tools',
-        'position'          => ['after' => 'toolsmaintenance'],
-        'access'            => 'systemMaintainer',
-        'workspaces'        => 'live',
-        'path'              => '/module/tools/nr-image-optimize',
-        'labels'            => 'LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:module.maintenance',
+        'parent'     => 'tools',
+        'position'   => ['after' => 'toolsmaintenance'],
+        'access'     => 'systemMaintainer',
+        'workspaces' => 'live',
+        'path'       => '/module/tools/nr-image-optimize',
+        'labels'     => [
+            'title'            => 'LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:module.maintenance',
+            'description'      => 'LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:module.maintenance.description',
+            'shortDescription' => 'LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:module.maintenance.title',
+        ],
         'extensionName'     => 'NrImageOptimize',
         'iconIdentifier'    => 'module-image-optimize',
         'controllerActions' => [
