@@ -1,6 +1,6 @@
 <!-- FOR AI AGENTS - Human readability is a side effect, not a goal -->
 <!-- Managed by agent: keep sections and order; edit content, not structure -->
-<!-- Last updated: 2026-04-24 | Last verified: never -->
+<!-- Last updated: 2026-06-03 | Last verified: never -->
 
 # AGENTS.md
 
@@ -164,6 +164,35 @@ composer.json    → Composer metadata (authoritative version + PHP/TYPO3 constr
 - Architecture enforcement: `phpat` via `Tests/Architecture/ArchitectureTest` (wired in `Build/phpstan.neon`).
 - PHPStan: level 10, empty baseline (enforced clean). `Build/phpstan.neon` documents path-scoped ergebnis rule suppressions per [PR #99](https://github.com/netresearch/t3x-nr-image-optimize/pull/99) / [#100](https://github.com/netresearch/t3x-nr-image-optimize/pull/100).
 <!-- AGENTS-GENERATED:END codebase-state -->
+
+## Implementation Conventions (project-specific patterns)
+<!-- Distilled from PR #49-53 review cycles; 2026-06-03 memory cleanup -->
+
+### Architecture
+- Decouple middleware from processing via `ProcessorInterface`.
+- PSR-14 events (`ImageProcessedEvent`, `VariantServedEvent`) are dispatched with a guarded `try/catch` so a faulty listener never breaks image serving.
+- Use the `getLogger()` helper to narrow the nullable `LoggerAwareTrait` property for PHPStan (instead of touching the property directly).
+
+### Security
+- Path traversal: combine the regex negative lookahead `(?:(?!\.\.).)` with a `realpath()` check against the cached public path — not one or the other.
+- XSS: run `htmlspecialchars()` on **every** tag attribute emitted in a ViewHelper `tag()` method.
+- CSP: include external JS/CSS through `f:be.pageRenderer` `includeJsFiles` / `includeCssFiles`, **not** `includeJavaScriptFiles` (inline-emitting variants break CSP).
+- Locks: wrap acquisition in `try/finally`, catch `LockCreateException`, and log lock exhaustion.
+- Error suppression is acceptable only for genuine races: `@mkdir` for TOCTOU, `@file_get_contents` only when the return value is checked.
+
+### Performance
+- Serve variants with HTTP caching headers: `Cache-Control: immutable`, `ETag`, `Last-Modified`, and `Content-Length` (via `filesize`).
+- Stream responses with `createStreamFromFile()` rather than reading the whole file with `file_get_contents()`.
+- Cache the realpath-resolved allowed roots (including the public path) in a static property.
+- Parse request data in a single pass (`parseAllModeValues()`, `parseQueryParams()`) — avoid redundant re-parsing.
+
+### Testing
+- GD-dependent tests: guard with `markTestSkipped` (run on CI where Imagick/GD is present, skip locally when absent).
+- `chmod`/permission tests: skip when running as root (`posix_geteuid() === 0`).
+- Never use `AllowMockObjectsWithoutExpectations` — it is PHPUnit 12-only and not portable across the test matrix.
+
+### CI/CD
+- `codecov` patch target accounts for extension-dependent code paths that cannot be covered in isolation.
 
 ## Scoped AGENTS.md (MUST read when working in these directories)
 <!-- AGENTS-GENERATED:START scope-index -->
