@@ -181,9 +181,9 @@ composer.json    → Composer metadata (authoritative version + PHP/TYPO3 constr
 - Error suppression is acceptable only for genuine races: `@mkdir` for TOCTOU, `@file_get_contents` only when the return value is checked.
 
 ### Performance
-- Serve variants with HTTP caching headers: `Cache-Control: immutable`, `ETag`, `Last-Modified`, and `Content-Length` (via `strlen`).
+- Serve variants with HTTP caching headers: `Cache-Control: immutable`, `ETag`, `Last-Modified`, and `Content-Length` (via `filesize`).
 - Stream responses with `createStreamFromFile()` rather than reading the whole file with `file_get_contents()`.
-- Cache the `Environment::getPublicPath()` resolution in a static property.
+- Cache the realpath-resolved allowed roots (including the public path) in a static property.
 - Parse request data in a single pass (`parseAllModeValues()`, `parseQueryParams()`) — avoid redundant re-parsing.
 
 ### Testing
