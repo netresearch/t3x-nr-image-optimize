@@ -517,7 +517,7 @@ final class SystemRequirementsService
      *   - `available`: true|false|null (null = exec disabled)
      *   - `version`: short first-line version string for the table cell
      *   - `path`: absolute path to the binary (only when available)
-     *   - `fullVersion`: complete (multi-line) version output for the tooltip
+     *   - `fullVersion`: complete (multi-line) version output for the Details cell
      *
      * @param string $cmd         Command name to look up
      * @param bool   $execAllowed Whether exec/shell_exec is permitted
@@ -689,7 +689,7 @@ final class SystemRequirementsService
      * @param string|null        $current        Current value (raw string, not translated)
      * @param string|null        $required       Required value (raw string, not translated)
      * @param string             $status         Status: 'success', 'warning', or 'error'
-     * @param string|null        $details        Tooltip details
+     * @param string|null        $details        Details cell content
      * @param array<int, string> $labelArguments Arguments for the label translation key
      * @param string|null        $currentKey     Translation key for the current value
      * @param string|null        $requiredKey    Translation key for the required value
