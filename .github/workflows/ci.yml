@@ -8,83 +8,22 @@ on:
   schedule:
     - cron: '0 6 * * 1'
 
-permissions: {}
+permissions:
+  contents: read
 
+# Per-extension test matrix (intentional-drift). Security/quality jobs are in checks.yml.
 jobs:
   ci:
     uses: netresearch/typo3-ci-workflows/.github/workflows/ci.yml@main
     permissions:
       contents: read
     with:
-        php-versions: '["8.2","8.3","8.4","8.5"]'
-        typo3-versions: '["^13.4","^14.0"]'
-        upload-coverage: true
-        # Functional tests drive the full middleware -> Processor path
-        # including real image processing. Imagick is required by the
-        # default Intervention\Image driver; gd is the fallback.
-        run-functional-tests: true
-        functional-test-db: 'sqlite'
-        php-extensions: 'intl, mbstring, xml, imagick, gd'
-        # Use xdebug instead of pcov for coverage. xdebug delivers branch
-        # coverage + path coverage and matches the local dev driver
-        # (composer ci:test:php:unit:coverage sets XDEBUG_MODE=coverage).
-        # pcov is faster but line-only; in our matrix the ~2-3 min extra
-        # CI time is worth the richer signal + local/CI parity.
-        coverage-tool: 'xdebug'
+      php-versions: '["8.2","8.3","8.4","8.5"]'
+      typo3-versions: '["^13.4","^14.0"]'
+      upload-coverage: true
+      run-functional-tests: true
+      functional-test-db: 'sqlite'
+      php-extensions: 'intl, mbstring, xml, imagick, gd'
+      coverage-tool: 'xdebug'
     secrets:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-
-  security:
-    uses: netresearch/typo3-ci-workflows/.github/workflows/security.yml@main
-    permissions:
-      contents: read
-      security-events: write
-
-  fuzz:
-    uses: netresearch/typo3-ci-workflows/.github/workflows/fuzz.yml@main
-    permissions:
-      contents: read
-    with:
-      phpunit-config: 'Build/FuzzTests.xml'
-
-  license-check:
-    uses: netresearch/typo3-ci-workflows/.github/workflows/license-check.yml@main
-    permissions:
-      contents: read
-
-  codeql:
-    uses: netresearch/.github/.github/workflows/codeql.yml@main
-    permissions:
-      contents: read
-      security-events: write
-      actions: read
-
-  scorecard:
-    if: github.event_name == 'schedule' || (github.event_name == 'push' && github.ref_name == github.event.repository.default_branch)
-    uses: netresearch/.github/.github/workflows/scorecard.yml@main
-    permissions:
-      contents: read
-      security-events: write
-      id-token: write
-      actions: read
-
-  dependency-review:
-    if: github.event_name == 'pull_request'
-    uses: netresearch/.github/.github/workflows/dependency-review.yml@main
-    permissions:
-      contents: read
-      pull-requests: write
-
-  pr-quality:
-    if: github.event_name == 'pull_request'
-    uses: netresearch/.github/.github/workflows/pr-quality.yml@main
-    permissions:
-      contents: read
-      pull-requests: write
-
-  labeler:
-    if: github.event_name == 'pull_request'
-    uses: netresearch/.github/.github/workflows/labeler.yml@main
-    permissions:
-      contents: read
-      pull-requests: write
