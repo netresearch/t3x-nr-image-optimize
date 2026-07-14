@@ -139,9 +139,9 @@ resolve such files to tokenized eID URLs
 and performs a permission check on every request.
 
 The ViewHelper detects absolute URLs (``http://``, ``https://``,
-``//``) as well as URLs containing a query string and passes them
-through unchanged, rendering a plain ``<img>`` tag with the URL as
-``src``:
+``//``), ``data:`` URIs, and URLs containing a query string and
+passes them through unchanged, rendering a plain ``<img>`` tag with
+the URL as ``src``:
 
 ..  code-block:: html
     :caption: Output for a file from a protected storage

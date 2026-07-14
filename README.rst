@@ -214,12 +214,12 @@ Supported parameters
     Typically generated via ``f:uri.image()``.
 
     The ``/processed/`` pipeline handles **public files only**.
-    Absolute URLs (``http://``, ``https://``, ``//``) and URLs with a
-    query string — e.g. the tokenized eID URLs fal_securedownload
-    generates for files in non-public storages — are passed through
-    unchanged and rendered as a plain ``<img>`` tag: no
-    ``srcset``/``sizes``, no WebP/AVIF variants, but the URL's own
-    access control stays intact.
+    Absolute URLs (``http://``, ``https://``, ``//``), ``data:`` URIs,
+    and URLs with a query string — e.g. the tokenized eID URLs
+    fal_securedownload generates for files in non-public storages —
+    are passed through unchanged and rendered as a plain ``<img>``
+    tag: no ``srcset``/``sizes``, no WebP/AVIF variants, but the
+    URL's own access control stays intact.
 
 ``width`` / ``height``
     Base width/height in px for the rendered ``<img>``.
