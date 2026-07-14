@@ -6,10 +6,27 @@
 Changelog
 =========
 
-..  _changelog-unreleased:
+..  _changelog-2-2-4:
 
-Unreleased
-==========
+2.2.4
+=====
+
+-   Fixed: the ``sourceSet`` ViewHelper passes absolute URLs
+    (``http://``, ``https://``, ``//``), ``data:`` URIs, and URLs
+    carrying a query string through unchanged and renders them as a
+    plain ``<img>`` tag. Previously such paths — e.g. the tokenized
+    ``eID=dumpFile`` URLs `fal_securedownload
+    <https://extensions.typo3.org/extension/fal_securedownload>`__
+    generates for files in non-public storages — were mangled into
+    broken :file:`/processed/...` variant paths. The access control
+    of the generating extension stays intact; see
+    :ref:`usage-protected-files` for the trade-off.
+-   Fixed: backend module labels are resolved via array format.
+
+..  _changelog-2-2-3:
+
+2.2.3
+=====
 
 -   Fixed: processed image requests no longer return
     HTTP 400 when :file:`fileadmin` (or any other Local
@@ -32,6 +49,12 @@ Unreleased
     default in TYPO3 12+) are unaffected; any code that
     extends the class or constructs it by hand must
     forward the new dependency.
+
+..  _changelog-2-2-2:
+
+2.2.2
+=====
+
 -   Added ``OptimizeOnUploadListener`` -- PSR-14 listener
     that runs ``optipng`` / ``gifsicle`` / ``jpegoptim`` on
     ``AfterFileAddedEvent`` and ``AfterFileReplacedEvent``.

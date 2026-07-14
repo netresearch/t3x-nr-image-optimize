@@ -19,6 +19,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+## [2.2.4] - 2026-07-14
+
+### Added
+
+- **Documentation of the ViewHelper's public-only scope.** New section
+  "Public images only: absolute URLs are passed through" in
+  `Documentation/Usage` and a matching note on the `path` parameter in
+  the README, spelling out the trade-off for passed-through URLs (no
+  `srcset`/`sizes`, no WebP/AVIF — access control of the generating
+  extension stays intact) and pointing to TYPO3-native processing for
+  optimized variants of protected files. (#110)
+
+### Fixed
+
+- **`sourceSet` ViewHelper: non-processable URLs are passed through
+  unchanged.** Absolute URLs (`http://`, `https://`, `//`), `data:`
+  URIs, and URLs carrying a query string — e.g. the tokenized
+  `eID=dumpFile` URLs fal_securedownload generates for files in
+  non-public FAL storages — are now rendered as a plain `<img>` tag.
+  Previously `getResourcePath()` mangled them into broken
+  `/processed/https:...` variant paths, and routing them through the
+  `/processed/` pipeline would have bypassed their permission check
+  (variants are written as static files below the public web root).
+  (#110)
+- **Backend module labels resolve via array format.** (#105)
+
 ## [2.2.3] - 2026-04-24
 
 ### Fixed
@@ -330,7 +356,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Corrected crop variant examples.
 - Improved lazy loading behavior.
 
-[Unreleased]: https://github.com/netresearch/t3x-nr-image-optimize/compare/v2.2.2...HEAD
+[Unreleased]: https://github.com/netresearch/t3x-nr-image-optimize/compare/v2.2.4...HEAD
+[2.2.4]: https://github.com/netresearch/t3x-nr-image-optimize/compare/v2.2.3...v2.2.4
+[2.2.3]: https://github.com/netresearch/t3x-nr-image-optimize/compare/v2.2.2...v2.2.3
 [2.2.2]: https://github.com/netresearch/t3x-nr-image-optimize/compare/2.2.1...v2.2.2
 [2.2.1]: https://github.com/netresearch/t3x-nr-image-optimize/compare/2.2.0...2.2.1
 [2.2.0]: https://github.com/netresearch/t3x-nr-image-optimize/compare/2.1.0...2.2.0

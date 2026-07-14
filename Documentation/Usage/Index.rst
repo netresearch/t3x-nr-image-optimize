@@ -125,6 +125,10 @@ Output comparison
 Public images only: absolute URLs are passed through
 =====================================================
 
+..  versionadded:: 2.2.4
+    Absolute URLs, ``data:`` URIs, and URLs with a query string are
+    passed through unchanged and rendered as a plain ``<img>`` tag.
+
 The ``/processed/`` endpoint is designed for **public files** only.
 It resolves the given path below the public web root and writes the
 generated variants as static files into :file:`public/processed/`,
