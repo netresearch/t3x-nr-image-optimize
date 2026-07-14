@@ -1,3 +1,24 @@
+# 1.1.3
+
+## BUGFIX
+
+- **SourceSetViewHelper: non-processable URLs are passed through unchanged.**
+  Absolute URLs (`http://`, `https://`, `//`), `data:` URIs, and URLs
+  carrying a query string — e.g. the tokenized `eID=dumpFile` URLs
+  fal_securedownload generates for files in non-public FAL storages — are
+  now rendered as a plain `<img>` tag (no `srcset`/`sizes`, no `<source>`
+  elements). Previously `getResourcePath()` mangled them into broken
+  `/processed/https:...` variant paths, and routing them through the
+  `/processed/` pipeline would have bypassed their permission check
+  (variants are written as static files below the public web root). The
+  access control of the generating extension stays intact. Port of the
+  main-branch fix released in 2.2.4.
+  See [#111](https://github.com/netresearch/t3x-nr-image-optimize/pull/111).
+
+## Contributors
+
+- Axel Seemann
+
 # 1.1.2
 
 ## BUGFIX

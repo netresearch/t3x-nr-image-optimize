@@ -6,10 +6,44 @@
 Changelog
 =========
 
-..  _changelog-unreleased:
+..  _changelog-1-1-3:
 
-Unreleased
-==========
+1.1.3
+=====
+
+-   Fixed: the ``sourceSet`` ViewHelper passes absolute URLs
+    (``http://``, ``https://``, ``//``), ``data:`` URIs, and URLs
+    carrying a query string through unchanged and renders them as a
+    plain ``<img>`` tag. Previously such paths — e.g. the tokenized
+    ``eID=dumpFile`` URLs `fal_securedownload
+    <https://extensions.typo3.org/extension/fal_securedownload>`__
+    generates for files in non-public storages — were mangled into
+    broken :file:`/processed/...` variant paths. The access control
+    of the generating extension stays intact; see
+    :ref:`usage-protected-files` for the trade-off. Port of the
+    fix on ``main`` (2.2.4).
+
+..  _changelog-1-1-2:
+
+1.1.2
+=====
+
+-   Fixed: silent HTTP 400 responses now log their rejection reason
+    via ``error_log()`` (URL-pattern mismatch and
+    path-outside-allowed-roots branches).
+-   Fixed: a transient ``StorageRepository`` failure during early
+    TYPO3 bootstrap no longer poisons the per-process allowed-roots
+    cache; the degraded fallback is kept only for the current
+    request.
+-   Fixed: ``getAllowedRoots()`` is memoized per request, avoiding
+    redundant lookups and repeated log lines.
+-   Fixed: a filesystem-root public path (``/``) no longer rejects
+    every valid path.
+
+..  _changelog-1-1-1:
+
+1.1.1
+=====
 
 -   Fixed: processed image requests no longer return
     HTTP 400 when :file:`fileadmin` (or any other Local
