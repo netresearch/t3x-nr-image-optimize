@@ -878,6 +878,7 @@ class SourceSetViewHelperTest extends TestCase
             'absolute http URL'              => ['http://cdn.example.org/images/photo.jpg'],
             'protocol-relative URL'          => ['//cdn.example.org/images/photo.jpg'],
             'relative URL with query string' => ['/index.php?eID=dumpFile&t=p&p=42&fal_token=abc123'],
+            'data URI'                       => ['data:image/png;base64,iVBORw0KGgoAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='],
         ];
     }
 

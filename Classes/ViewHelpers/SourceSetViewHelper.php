@@ -206,11 +206,11 @@ class SourceSetViewHelper extends AbstractViewHelper
      * Determine whether the given path must bypass the /processed endpoint.
      *
      * The on-the-fly processor only handles paths relative to the public web
-     * root. Absolute or protocol-relative URLs as well as URLs carrying a query
-     * string — e.g. the tokenized eID URLs fal_securedownload generates for
-     * files in non-public storages — cannot be resolved to a local source file
-     * and must be emitted unchanged so their own delivery mechanism (including
-     * any access check) stays intact.
+     * root. Absolute or protocol-relative URLs, data: URIs, and URLs carrying
+     * a query string — e.g. the tokenized eID URLs fal_securedownload generates
+     * for files in non-public storages — cannot be resolved to a local source
+     * file and must be emitted unchanged so their own delivery mechanism
+     * (including any access check) stays intact.
      *
      * @param string $path Path or URL given as ViewHelper argument
      *
@@ -221,6 +221,7 @@ class SourceSetViewHelper extends AbstractViewHelper
         return str_starts_with($path, 'http://')
             || str_starts_with($path, 'https://')
             || str_starts_with($path, '//')
+            || str_starts_with($path, 'data:')
             || str_contains($path, '?');
     }
 
