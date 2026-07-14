@@ -120,6 +120,58 @@ Output comparison
          loading="lazy"
          alt="Image">
 
+..  _usage-protected-files:
+
+Public images only: absolute URLs are passed through
+=====================================================
+
+The ``/processed/`` endpoint is designed for **public files** only.
+It resolves the given path below the public web root and writes the
+generated variants as static files into :file:`public/processed/`,
+where the web server delivers them directly — without any access
+check.
+
+Files in non-public FAL storages (``is_public = 0``) can therefore
+not be processed. Extensions such as
+`fal_securedownload <https://extensions.typo3.org/extension/fal_securedownload>`__
+resolve such files to tokenized eID URLs
+(``/index.php?eID=dumpFile&...``) whose delivery runs through TYPO3
+and performs a permission check on every request.
+
+The ViewHelper detects absolute URLs (``http://``, ``https://``,
+``//``) as well as URLs containing a query string and passes them
+through unchanged, rendering a plain ``<img>`` tag with the URL as
+``src``:
+
+..  code-block:: html
+    :caption: Output for a file from a protected storage
+
+    <picture>
+    <img src="https://example.org/index.php?eID=dumpFile&amp;t=f&amp;f=42&amp;fal_token=..."
+         width="400"
+         height="300"
+         alt="Protected image" />
+    </picture>
+
+..  important::
+    **Trade-off for passed-through URLs**
+
+    -   No ``srcset``/``sizes`` attributes and no per-breakpoint
+        ``<source>`` elements are generated — the browser always
+        loads the image in its original dimensions.
+    -   No WebP/AVIF variants and no quality optimization are
+        applied.
+    -   In return, the access control of the generating extension
+        (e.g. fal_securedownload) stays fully intact, because the
+        URL — including its access token — is emitted unchanged.
+
+If you need optimized variants of images in protected storages,
+generate them with TYPO3's own image processing (for example
+``f:image`` or the ``ImageService``). Processed files are then
+created inside the protected storage's processing folder and are
+delivered through the same secure-download mechanism, keeping the
+permission check intact.
+
 ..  _usage-fetchpriority:
 
 Fetch priority for Core Web Vitals

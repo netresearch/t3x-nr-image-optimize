@@ -940,6 +940,124 @@ final class SourceSetViewHelperTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
+    // Passthrough of absolute / non-processable URLs (e.g. fal_securedownload
+    // eID URLs for files in protected storages): the /processed endpoint only
+    // handles public-root-relative paths, so such URLs must stay untouched.
+    // -------------------------------------------------------------------------
+
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function passthroughUrlProvider(): array
+    {
+        return [
+            'absolute https eID URL'         => ['https://my.example.org/index.php?eID=dumpFile&t=f&f=3085&fal_token=abc123'],
+            'absolute http URL'              => ['http://cdn.example.org/images/photo.jpg'],
+            'protocol-relative URL'          => ['//cdn.example.org/images/photo.jpg'],
+            'relative URL with query string' => ['/index.php?eID=dumpFile&t=p&p=42&fal_token=abc123'],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('passthroughUrlProvider')]
+    public function getResourcePathReturnsNonProcessableUrlUnchanged(string $url): void
+    {
+        $result = $this->viewHelper->getResourcePath($url, 320, 200, 75);
+
+        self::assertSame($url, $result);
+    }
+
+    #[Test]
+    public function renderResponsiveSrcsetPassesThroughAbsoluteUrlAsPlainImg(): void
+    {
+        $this->viewHelper->setArguments([
+            'path'             => 'https://my.example.org/index.php?eID=dumpFile&t=f&f=3085&fal_token=abc123',
+            'width'            => 400,
+            'height'           => 300,
+            'alt'              => 'Protected Image',
+            'responsiveSrcset' => true,
+        ]);
+
+        $result = $this->viewHelper->render();
+
+        self::assertStringContainsString(
+            'src="https://my.example.org/index.php?eID=dumpFile&amp;t=f&amp;f=3085&amp;fal_token=abc123"',
+            $result,
+        );
+        self::assertStringContainsString('alt="Protected Image"', $result);
+        self::assertStringContainsString('width="400"', $result);
+        self::assertStringContainsString('height="300"', $result);
+        self::assertStringNotContainsString('/processed', $result);
+        self::assertStringNotContainsString('srcset=', $result);
+        self::assertStringNotContainsString('sizes=', $result);
+        self::assertStringNotContainsString('<source', $result);
+    }
+
+    #[Test]
+    public function renderLegacyPassesThroughAbsoluteUrlAsPlainImg(): void
+    {
+        $this->viewHelper->setArguments([
+            'path'   => 'https://my.example.org/index.php?eID=dumpFile&t=f&f=3085&fal_token=abc123',
+            'width'  => 400,
+            'height' => 300,
+            'set'    => [
+                767 => [
+                    'width' => 360,
+                ],
+            ],
+        ]);
+
+        $result = $this->viewHelper->render();
+
+        self::assertStringContainsString(
+            'src="https://my.example.org/index.php?eID=dumpFile&amp;t=f&amp;f=3085&amp;fal_token=abc123"',
+            $result,
+        );
+        self::assertStringNotContainsString('/processed', $result);
+        self::assertStringNotContainsString('srcset=', $result);
+        self::assertStringNotContainsString('<source', $result);
+    }
+
+    #[Test]
+    public function renderPassthroughSupportsJsLazyLoad(): void
+    {
+        $this->viewHelper->setArguments([
+            'path'             => 'https://my.example.org/index.php?eID=dumpFile&t=f&f=3085&fal_token=abc123',
+            'width'            => 400,
+            'height'           => 300,
+            'class'            => 'lazyload',
+            'responsiveSrcset' => true,
+        ]);
+
+        $result = $this->viewHelper->render();
+
+        self::assertStringContainsString('src="data:image/gif;base64,', $result);
+        self::assertStringContainsString(
+            'data-src="https://my.example.org/index.php?eID=dumpFile&amp;t=f&amp;f=3085&amp;fal_token=abc123"',
+            $result,
+        );
+        self::assertStringNotContainsString('data-srcset=', $result);
+    }
+
+    #[Test]
+    public function generateSrcSetReturnsNoSourcesForAbsoluteUrl(): void
+    {
+        $this->viewHelper->setArguments([
+            'path' => 'https://my.example.org/index.php?eID=dumpFile&t=f&f=3085&fal_token=abc123',
+            'set'  => [
+                480 => [
+                    'width'  => 200,
+                    'height' => 120,
+                ],
+            ],
+        ]);
+
+        $result = $this->viewHelper->generateSrcSet();
+
+        self::assertSame('', $result);
+    }
+
+    // -------------------------------------------------------------------------
     // generateSrcSet: data-srcset on source elements when JS lazy (line 421)
     // -------------------------------------------------------------------------
 

@@ -25,6 +25,7 @@ use function round;
 use function sort;
 use function sprintf;
 use function str_contains;
+use function str_starts_with;
 use function strtolower;
 use function trigger_error;
 use function trim;
@@ -139,6 +140,10 @@ final class SourceSetViewHelper extends AbstractViewHelper
         $width  = $this->getArgWidth();
         $height = $this->getArgHeight();
 
+        if ($this->isPassthroughUrl($this->getArgPath())) {
+            return $this->renderPassthroughImage($this->getArgPath(), $width, $height);
+        }
+
         if (($this->arguments['responsiveSrcset'] ?? false) === true) {
             return $this->renderResponsiveSrcset($width, $height);
         }
@@ -217,6 +222,53 @@ final class SourceSetViewHelper extends AbstractViewHelper
         $imgTag  = $this->tag('img', $this->filterEmptyAttributes($props));
 
         return $this->wrapInPicture($sources . $imgTag);
+    }
+
+    /**
+     * Determine whether the given path must bypass the /processed endpoint.
+     *
+     * The on-the-fly processor only handles paths relative to the public web
+     * root. Absolute or protocol-relative URLs as well as URLs carrying a query
+     * string — e.g. the tokenized eID URLs fal_securedownload generates for
+     * files in non-public storages — cannot be resolved to a local source file
+     * and must be emitted unchanged so their own delivery mechanism (including
+     * any access check) stays intact.
+     *
+     * @param string $path Path or URL given as ViewHelper argument
+     *
+     * @return bool True if the path must be passed through unprocessed
+     */
+    private function isPassthroughUrl(string $path): bool
+    {
+        return str_starts_with($path, 'http://')
+            || str_starts_with($path, 'https://')
+            || str_starts_with($path, '//')
+            || str_contains($path, '?');
+    }
+
+    /**
+     * Render a plain <img> tag for URLs that bypass the /processed endpoint.
+     *
+     * No srcset, sizes or <source> elements are generated since the processor
+     * cannot create variants for such URLs.
+     *
+     * @param string $path   Absolute or non-processable URL used as img src
+     * @param int    $width  Base width in pixels
+     * @param int    $height Base height in pixels
+     *
+     * @return string HTML markup
+     */
+    private function renderPassthroughImage(string $path, int $width, int $height): string
+    {
+        $jsLazy = $this->useJsLazyLoad();
+
+        $props = $this->buildImageAttributes($path, '', $width, $height, $jsLazy);
+
+        if ($jsLazy) {
+            $props['data-src'] = $path;
+        }
+
+        return $this->wrapInPicture($this->tag('img', $this->filterEmptyAttributes($props)));
     }
 
     /**
@@ -363,6 +415,10 @@ final class SourceSetViewHelper extends AbstractViewHelper
         bool $skipAvif = false,
         bool $skipWebP = false,
     ): string {
+        if ($this->isPassthroughUrl($path)) {
+            return $path;
+        }
+
         // Reject path traversal attempts
         if (str_contains($path, '..')) {
             return $path;
@@ -423,8 +479,13 @@ final class SourceSetViewHelper extends AbstractViewHelper
      */
     public function generateSrcSet(): string
     {
+        $path = $this->getArgPath();
+
+        if ($this->isPassthroughUrl($path)) {
+            return '';
+        }
+
         $return   = '';
-        $path     = $this->getArgPath();
         $jsLazy   = $this->useJsLazyLoad();
         $mimeType = $this->getMimeTypeForPath($path);
 
