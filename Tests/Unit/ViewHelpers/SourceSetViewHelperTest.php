@@ -100,7 +100,7 @@ final class SourceSetViewHelperTest extends TestCase
         $result = $this->viewHelper->render();
 
         // Test legacy 2x density output
-        self::assertStringContainsString('srcset="/processed/path/to/image.w200h200m0q100.jpg 2x"', $result);
+        self::assertStringContainsString('srcset="/processed/path/to/image.w200h200m0q75.jpg 2x"', $result);
         self::assertStringContainsString('width="100"', $result);
         self::assertStringContainsString('height="100"', $result);
         self::assertStringContainsString('alt="Test Image"', $result);
@@ -128,7 +128,7 @@ final class SourceSetViewHelperTest extends TestCase
 
         $srcMatchResult = preg_match('/src="([^"]+)"/', $result, $srcMatches);
         self::assertSame(1, $srcMatchResult);
-        self::assertSame('/processed/path/to/image.w1250h1250m0q100.jpg', $srcMatches[1]);
+        self::assertSame('/processed/path/to/image.w1250h1250m0q75.jpg', $srcMatches[1]);
 
         $srcsetMatchResult = preg_match('/srcset="([^"]+)"/', $result, $matches);
         self::assertSame(1, $srcsetMatchResult);
@@ -457,8 +457,8 @@ final class SourceSetViewHelperTest extends TestCase
         $result = $this->viewHelper->generateSrcSet();
 
         $expected = '<source media="(max-width: 480px)" '
-            . 'srcset="/processed/images/picture.w200h120m0q100.jpg, '
-            . '/processed/images/picture.w400h240m0q100.jpg 2x" />' . PHP_EOL;
+            . 'srcset="/processed/images/picture.w200h120m0q75.jpg, '
+            . '/processed/images/picture.w400h240m0q75.jpg 2x" />' . PHP_EOL;
 
         self::assertSame($expected, $result);
     }
@@ -1225,7 +1225,7 @@ final class SourceSetViewHelperTest extends TestCase
         $result = $this->viewHelper->render();
 
         // The srcset entry must be "URL 320w" with exactly one space before the width descriptor
-        self::assertStringContainsString('/processed/path/to/image.w320h160m0q100.jpg 320w', $result);
+        self::assertStringContainsString('/processed/path/to/image.w320h160m0q75.jpg 320w', $result);
     }
 
     // =========================================================================
@@ -1713,7 +1713,7 @@ final class SourceSetViewHelperTest extends TestCase
 
         $result = $this->viewHelper->generateSrcSet();
 
-        $expectedSrcset = '/processed/images/pic.w300h200m0q100.jpg, /processed/images/pic.w600h400m0q100.jpg 2x';
+        $expectedSrcset = '/processed/images/pic.w300h200m0q75.jpg, /processed/images/pic.w600h400m0q75.jpg 2x';
         self::assertStringContainsString('srcset="' . $expectedSrcset . '"', $result);
     }
 

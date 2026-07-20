@@ -500,7 +500,7 @@ final class Processor implements LoggerAwareInterface, ProcessorInterface
 
         $this->ensureDirectoryExists(dirname($urlInfo['pathVariant']));
 
-        $image->save($urlInfo['pathVariant'], $targetQuality);
+        $image->save($urlInfo['pathVariant'], quality: $targetQuality);
 
         $extension   = $urlInfo['extension'];
         $pathVariant = $urlInfo['pathVariant'];
@@ -1110,7 +1110,7 @@ final class Processor implements LoggerAwareInterface, ProcessorInterface
      */
     private function generateWebpVariant(ImageInterface $image, int $targetQuality, string $pathVariant): void
     {
-        $image->save($pathVariant . '.webp', $targetQuality);
+        $image->save($pathVariant . '.webp', quality: $targetQuality);
     }
 
     /**
@@ -1122,7 +1122,7 @@ final class Processor implements LoggerAwareInterface, ProcessorInterface
      */
     private function generateAvifVariant(ImageInterface $image, int $targetQuality, string $pathVariant): void
     {
-        $image->save($pathVariant . '.avif', $targetQuality);
+        $image->save($pathVariant . '.avif', quality: $targetQuality);
     }
 
     /**

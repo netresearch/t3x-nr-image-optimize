@@ -506,9 +506,24 @@ final class ProcessorTest extends TestCase
 
         $variantBase = sys_get_temp_dir() . '/nr-image-optimize-' . uniqid('variant', true);
 
-        $image->expects(self::once())->method('save')->with($variantBase . '.webp', 90)->willReturnSelf();
+        // The quality must reach the encoder as a NAMED argument -- Intervention v3/v4 drop a
+        // positional one (it never matches a constructor parameter name), so capture the call
+        // and assert the option key explicitly.
+        $capturedPath    = null;
+        $capturedOptions = [];
+        $image->expects(self::once())->method('save')->willReturnCallback(
+            static function (?string $path = null, mixed ...$options) use (&$capturedPath, &$capturedOptions, $image): ImageInterface {
+                $capturedPath    = $path;
+                $capturedOptions = $options;
+
+                return $image;
+            },
+        );
 
         $this->callMethod($this->processor, 'generateWebpVariant', $image, 90, $variantBase);
+
+        self::assertSame($variantBase . '.webp', $capturedPath);
+        self::assertSame(['quality' => 90], $capturedOptions);
     }
 
     #[Test]
@@ -518,9 +533,22 @@ final class ProcessorTest extends TestCase
 
         $variantBase = sys_get_temp_dir() . '/nr-image-optimize-' . uniqid('variant', true);
 
-        $image->expects(self::once())->method('save')->with($variantBase . '.avif', 75)->willReturnSelf();
+        // See generateWebpVariantEncodesAndSavesImage: the quality must be passed by name.
+        $capturedPath    = null;
+        $capturedOptions = [];
+        $image->expects(self::once())->method('save')->willReturnCallback(
+            static function (?string $path = null, mixed ...$options) use (&$capturedPath, &$capturedOptions, $image): ImageInterface {
+                $capturedPath    = $path;
+                $capturedOptions = $options;
+
+                return $image;
+            },
+        );
 
         $this->callMethod($this->processor, 'generateAvifVariant', $image, 75, $variantBase);
+
+        self::assertSame($variantBase . '.avif', $capturedPath);
+        self::assertSame(['quality' => 75], $capturedOptions);
     }
 
     #[Test]
@@ -3040,9 +3068,14 @@ final class ProcessorTest extends TestCase
         $image->method('height')->willReturn(200);
         $image->method('cover')->willReturn($image);
 
-        // Both variants skipped: save() called exactly once for the primary file only
-        $image->expects(self::once())->method('save')->with($variantPath, 80)->willReturnCallback(
-            static function (string $path, mixed ...$options) use ($image): ImageInterface {
+        // Both variants skipped: save() called exactly once for the primary file only,
+        // with the quality passed as a named option (positional is dropped by Intervention v3/v4).
+        $capturedPath    = null;
+        $capturedOptions = [];
+        $image->expects(self::once())->method('save')->willReturnCallback(
+            static function (string $path, mixed ...$options) use ($image, &$capturedPath, &$capturedOptions): ImageInterface {
+                $capturedPath    = $path;
+                $capturedOptions = $options;
                 file_put_contents($path, 'processed');
 
                 return $image;
@@ -3066,6 +3099,9 @@ final class ProcessorTest extends TestCase
 
         $result = $this->callMethod($processor, 'processAndRespond', $request, $urlInfo);
         self::assertSame($response200, $result);
+
+        self::assertSame($variantPath, $capturedPath);
+        self::assertSame(['quality' => 80], $capturedOptions);
 
         $files = glob($tempDir . '/processed/*');
 
