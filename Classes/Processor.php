@@ -443,7 +443,7 @@ class Processor
 
         $this->ensureDirectoryExists(dirname($urlInfo['pathVariant']));
 
-        $image->save($urlInfo['pathVariant'], $targetQuality);
+        $image->save($urlInfo['pathVariant'], quality: $targetQuality);
 
         $extension   = $urlInfo['extension'];
         $pathVariant = $urlInfo['pathVariant'];

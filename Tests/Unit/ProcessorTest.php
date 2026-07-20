@@ -2830,7 +2830,7 @@ class ProcessorTest extends TestCase
         $image->method('height')->willReturn(400);
         $image->method('cover')->willReturn($image);
         $image->method('save')->willReturnCallback(
-            static function (string $path) use ($image): ImageInterface {
+            static function (string $path, mixed ...$options) use ($image): ImageInterface {
                 file_put_contents($path, 'processed-image');
 
                 return $image;
@@ -2912,7 +2912,7 @@ class ProcessorTest extends TestCase
         $image->method('height')->willReturn(200);
         $image->method('cover')->willReturn($image);
         $image->method('save')->willReturnCallback(
-            static function (string $path) use ($image): ImageInterface {
+            static function (string $path, mixed ...$options) use ($image): ImageInterface {
                 file_put_contents($path, 'processed');
 
                 return $image;
@@ -2994,7 +2994,7 @@ class ProcessorTest extends TestCase
         $image->method('height')->willReturn(200);
         $image->method('cover')->willReturn($image);
         $image->method('save')->willReturnCallback(
-            static function (string $path) use ($image): ImageInterface {
+            static function (string $path, mixed ...$options) use ($image): ImageInterface {
                 file_put_contents($path, 'processed');
 
                 return $image;
@@ -3074,7 +3074,7 @@ class ProcessorTest extends TestCase
         $image->method('height')->willReturn(200);
         $image->method('cover')->willReturn($image);
         $image->method('save')->willReturnCallback(
-            static function (string $path) use ($image): ImageInterface {
+            static function (string $path, mixed ...$options) use ($image): ImageInterface {
                 file_put_contents($path, 'processed');
 
                 return $image;
@@ -3144,7 +3144,7 @@ class ProcessorTest extends TestCase
         $image->method('height')->willReturn(200);
         $image->method('cover')->willReturn($image);
         $image->method('save')->willReturnCallback(
-            static function (string $path) use ($image): ImageInterface {
+            static function (string $path, mixed ...$options) use ($image): ImageInterface {
                 file_put_contents($path, 'processed');
 
                 return $image;
@@ -3217,7 +3217,7 @@ class ProcessorTest extends TestCase
         $image->method('height')->willReturn(400);
         $image->method('scale')->willReturn($image);
         $image->method('save')->willReturnCallback(
-            static function (string $path) use ($image): ImageInterface {
+            static function (string $path, mixed ...$options) use ($image): ImageInterface {
                 file_put_contents($path, 'processed');
 
                 return $image;

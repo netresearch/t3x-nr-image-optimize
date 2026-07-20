@@ -59,7 +59,7 @@ class SourceSetViewHelper extends AbstractViewHelper
     /**
      * Default quality for generated image variants.
      */
-    private const DEFAULT_QUALITY = 100;
+    private const DEFAULT_QUALITY = 75;
 
     /**
      * Transparent 1x1 GIF used as placeholder for JS lazy-loaded images.
