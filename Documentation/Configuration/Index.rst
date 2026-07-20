@@ -27,7 +27,6 @@ with ``srcset`` attributes.
     <nr:sourceSet file="{image}"
                   width="1200"
                   height="800"
-                  quality="85"
                   sizes="(max-width: 768px) 100vw, 50vw"
     />
 
@@ -64,13 +63,6 @@ Parameters
     :type: integer
 
     Target height in pixels.
-
-..  confval:: quality
-    :name: confval-quality
-    :type: integer
-    :Default: 100
-
-    JPEG/WebP quality (1--100).
 
 ..  confval:: sizes
     :name: confval-sizes
@@ -119,6 +111,29 @@ Parameters
     Native HTML ``fetchpriority`` attribute. Allowed
     values: ``high``, ``low``, ``auto``. Omitted when
     empty.
+
+..  _configuration-quality:
+
+Encoding quality
+================
+
+The encoding quality is not configurable per ViewHelper call --
+there is no ``quality`` argument. Generated URLs always carry the
+default quality of ``75`` (for example
+``/processed/fileadmin/image.w1200h800m0q75.jpg``), and variant
+requests that carry no ``q`` value are processed with the same
+default.
+
+..  note::
+
+    As of this version the default variant quality is 75. Earlier
+    versions encoded WebP and AVIF variants at quality 100, so
+    those variants are now generated with stronger compression and
+    accordingly lower fidelity. The quality value is part of the
+    generated file name, so all previously generated variants
+    become stale and are recreated on demand under their new name.
+    Use :ref:`Clear processed images <maintenance-clear>` to remove
+    the obsolete files.
 
 ..  _configuration-source-sets:
 

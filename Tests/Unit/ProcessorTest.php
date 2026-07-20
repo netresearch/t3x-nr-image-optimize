@@ -309,7 +309,9 @@ class ProcessorTest extends TestCase
 
         self::assertSame(800, $result['targetWidth']);
         self::assertNull($result['targetHeight']);
-        self::assertSame(100, $result['targetQuality']);
+        // No "q" in the URL falls back to DEFAULT_QUALITY (75), matching the
+        // quality the SourceSetViewHelper encodes into generated URLs.
+        self::assertSame(75, $result['targetQuality']);
         self::assertSame(0, $result['processingMode']);
     }
 
@@ -2798,6 +2800,46 @@ class ProcessorTest extends TestCase
         return ['processor' => $instance, 'image' => $image];
     }
 
+    /**
+     * Wire the base-format save() of an image mock so that it writes $contents
+     * to the requested path and records the arguments it was called with.
+     *
+     * Intervention Image filters encoder options by parameter name, so the
+     * quality must arrive as the named option "quality" -- a positional
+     * argument is silently dropped and the encoder falls back to its own
+     * default. The recorded values allow the tests to assert exactly that.
+     *
+     * @param MockObject&ImageInterface $image
+     * @param string                    $contents        payload written to the saved path
+     * @param string|null               $capturedPath    receives the path save() was called with
+     * @param array<string, mixed>      $capturedOptions receives the named options save() was called with
+     */
+    private function captureImageSave(
+        MockObject $image,
+        string $contents,
+        ?string &$capturedPath,
+        array &$capturedOptions,
+    ): void {
+        $capturedPath    = null;
+        $capturedOptions = [];
+
+        $image->method('save')->willReturnCallback(
+            static function (string $path, mixed ...$options) use (
+                $image,
+                $contents,
+                &$capturedPath,
+                &$capturedOptions,
+            ): ImageInterface {
+                $capturedPath    = $path;
+                $capturedOptions = $options;
+
+                file_put_contents($path, $contents);
+
+                return $image;
+            },
+        );
+    }
+
     #[Test]
     public function processAndRespondProcessesImageAndBuildsResponse(): void
     {
@@ -2829,13 +2871,9 @@ class ProcessorTest extends TestCase
         $image->method('width')->willReturn(800);
         $image->method('height')->willReturn(400);
         $image->method('cover')->willReturn($image);
-        $image->method('save')->willReturnCallback(
-            static function (string $path, mixed ...$options) use ($image): ImageInterface {
-                file_put_contents($path, 'processed-image');
-
-                return $image;
-            },
-        );
+        $savedPath    = null;
+        $savedOptions = [];
+        $this->captureImageSave($image, 'processed-image', $savedPath, $savedOptions);
         $image->method('toWebp')->willReturn($encoded);
         $image->method('toAvif')->willReturn($encoded);
         $encoded->method('save')->willReturnCallback(
@@ -2866,6 +2904,12 @@ class ProcessorTest extends TestCase
         ini_set('error_log', $prevLog !== false ? $prevLog : '');
 
         self::assertSame($response200, $result);
+
+        // The requested quality must reach the encoder as the *named* option
+        // "quality"; a positional argument would be dropped and silently
+        // encoded with the encoder default.
+        self::assertSame($variantPath, $savedPath);
+        self::assertSame(['quality' => 80], $savedOptions);
 
         $files = glob($tempDir . '/processed/*');
 
@@ -3216,13 +3260,9 @@ class ProcessorTest extends TestCase
         $image->method('width')->willReturn(800);
         $image->method('height')->willReturn(400);
         $image->method('scale')->willReturn($image);
-        $image->method('save')->willReturnCallback(
-            static function (string $path, mixed ...$options) use ($image): ImageInterface {
-                file_put_contents($path, 'processed');
-
-                return $image;
-            },
-        );
+        $savedPath    = null;
+        $savedOptions = [];
+        $this->captureImageSave($image, 'processed', $savedPath, $savedOptions);
 
         $uri = $this->createMock(UriInterface::class);
         $uri->method('getQuery')->willReturn('skipWebP=1&skipAvif=1');
@@ -3241,6 +3281,11 @@ class ProcessorTest extends TestCase
 
         $result = $this->callMethod($processor, 'processAndRespond', $request, $urlInfo);
         self::assertSame($response200, $result);
+
+        // Scale mode saves through the same base-format call: the quality has
+        // to be passed as the named option "quality" here as well.
+        self::assertSame($variantPath, $savedPath);
+        self::assertSame(['quality' => 80], $savedOptions);
 
         $files = glob($tempDir . '/processed/*');
 

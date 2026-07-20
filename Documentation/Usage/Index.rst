@@ -28,14 +28,17 @@ Basic responsive image
 ======================
 
 ..  code-block:: html
-    :caption: Simple responsive image with quality setting
+    :caption: Simple responsive image
 
     <nr:sourceSet file="{image}"
                   width="1200"
                   height="800"
-                  quality="85"
                   sizes="(max-width: 768px) 100vw, 50vw"
     />
+
+The encoding quality is not configurable per call; the generated
+URLs use the default quality of 75. See
+:ref:`Encoding quality <configuration-quality>`.
 
 ..  _usage-responsive-srcset:
 
@@ -95,8 +98,8 @@ Output comparison
 ..  code-block:: html
     :caption: Density-based 2x srcset output
 
-    <img src="/processed/fileadmin/image.w625h250m1q100.jpg"
-         srcset="/processed/fileadmin/image.w1250h500m1q100.jpg x2"
+    <img src="/processed/fileadmin/image.w625h250m1q75.jpg"
+         srcset="/processed/fileadmin/image.w1250h500m1q75.jpg x2"
          width="625"
          height="250"
          loading="lazy">
@@ -106,14 +109,14 @@ Output comparison
 ..  code-block:: html
     :caption: Width-based srcset output
 
-    <img src="/processed/fileadmin/image.w1250h1250m1q100.png"
-         srcset="/processed/fileadmin/image.w480h480m1q100.png 480w,
-                 /processed/fileadmin/image.w576h576m1q100.png 576w,
-                 /processed/fileadmin/image.w640h640m1q100.png 640w,
-                 /processed/fileadmin/image.w768h768m1q100.png 768w,
-                 /processed/fileadmin/image.w992h992m1q100.png 992w,
-                 /processed/fileadmin/image.w1200h1200m1q100.png 1200w,
-                 /processed/fileadmin/image.w1800h1800m1q100.png 1800w"
+    <img src="/processed/fileadmin/image.w1250h1250m1q75.png"
+         srcset="/processed/fileadmin/image.w480h480m1q75.png 480w,
+                 /processed/fileadmin/image.w576h576m1q75.png 576w,
+                 /processed/fileadmin/image.w640h640m1q75.png 640w,
+                 /processed/fileadmin/image.w768h768m1q75.png 768w,
+                 /processed/fileadmin/image.w992h992m1q75.png 992w,
+                 /processed/fileadmin/image.w1200h1200m1q75.png 1200w,
+                 /processed/fileadmin/image.w1800h1800m1q75.png 1800w"
          sizes="auto, (min-width: 992px) 991px, 100vw"
          width="991"
          loading="lazy"

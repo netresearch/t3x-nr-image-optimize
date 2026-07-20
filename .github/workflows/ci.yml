@@ -34,11 +34,55 @@ jobs:
     secrets:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
+  # The shared CI workflow has no acceptance-test input, so the acceptance
+  # suite (ViewHelper HTML output + middleware routing) gets its own job.
+  acceptance:
+    name: Acceptance Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: '8.3'
+          extensions: intl, mbstring, xml, imagick, gd
+          tools: composer:v2
+          coverage: none
+
+      - name: Install dependencies
+        run: |
+          # TYPO3 v12 security fixes are ELTS-only and therefore missing from
+          # public Packagist; the advisory check would block the install.
+          composer config --no-plugins audit.block-insecure false
+          composer install --prefer-dist --no-progress
+
+      - name: Run acceptance tests
+        run: composer ci:test:php:acceptance
+
   security:
     uses: netresearch/typo3-ci-workflows/.github/workflows/security.yml@main
     permissions:
       contents: read
       security-events: write
+    with:
+      # typo3/cms-core ^12.0 resolves to public-Packagist 12.4.x only, while
+      # the fixes for the TYPO3 v12 advisories (SA-2026-008..019) are shipped
+      # as ELTS releases that are not published there. The audit therefore
+      # fails on this maintenance branch for advisories that cannot be
+      # resolved by a version bump -- this skips the unactionable audit, it
+      # does not hide findings that could be fixed here.
+      skip-composer-audit: true
 
   fuzz:
     uses: netresearch/typo3-ci-workflows/.github/workflows/fuzz.yml@main
