@@ -272,11 +272,11 @@ final class ProcessorTest extends TestCase
                     self::assertContains($path, $allowedPaths);
                 }
 
-                if (($path !== null) && ($webpError !== null) && str_ends_with($path, '.webp')) {
+                if (($path !== null) && ($webpError instanceof Throwable) && str_ends_with($path, '.webp')) {
                     throw $webpError;
                 }
 
-                if (($path !== null) && ($avifError !== null) && str_ends_with($path, '.avif')) {
+                if (($path !== null) && ($avifError instanceof Throwable) && str_ends_with($path, '.avif')) {
                     throw $avifError;
                 }
 
