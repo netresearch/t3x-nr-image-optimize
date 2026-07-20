@@ -25,6 +25,7 @@ jobs:
       # tests don't).
       php-extensions: intl, mbstring, xml, imagick, gd
       run-functional-tests: true
+      run-acceptance-tests: true
       # Use xdebug instead of pcov for coverage. xdebug delivers branch
       # coverage + path coverage and matches the local dev driver
       # (composer ci:test:php:unit:coverage sets XDEBUG_MODE=coverage).
