@@ -101,6 +101,12 @@ class Processor
     private const MAX_QUALITY = 100;
 
     /**
+     * Output quality used when the variant URL carries no explicit "q" value.
+     * Matches the default quality of the SourceSetViewHelper.
+     */
+    private const DEFAULT_QUALITY = 75;
+
+    /**
      * Cache-Control max-age for processed images (1 year in seconds).
      * Processed image URLs contain dimension/quality parameters, making them
      * effectively content-addressed -- the URL changes whenever the variant changes.
@@ -443,7 +449,7 @@ class Processor
 
         $this->ensureDirectoryExists(dirname($urlInfo['pathVariant']));
 
-        $image->save($urlInfo['pathVariant'], $targetQuality);
+        $image->save($urlInfo['pathVariant'], quality: $targetQuality);
 
         $extension   = $urlInfo['extension'];
         $pathVariant = $urlInfo['pathVariant'];
@@ -525,7 +531,7 @@ class Processor
         // Clamp dimensions and quality to safe ranges to prevent DoS
         $targetWidth   = $this->clampDimension($modeValues['w'] ?? null);
         $targetHeight  = $this->clampDimension($modeValues['h'] ?? null);
-        $targetQuality = $this->clampQuality($modeValues['q'] ?? self::MAX_QUALITY);
+        $targetQuality = $this->clampQuality($modeValues['q'] ?? self::DEFAULT_QUALITY);
 
         return [
             'pathVariant'    => $basePath . $variantUrl,

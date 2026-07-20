@@ -92,7 +92,6 @@ ViewHelper usage
     <nr:sourceSet file="{image}"
                   width="1200"
                   height="800"
-                  quality="85"
                   sizes="(max-width: 768px) 100vw, 50vw"
     />
 
@@ -116,15 +115,8 @@ Supported parameters
 ``height``
     Target height in pixels.
 
-``quality``
-    JPEG/WebP quality (1--100).
-
 ``sizes``
     Responsive ``sizes`` attribute.
-
-``format``
-    Output format: ``auto``, ``webp``, ``avif``, ``jpg``,
-    ``png``.
 
 ``mode``
     Render mode: ``cover`` (default) or ``fit``.

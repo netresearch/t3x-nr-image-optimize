@@ -48,7 +48,6 @@ The extension works out of the box with sensible defaults. Images are automatica
     file="{image}" 
     width="1200" 
     height="800" 
-    quality="85" 
     sizes="(max-width: 768px) 100vw, 50vw"
 />
 ```
@@ -58,9 +57,7 @@ The extension works out of the box with sensible defaults. Images are automatica
 - `file`: The image file resource
 - `width`: Target width in pixels
 - `height`: Target height in pixels
-- `quality`: JPEG/WebP quality (1-100)
 - `sizes`: Responsive sizes attribute
-- `format`: Output format (auto, webp, avif, jpg, png)
 
 ## Development
 

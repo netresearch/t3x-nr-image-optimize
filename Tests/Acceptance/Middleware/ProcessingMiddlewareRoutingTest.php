@@ -35,6 +35,7 @@ use TYPO3\CMS\Core\Locking\LockingStrategyInterface;
 
 use function base64_decode;
 use function file_put_contents;
+use function ini_set;
 use function is_dir;
 use function mkdir;
 use function rmdir;
@@ -62,6 +63,8 @@ class ProcessingMiddlewareRoutingTest extends TestCase
     private ResponseFactoryInterface $responseFactory;
 
     private StreamFactoryInterface $streamFactory;
+
+    private string|false $previousErrorLog = false;
 
     protected function setUp(): void
     {
@@ -97,9 +100,24 @@ class ProcessingMiddlewareRoutingTest extends TestCase
 
     protected function tearDown(): void
     {
+        ini_set('error_log', $this->previousErrorLog !== false ? $this->previousErrorLog : '');
+
         $this->removeDirectory($this->tempDir);
 
         parent::tearDown();
+    }
+
+    /**
+     * Route the Processor diagnostics away from STDOUT for the running test.
+     *
+     * The Processor reports rejected requests and degraded path validation via
+     * error_log(). Without an explicit target those diagnostics are printed,
+     * which PHPUnit counts as unexpected output and marks the test risky. The
+     * previous target is restored in tearDown().
+     */
+    private function silenceProcessorDiagnostics(): void
+    {
+        $this->previousErrorLog = ini_set('error_log', '/dev/null');
     }
 
     // ──────────────────────────────────────────────────
@@ -198,6 +216,8 @@ class ProcessingMiddlewareRoutingTest extends TestCase
     #[Test]
     public function processorReturns400ForMalformedUrl(): void
     {
+        $this->silenceProcessorDiagnostics();
+
         $processor = $this->createProcessor();
 
         $request  = $this->createRequestWithPath('/processed/no-mode-string.jpg');
@@ -209,6 +229,8 @@ class ProcessingMiddlewareRoutingTest extends TestCase
     #[Test]
     public function processorReturns400ForUrlWithPathTraversalInMiddle(): void
     {
+        $this->silenceProcessorDiagnostics();
+
         $processor = $this->createProcessor();
 
         $request  = $this->createRequestWithPath('/processed/../../etc/passwd.w100h100m0q80.jpg');
@@ -220,6 +242,8 @@ class ProcessingMiddlewareRoutingTest extends TestCase
     #[Test]
     public function processorReturns400ForEmptyProcessedPath(): void
     {
+        $this->silenceProcessorDiagnostics();
+
         $processor = $this->createProcessor();
 
         $request  = $this->createRequestWithPath('/processed/');
@@ -231,6 +255,8 @@ class ProcessingMiddlewareRoutingTest extends TestCase
     #[Test]
     public function processorReturns400ForUrlWithoutExtension(): void
     {
+        $this->silenceProcessorDiagnostics();
+
         $processor = $this->createProcessor();
 
         $request  = $this->createRequestWithPath('/processed/fileadmin/image.w100h100m0q80');
@@ -273,6 +299,8 @@ class ProcessingMiddlewareRoutingTest extends TestCase
     #[Test]
     public function processorServesExistingVariantWithCacheHeaders(): void
     {
+        $this->silenceProcessorDiagnostics();
+
         $variantFile  = $this->publicPath . '/processed/fileadmin/cached.w100h100m0q80.jpg';
         $originalFile = $this->publicPath . '/fileadmin/cached.jpg';
 
@@ -311,6 +339,8 @@ class ProcessingMiddlewareRoutingTest extends TestCase
     #[Test]
     public function processorPrefersAvifVariantWhenAvailable(): void
     {
+        $this->silenceProcessorDiagnostics();
+
         $variantFile  = $this->publicPath . '/processed/fileadmin/multi.w100h100m0q80.jpg';
         $originalFile = $this->publicPath . '/fileadmin/multi.jpg';
 
@@ -334,6 +364,8 @@ class ProcessingMiddlewareRoutingTest extends TestCase
     #[Test]
     public function processorPrefersWebpVariantWhenNoAvifAvailable(): void
     {
+        $this->silenceProcessorDiagnostics();
+
         $variantFile  = $this->publicPath . '/processed/fileadmin/webptest.w100h100m0q80.jpg';
         $originalFile = $this->publicPath . '/fileadmin/webptest.jpg';
 

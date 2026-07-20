@@ -25,6 +25,7 @@ jobs:
       # tests don't).
       php-extensions: intl, mbstring, xml, imagick, gd
       run-functional-tests: true
+      run-acceptance-tests: true
       # Use xdebug instead of pcov for coverage. xdebug delivers branch
       # coverage + path coverage and matches the local dev driver
       # (composer ci:test:php:unit:coverage sets XDEBUG_MODE=coverage).
@@ -39,6 +40,14 @@ jobs:
     permissions:
       contents: read
       security-events: write
+    with:
+      # typo3/cms-core ^12.0 resolves to public-Packagist 12.4.x only, while
+      # the fixes for the TYPO3 v12 advisories (SA-2026-008..019) are shipped
+      # as ELTS releases that are not published there. The audit therefore
+      # fails on this maintenance branch for advisories that cannot be
+      # resolved by a version bump -- this skips the unactionable audit, it
+      # does not hide findings that could be fixed here.
+      skip-composer-audit: true
 
   fuzz:
     uses: netresearch/typo3-ci-workflows/.github/workflows/fuzz.yml@main
