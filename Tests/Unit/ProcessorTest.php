@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Tests\Unit;
 
+use ArrayObject;
 use Intervention\Image\ImageManager;
 use Intervention\Image\Interfaces\DriverInterface;
 use Intervention\Image\Interfaces\EncodedImageInterface;
@@ -2810,34 +2811,30 @@ class ProcessorTest extends TestCase
      * default. The recorded values allow the tests to assert exactly that.
      *
      * @param MockObject&ImageInterface $image
-     * @param string                    $contents        payload written to the saved path
-     * @param string|null               $capturedPath    receives the path save() was called with
-     * @param array<string, mixed>      $capturedOptions receives the named options save() was called with
+     * @param string                    $contents payload written to the saved path
+     *
+     * @return ArrayObject<string, mixed> Holder with the captured 'path' and 'options'
      */
-    private function captureImageSave(
-        MockObject $image,
-        string $contents,
-        ?string &$capturedPath,
-        array &$capturedOptions,
-    ): void {
-        $capturedPath    = null;
-        $capturedOptions = [];
+    private function captureImageSave(MockObject $image, string $contents): ArrayObject
+    {
+        /** @var ArrayObject<string, mixed> $capture */
+        $capture = new ArrayObject([
+            'path'    => null,
+            'options' => [],
+        ]);
 
         $image->method('save')->willReturnCallback(
-            static function (string $path, mixed ...$options) use (
-                $image,
-                $contents,
-                &$capturedPath,
-                &$capturedOptions,
-            ): ImageInterface {
-                $capturedPath    = $path;
-                $capturedOptions = $options;
+            static function (string $path, mixed ...$options) use ($image, $contents, $capture): ImageInterface {
+                $capture['path']    = $path;
+                $capture['options'] = $options;
 
                 file_put_contents($path, $contents);
 
                 return $image;
             },
         );
+
+        return $capture;
     }
 
     /**
@@ -2868,15 +2865,13 @@ class ProcessorTest extends TestCase
      * the variant-specific wiring (toWebp()/toAvif() expectations) is done by
      * the caller on the returned image mock.
      *
-     * @param string               $prefix         temp directory name prefix
-     * @param string               $extension      file extension of original and variant
-     * @param int                  $sourceWidth    width reported by the image mock
-     * @param int                  $sourceHeight   height reported by the image mock
-     * @param int|null             $targetHeight   requested target height, null for scale mode
-     * @param int                  $processingMode requested processing mode
-     * @param string               $query          request query string
-     * @param string|null          $savedPath      receives the path save() was called with
-     * @param array<string, mixed> $savedOptions   receives the named options save() was called with
+     * @param string   $prefix         temp directory name prefix
+     * @param string   $extension      file extension of original and variant
+     * @param int      $sourceWidth    width reported by the image mock
+     * @param int      $sourceHeight   height reported by the image mock
+     * @param int|null $targetHeight   requested target height, null for scale mode
+     * @param int      $processingMode requested processing mode
+     * @param string   $query          request query string
      *
      * @return array{
      *     processor: Processor,
@@ -2886,6 +2881,7 @@ class ProcessorTest extends TestCase
      *     tempDir: string,
      *     originalPath: string,
      *     variantPath: string,
+     *     capture: ArrayObject<string, mixed>,
      *     urlInfo: array<string, mixed>
      * }
      */
@@ -2897,8 +2893,6 @@ class ProcessorTest extends TestCase
         ?int $targetHeight,
         int $processingMode,
         string $query,
-        ?string &$savedPath = null,
-        array &$savedOptions = [],
     ): array {
         $targetWidth   = 400;
         $targetQuality = 80;
@@ -2939,7 +2933,7 @@ class ProcessorTest extends TestCase
         $image->method('height')->willReturn($sourceHeight);
         $image->method('cover')->willReturn($image);
         $image->method('scale')->willReturn($image);
-        $this->captureImageSave($image, 'processed-image', $savedPath, $savedOptions);
+        $capture = $this->captureImageSave($image, 'processed-image');
 
         $uri = $this->createMock(UriInterface::class);
         $uri->method('getQuery')->willReturn($query);
@@ -2954,6 +2948,7 @@ class ProcessorTest extends TestCase
             'tempDir'      => $tempDir,
             'originalPath' => $originalPath,
             'variantPath'  => $variantPath,
+            'capture'      => $capture,
             'urlInfo'      => [
                 'pathVariant'    => $variantPath,
                 'pathOriginal'   => $originalPath,
@@ -3002,9 +2997,7 @@ class ProcessorTest extends TestCase
     #[Test]
     public function processAndRespondProcessesImageAndBuildsResponse(): void
     {
-        $savedPath    = null;
-        $savedOptions = [];
-        $scenario     = $this->setUpProcessAndRespondScenario('nr-pio-process-', 'jpg', 800, 400, 200, 0, '', $savedPath, $savedOptions);
+        $scenario = $this->setUpProcessAndRespondScenario('nr-pio-process-', 'jpg', 800, 400, 200, 0, '');
 
         $encoded = $this->createMock(EncodedImageInterface::class);
         $scenario['image']->method('toWebp')->willReturn($encoded);
@@ -3019,8 +3012,10 @@ class ProcessorTest extends TestCase
         // The requested quality must reach the encoder as the *named* option
         // "quality"; a positional argument would be dropped and silently
         // encoded with the encoder default.
-        self::assertSame($scenario['variantPath'], $savedPath);
-        self::assertSame(['quality' => 80], $savedOptions);
+        $expectedVariantPath = $scenario['variantPath'];
+
+        self::assertSame($expectedVariantPath, $scenario['capture']['path']);
+        self::assertSame(['quality' => 80], $scenario['capture']['options']);
 
         $this->tearDownProcessAndRespondScenario($scenario['tempDir'], $scenario['originalPath']);
     }
@@ -3096,9 +3091,7 @@ class ProcessorTest extends TestCase
     #[Test]
     public function processAndRespondUsesScaleModeWithDerivedHeight(): void
     {
-        $savedPath    = null;
-        $savedOptions = [];
-        $scenario     = $this->setUpProcessAndRespondScenario('nr-pio-scale-', 'jpg', 800, 400, null, 1, 'skipWebP=1&skipAvif=1', $savedPath, $savedOptions);
+        $scenario = $this->setUpProcessAndRespondScenario('nr-pio-scale-', 'jpg', 800, 400, null, 1, 'skipWebP=1&skipAvif=1');
 
         self::assertSame(
             $scenario['response'],
@@ -3107,8 +3100,10 @@ class ProcessorTest extends TestCase
 
         // Scale mode saves through the same base-format call: the quality has
         // to be passed as the named option "quality" here as well.
-        self::assertSame($scenario['variantPath'], $savedPath);
-        self::assertSame(['quality' => 80], $savedOptions);
+        $expectedVariantPath = $scenario['variantPath'];
+
+        self::assertSame($expectedVariantPath, $scenario['capture']['path']);
+        self::assertSame(['quality' => 80], $scenario['capture']['options']);
 
         $this->tearDownProcessAndRespondScenario($scenario['tempDir'], $scenario['originalPath']);
     }
