@@ -130,6 +130,7 @@
             "@ci:test:php:rector",
             "@ci:test:php:fractor",
             "@ci:test:php:unit",
+            "@ci:test:php:acceptance",
             "@ci:test:php:cgl"
         ]
     }

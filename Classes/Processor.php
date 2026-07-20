@@ -117,6 +117,14 @@ final class Processor implements LoggerAwareInterface, ProcessorInterface
     private const MAX_QUALITY = 100;
 
     /**
+     * Default output quality applied when the variant URL carries no `q` value.
+     *
+     * Mirrors Intervention's AbstractEncoder::DEFAULT_QUALITY so that URLs
+     * without an explicit quality keep encoding byte-stable.
+     */
+    private const DEFAULT_QUALITY = 75;
+
+    /**
      * Cache-Control max-age for processed images (1 year in seconds).
      * Processed image URLs contain dimension/quality parameters, making them
      * effectively content-addressed -- the URL changes whenever the variant changes.
@@ -609,7 +617,7 @@ final class Processor implements LoggerAwareInterface, ProcessorInterface
         // Clamp dimensions and quality to safe ranges to prevent DoS
         $targetWidth   = $this->clampDimension($modeValues['w'] ?? null);
         $targetHeight  = $this->clampDimension($modeValues['h'] ?? null);
-        $targetQuality = $this->clampQuality($modeValues['q'] ?? self::MAX_QUALITY);
+        $targetQuality = $this->clampQuality($modeValues['q'] ?? self::DEFAULT_QUALITY);
 
         return [
             'pathVariant'    => $basePath . $variantUrl,

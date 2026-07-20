@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Tests\Unit;
 
+use ArrayObject;
 use Intervention\Image\Interfaces\ImageInterface;
 use Netresearch\NrImageOptimize\Event\ImageProcessedEvent;
 use Netresearch\NrImageOptimize\Event\VariantServedEvent;
@@ -212,6 +213,43 @@ final class ProcessorTest extends TestCase
         return $reflection->invoke($object, ...$arguments);
     }
 
+    /**
+     * Registers a single save() expectation on the image mock and records the
+     * arguments it receives.
+     *
+     * The quality must reach the encoder as a NAMED argument -- Intervention v3/v4
+     * drop a positional one (it never matches an encoder constructor parameter
+     * name), so the captured options are asserted by key at each call site.
+     *
+     * @param MockObject&ImageInterface $image     Image mock receiving the save() expectation
+     * @param bool                      $writeFile Whether the callback should also write the target file
+     *
+     * @return ArrayObject<string, mixed> Holder with the captured 'path' and 'options'
+     */
+    private function captureSaveCall(MockObject $image, bool $writeFile = false): ArrayObject
+    {
+        /** @var ArrayObject<string, mixed> $capture */
+        $capture = new ArrayObject([
+            'path'    => null,
+            'options' => [],
+        ]);
+
+        $image->expects(self::once())->method('save')->willReturnCallback(
+            static function (?string $path = null, mixed ...$options) use ($capture, $image, $writeFile): ImageInterface {
+                $capture['path']    = $path;
+                $capture['options'] = $options;
+
+                if ($writeFile && ($path !== null)) {
+                    file_put_contents($path, 'processed');
+                }
+
+                return $image;
+            },
+        );
+
+        return $capture;
+    }
+
     #[Test]
     public function gatherInformationBasedOnUrlParsesVariantConfiguration(): void
     {
@@ -250,7 +288,7 @@ final class ProcessorTest extends TestCase
 
         self::assertSame(800, $result['targetWidth']);
         self::assertNull($result['targetHeight']);
-        self::assertSame(100, $result['targetQuality']);
+        self::assertSame(75, $result['targetQuality']);
         self::assertSame(0, $result['processingMode']);
     }
 
@@ -506,24 +544,12 @@ final class ProcessorTest extends TestCase
 
         $variantBase = sys_get_temp_dir() . '/nr-image-optimize-' . uniqid('variant', true);
 
-        // The quality must reach the encoder as a NAMED argument -- Intervention v3/v4 drop a
-        // positional one (it never matches a constructor parameter name), so capture the call
-        // and assert the option key explicitly.
-        $capturedPath    = null;
-        $capturedOptions = [];
-        $image->expects(self::once())->method('save')->willReturnCallback(
-            static function (?string $path = null, mixed ...$options) use (&$capturedPath, &$capturedOptions, $image): ImageInterface {
-                $capturedPath    = $path;
-                $capturedOptions = $options;
-
-                return $image;
-            },
-        );
+        $capture = $this->captureSaveCall($image);
 
         $this->callMethod($this->processor, 'generateWebpVariant', $image, 90, $variantBase);
 
-        self::assertSame($variantBase . '.webp', $capturedPath);
-        self::assertSame(['quality' => 90], $capturedOptions);
+        self::assertSame($variantBase . '.webp', $capture['path']);
+        self::assertSame(['quality' => 90], $capture['options']);
     }
 
     #[Test]
@@ -533,22 +559,12 @@ final class ProcessorTest extends TestCase
 
         $variantBase = sys_get_temp_dir() . '/nr-image-optimize-' . uniqid('variant', true);
 
-        // See generateWebpVariantEncodesAndSavesImage: the quality must be passed by name.
-        $capturedPath    = null;
-        $capturedOptions = [];
-        $image->expects(self::once())->method('save')->willReturnCallback(
-            static function (?string $path = null, mixed ...$options) use (&$capturedPath, &$capturedOptions, $image): ImageInterface {
-                $capturedPath    = $path;
-                $capturedOptions = $options;
-
-                return $image;
-            },
-        );
+        $capture = $this->captureSaveCall($image);
 
         $this->callMethod($this->processor, 'generateAvifVariant', $image, 75, $variantBase);
 
-        self::assertSame($variantBase . '.avif', $capturedPath);
-        self::assertSame(['quality' => 75], $capturedOptions);
+        self::assertSame($variantBase . '.avif', $capture['path']);
+        self::assertSame(['quality' => 75], $capture['options']);
     }
 
     #[Test]
@@ -3070,17 +3086,7 @@ final class ProcessorTest extends TestCase
 
         // Both variants skipped: save() called exactly once for the primary file only,
         // with the quality passed as a named option (positional is dropped by Intervention v3/v4).
-        $capturedPath    = null;
-        $capturedOptions = [];
-        $image->expects(self::once())->method('save')->willReturnCallback(
-            static function (string $path, mixed ...$options) use ($image, &$capturedPath, &$capturedOptions): ImageInterface {
-                $capturedPath    = $path;
-                $capturedOptions = $options;
-                file_put_contents($path, 'processed');
-
-                return $image;
-            },
-        );
+        $capture = $this->captureSaveCall($image, true);
 
         $uri = $this->createMock(UriInterface::class);
         $uri->method('getQuery')->willReturn('skipWebP=1&skipAvif=1');
@@ -3100,8 +3106,8 @@ final class ProcessorTest extends TestCase
         $result = $this->callMethod($processor, 'processAndRespond', $request, $urlInfo);
         self::assertSame($response200, $result);
 
-        self::assertSame($variantPath, $capturedPath);
-        self::assertSame(['quality' => 80], $capturedOptions);
+        self::assertSame($variantPath, $capture['path']);
+        self::assertSame(['quality' => 80], $capture['options']);
 
         $files = glob($tempDir . '/processed/*');
 

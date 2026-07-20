@@ -163,7 +163,7 @@ Parameters
 ..  note::
 
     Quality and output format are not exposed as ViewHelper
-    arguments. Quality defaults to 100 and is baked into the
+    arguments. Quality defaults to 75 and is baked into the
     generated ``/processed/...q<n>...`` URL; the variant's
     file extension is inherited from the source image. Use
     :ref:`the URL format <configuration-url-format>` and
