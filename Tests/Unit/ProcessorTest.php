@@ -221,7 +221,7 @@ final class ProcessorTest extends TestCase
      * drop a positional one (it never matches an encoder constructor parameter
      * name), so the captured options are asserted by key at each call site.
      *
-     * Pass $expectSingleCall = false when the WebP/AVIF variants are generated as
+     * Pass $expectedCallCount = null when the WebP/AVIF variants are generated as
      * well: those go through save() too, so the mock receives three invocations
      * and only the first one carries the base-format path.
      *
@@ -232,8 +232,7 @@ final class ProcessorTest extends TestCase
      *
      * @param MockObject&ImageInterface $image             Image mock receiving the save() expectation
      * @param string|null               $writeContents     Payload to write to the saved path, or null to write nothing
-     * @param bool                      $expectSingleCall  Whether save() must be invoked exactly once
-     * @param int|null                  $expectedCallCount Exact number of expected invocations, overrides $expectSingleCall
+     * @param int|null                  $expectedCallCount Exact number of expected invocations, null for "at least once"
      * @param list<string>|null         $allowedPaths      When given, every saved path must be one of these
      * @param Throwable|null            $webpError         Thrown instead of writing when the path ends in ".webp"
      * @param Throwable|null            $avifError         Thrown instead of writing when the path ends in ".avif"
@@ -243,8 +242,7 @@ final class ProcessorTest extends TestCase
     private function captureSaveCall(
         MockObject $image,
         ?string $writeContents = null,
-        bool $expectSingleCall = true,
-        ?int $expectedCallCount = null,
+        ?int $expectedCallCount = 1,
         ?array $allowedPaths = null,
         ?Throwable $webpError = null,
         ?Throwable $avifError = null,
@@ -255,11 +253,7 @@ final class ProcessorTest extends TestCase
             'options' => [],
         ]);
 
-        if ($expectedCallCount !== null) {
-            $invocationRule = self::exactly($expectedCallCount);
-        } else {
-            $invocationRule = $expectSingleCall ? self::once() : self::atLeastOnce();
-        }
+        $invocationRule = $expectedCallCount !== null ? self::exactly($expectedCallCount) : self::atLeastOnce();
 
         $image->expects($invocationRule)->method('save')->willReturnCallback(
             static function (?string $path = null, mixed ...$options) use ($capture, $image, $writeContents, $allowedPaths, $webpError, $avifError): ImageInterface {
@@ -272,13 +266,7 @@ final class ProcessorTest extends TestCase
                     self::assertContains($path, $allowedPaths);
                 }
 
-                if (($path !== null) && ($webpError instanceof Throwable) && str_ends_with($path, '.webp')) {
-                    throw $webpError;
-                }
-
-                if (($path !== null) && ($avifError instanceof Throwable) && str_ends_with($path, '.avif')) {
-                    throw $avifError;
-                }
+                self::throwConfiguredVariantError($path, $webpError, $avifError);
 
                 if (($writeContents !== null) && ($path !== null)) {
                     file_put_contents($path, $writeContents);
@@ -289,6 +277,28 @@ final class ProcessorTest extends TestCase
         );
 
         return $capture;
+    }
+
+    /**
+     * Throw the error configured for the variant format the saved path targets.
+     *
+     * @param string|null    $path      Path handed to save(), null when save() was called without one
+     * @param Throwable|null $webpError Thrown when the path ends in ".webp"
+     * @param Throwable|null $avifError Thrown when the path ends in ".avif"
+     */
+    private static function throwConfiguredVariantError(?string $path, ?Throwable $webpError, ?Throwable $avifError): void
+    {
+        if ($path === null) {
+            return;
+        }
+
+        if (($webpError instanceof Throwable) && str_ends_with($path, '.webp')) {
+            throw $webpError;
+        }
+
+        if (($avifError instanceof Throwable) && str_ends_with($path, '.avif')) {
+            throw $avifError;
+        }
     }
 
     #[Test]
@@ -2885,16 +2895,16 @@ final class ProcessorTest extends TestCase
      * Only the parts that actually differ between the tests are parameters; the
      * save() wiring stays with the caller and goes through captureSaveCall().
      *
-     * @param string      $prefix           Temp directory name prefix
-     * @param string      $extension        File extension of original and variant
-     * @param int         $sourceWidth      Width reported by the image mock
-     * @param int         $sourceHeight     Height reported by the image mock
-     * @param int|null    $targetHeight     Requested target height, null for scale mode
-     * @param int         $processingMode   Requested processing mode
-     * @param string      $query            Request query string
-     * @param object|null $eventDispatcher  Event dispatcher stub/mock
-     * @param string      $variantDir       Directory below the temp dir holding the variant
-     * @param bool        $createVariantDir Whether the variant directory is created upfront
+     * The processing mode follows from $targetHeight: an explicit height means
+     * cover mode (0), a null height means scale mode (1).
+     *
+     * @param string                                                                             $prefix       Temp directory name prefix
+     * @param string                                                                             $extension    File extension of original and variant
+     * @param int                                                                                $sourceWidth  Width reported by the image mock
+     * @param int                                                                                $sourceHeight Height reported by the image mock
+     * @param int|null                                                                           $targetHeight Requested target height, null for scale mode
+     * @param string                                                                             $query        Request query string
+     * @param array{eventDispatcher?: object|null, variantDir?: string, createVariantDir?: bool} $options      Optional wiring: dispatcher stub/mock, variant sub-directory, whether it is created upfront
      *
      * @return array{
      *     processor: Processor,
@@ -2913,14 +2923,16 @@ final class ProcessorTest extends TestCase
         int $sourceWidth,
         int $sourceHeight,
         ?int $targetHeight,
-        int $processingMode,
         string $query,
-        ?object $eventDispatcher = null,
-        string $variantDir = 'processed',
-        bool $createVariantDir = true,
+        array $options = [],
     ): array {
-        $targetWidth   = 400;
-        $targetQuality = 80;
+        $eventDispatcher  = $options['eventDispatcher'] ?? null;
+        $variantDir       = $options['variantDir'] ?? 'processed';
+        $createVariantDir = $options['createVariantDir'] ?? true;
+
+        $processingMode = $targetHeight === null ? 1 : 0;
+        $targetWidth    = 400;
+        $targetQuality  = 80;
 
         $tempDir = sys_get_temp_dir() . '/' . $prefix . uniqid('', true);
         mkdir($createVariantDir ? $tempDir . '/' . $variantDir : $tempDir, 0o777, true);
@@ -3022,9 +3034,9 @@ final class ProcessorTest extends TestCase
     #[Test]
     public function processAndRespondProcessesImageAndBuildsResponse(): void
     {
-        $scenario = $this->setUpProcessAndRespondScenario('nr-pio-process-', 'jpg', 800, 400, 200, 0, '');
+        $scenario = $this->setUpProcessAndRespondScenario('nr-pio-process-', 'jpg', 800, 400, 200, '');
 
-        $capture = $this->captureSaveCall($scenario['image'], 'processed-image', expectSingleCall: false);
+        $capture = $this->captureSaveCall($scenario['image'], 'processed-image', expectedCallCount: null);
 
         self::assertSame($scenario['response'], $this->invokeProcessAndRespond($scenario));
 
@@ -3038,7 +3050,7 @@ final class ProcessorTest extends TestCase
     #[Test]
     public function processAndRespondSkipsWebpWhenExtensionIsWebp(): void
     {
-        $scenario = $this->setUpProcessAndRespondScenario('nr-pio-webp-skip-proc-', 'webp', 400, 200, 200, 0, '');
+        $scenario = $this->setUpProcessAndRespondScenario('nr-pio-webp-skip-proc-', 'webp', 400, 200, 200, '');
 
         // WebP source: save primary (.webp) + AVIF variant, but NOT an extra .webp
         $this->captureSaveCall(
@@ -3056,7 +3068,7 @@ final class ProcessorTest extends TestCase
     #[Test]
     public function processAndRespondSkipsAvifWhenExtensionIsAvif(): void
     {
-        $scenario = $this->setUpProcessAndRespondScenario('nr-pio-avif-skip-proc-', 'avif', 400, 200, 200, 0, '');
+        $scenario = $this->setUpProcessAndRespondScenario('nr-pio-avif-skip-proc-', 'avif', 400, 200, 200, '');
 
         // AVIF source: save primary (.avif) + WebP variant, but NOT an extra .avif
         $this->captureSaveCall(
@@ -3074,7 +3086,7 @@ final class ProcessorTest extends TestCase
     #[Test]
     public function processAndRespondSkipsBothVariantsViaQueryParams(): void
     {
-        $scenario = $this->setUpProcessAndRespondScenario('nr-pio-skip-both-', 'jpg', 400, 200, 200, 0, 'skipWebP=1&skipAvif=1');
+        $scenario = $this->setUpProcessAndRespondScenario('nr-pio-skip-both-', 'jpg', 400, 200, 200, 'skipWebP=1&skipAvif=1');
 
         // Both variants skipped: save() called exactly once for the primary file only,
         // with the quality passed as a named option (positional is dropped by Intervention v3/v4).
@@ -3091,12 +3103,12 @@ final class ProcessorTest extends TestCase
     #[Test]
     public function processAndRespondHandlesWebpAndAvifGenerationFailure(): void
     {
-        $scenario = $this->setUpProcessAndRespondScenario('nr-pio-gen-fail-', 'jpg', 400, 200, 200, 0, '');
+        $scenario = $this->setUpProcessAndRespondScenario('nr-pio-gen-fail-', 'jpg', 400, 200, 200, '');
 
         $this->captureSaveCall(
             $scenario['image'],
             'processed',
-            expectSingleCall: false,
+            expectedCallCount: null,
             webpError: new RuntimeException('WebP encoding failed'),
             avifError: new RuntimeException('AVIF encoding failed'),
         );
@@ -3109,7 +3121,7 @@ final class ProcessorTest extends TestCase
     #[Test]
     public function processAndRespondUsesScaleModeWithDerivedHeight(): void
     {
-        $scenario = $this->setUpProcessAndRespondScenario('nr-pio-scale-', 'jpg', 800, 400, null, 1, 'skipWebP=1&skipAvif=1');
+        $scenario = $this->setUpProcessAndRespondScenario('nr-pio-scale-', 'jpg', 800, 400, null, 'skipWebP=1&skipAvif=1');
 
         $this->captureSaveCall($scenario['image'], 'processed');
 
@@ -3432,12 +3444,12 @@ final class ProcessorTest extends TestCase
                     && $event->avifGenerated;
             }));
 
-        $scenario = $this->setUpProcessAndRespondScenario('nr-pio-evt-proc-', 'jpg', 800, 400, 200, 0, '', $eventDispatcher);
+        $scenario = $this->setUpProcessAndRespondScenario('nr-pio-evt-proc-', 'jpg', 800, 400, 200, '', ['eventDispatcher' => $eventDispatcher]);
 
         $paths['original'] = $scenario['originalPath'];
         $paths['variant']  = $scenario['variantPath'];
 
-        $this->captureSaveCall($scenario['image'], 'processed-image', expectSingleCall: false);
+        $this->captureSaveCall($scenario['image'], 'processed-image', expectedCallCount: null);
 
         $this->invokeProcessAndRespond($scenario);
 
@@ -3463,12 +3475,12 @@ final class ProcessorTest extends TestCase
                     && $event->avifGenerated === false;
             }));
 
-        $scenario = $this->setUpProcessAndRespondScenario('nr-pio-evt-fail-', 'jpg', 800, 400, 200, 0, '', $eventDispatcher);
+        $scenario = $this->setUpProcessAndRespondScenario('nr-pio-evt-fail-', 'jpg', 800, 400, 200, '', ['eventDispatcher' => $eventDispatcher]);
 
         $this->captureSaveCall(
             $scenario['image'],
             'processed-image',
-            expectSingleCall: false,
+            expectedCallCount: null,
             webpError: new RuntimeException('WebP failed'),
             avifError: new RuntimeException('AVIF failed'),
         );
@@ -3815,7 +3827,7 @@ final class ProcessorTest extends TestCase
     #[Test]
     public function processAndRespondLogsWarningWhenWebpAndAvifGenerationFail(): void
     {
-        $scenario = $this->setUpProcessAndRespondScenario('nr-pio-webp-log-', 'jpg', 400, 200, 200, 0, '');
+        $scenario = $this->setUpProcessAndRespondScenario('nr-pio-webp-log-', 'jpg', 400, 200, 200, '');
 
         $webpException = new RuntimeException('WebP encoding failed');
         $avifException = new RuntimeException('AVIF encoding failed');
@@ -3823,7 +3835,7 @@ final class ProcessorTest extends TestCase
         $this->captureSaveCall(
             $scenario['image'],
             'processed',
-            expectSingleCall: false,
+            expectedCallCount: null,
             webpError: $webpException,
             avifError: $avifException,
         );
@@ -4085,10 +4097,8 @@ final class ProcessorTest extends TestCase
             400,
             200,
             200,
-            0,
             'skipWebP=1&skipAvif=1',
-            variantDir: 'processed/deep',
-            createVariantDir: false,
+            ['variantDir' => 'processed/deep', 'createVariantDir' => false],
         );
 
         $image = $scenario['image'];
