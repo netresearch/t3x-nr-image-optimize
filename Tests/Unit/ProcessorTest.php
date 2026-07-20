@@ -214,33 +214,45 @@ final class ProcessorTest extends TestCase
     }
 
     /**
-     * Registers a single save() expectation on the image mock and records the
-     * arguments it receives.
+     * Registers a save() expectation on the image mock and records the arguments
+     * of the first invocation, which is always the base-format variant.
      *
      * The quality must reach the encoder as a NAMED argument -- Intervention v3/v4
      * drop a positional one (it never matches an encoder constructor parameter
      * name), so the captured options are asserted by key at each call site.
      *
-     * @param MockObject&ImageInterface $image     Image mock receiving the save() expectation
-     * @param bool                      $writeFile Whether the callback should also write the target file
+     * Pass $expectSingleCall = false when the WebP/AVIF variants are generated as
+     * well: those go through save() too, so the mock receives three invocations
+     * and only the first one carries the base-format path.
+     *
+     * @param MockObject&ImageInterface $image            Image mock receiving the save() expectation
+     * @param string|null               $writeContents    Payload to write to the saved path, or null to write nothing
+     * @param bool                      $expectSingleCall Whether save() must be invoked exactly once
      *
      * @return ArrayObject<string, mixed> Holder with the captured 'path' and 'options'
      */
-    private function captureSaveCall(MockObject $image, bool $writeFile = false): ArrayObject
-    {
+    private function captureSaveCall(
+        MockObject $image,
+        ?string $writeContents = null,
+        bool $expectSingleCall = true,
+    ): ArrayObject {
         /** @var ArrayObject<string, mixed> $capture */
         $capture = new ArrayObject([
             'path'    => null,
             'options' => [],
         ]);
 
-        $image->expects(self::once())->method('save')->willReturnCallback(
-            static function (?string $path = null, mixed ...$options) use ($capture, $image, $writeFile): ImageInterface {
-                $capture['path']    = $path;
-                $capture['options'] = $options;
+        $invocationRule = $expectSingleCall ? self::once() : self::atLeastOnce();
 
-                if ($writeFile && ($path !== null)) {
-                    file_put_contents($path, 'processed');
+        $image->expects($invocationRule)->method('save')->willReturnCallback(
+            static function (?string $path = null, mixed ...$options) use ($capture, $image, $writeContents): ImageInterface {
+                if ($capture['path'] === null) {
+                    $capture['path']    = $path;
+                    $capture['options'] = $options;
+                }
+
+                if (($writeContents !== null) && ($path !== null)) {
+                    file_put_contents($path, $writeContents);
                 }
 
                 return $image;
@@ -2864,13 +2876,7 @@ final class ProcessorTest extends TestCase
         $image->method('width')->willReturn(800);
         $image->method('height')->willReturn(400);
         $image->method('cover')->willReturn($image);
-        $image->method('save')->willReturnCallback(
-            static function (string $path, mixed ...$options) use ($image): ImageInterface {
-                file_put_contents($path, 'processed-image');
-
-                return $image;
-            },
-        );
+        $capture = $this->captureSaveCall($image, 'processed-image', expectSingleCall: false);
 
         $uri = $this->createMock(UriInterface::class);
         $uri->method('getQuery')->willReturn('');
@@ -2890,6 +2896,10 @@ final class ProcessorTest extends TestCase
         $result = $this->callMethod($processor, 'processAndRespond', $request, $urlInfo);
 
         self::assertSame($response200, $result);
+
+        // The base format is saved with the requested quality as a named option.
+        self::assertSame($variantPath, $capture['path']);
+        self::assertSame(['quality' => 80], $capture['options']);
 
         $files = glob($tempDir . '/processed/*');
 
@@ -3086,7 +3096,7 @@ final class ProcessorTest extends TestCase
 
         // Both variants skipped: save() called exactly once for the primary file only,
         // with the quality passed as a named option (positional is dropped by Intervention v3/v4).
-        $capture = $this->captureSaveCall($image, true);
+        $capture = $this->captureSaveCall($image, 'processed');
 
         $uri = $this->createMock(UriInterface::class);
         $uri->method('getQuery')->willReturn('skipWebP=1&skipAvif=1');
