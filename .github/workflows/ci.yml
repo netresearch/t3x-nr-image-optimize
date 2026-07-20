@@ -22,6 +22,7 @@ jobs:
       typo3-versions: '["^13.4","^14.0"]'
       upload-coverage: true
       run-functional-tests: true
+      run-acceptance-tests: true
       functional-test-db: 'sqlite'
       php-extensions: 'intl, mbstring, xml, imagick, gd'
       coverage-tool: 'xdebug'
