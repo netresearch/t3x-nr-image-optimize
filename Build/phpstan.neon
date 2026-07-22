@@ -36,6 +36,13 @@ parameters:
         - identifier: offsetAccess.nonOffsetAccessible
           path: %currentWorkingDirectory%/Tests/Unit/*
           reportUnmatched: false
+        # $GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS'] is untyped (mixed) --
+        # ProcessorSymlinkedFileadminTest overrides the
+        # "additionalTrustedStorageSymlinks" extension configuration
+        # in-memory to exercise it without persisting to LocalConfiguration.
+        - identifier: offsetAccess.nonOffsetAccessible
+          path: %currentWorkingDirectory%/Tests/Functional/*
+          reportUnmatched: false
         - identifier: argument.type
           path: %currentWorkingDirectory%/Tests/Unit/*
           message: '#Parameter \#2 \$array of static method PHPUnit\\Framework\\Assert::#'

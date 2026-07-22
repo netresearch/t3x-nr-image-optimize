@@ -206,3 +206,51 @@ By default :confval:`responsiveSrcset <confval-responsive-srcset>`
 is ``false``, preserving the existing 2x density-based
 ``srcset`` behavior. All existing templates continue to work
 without modifications.
+
+..  _configuration-trusted-storage-symlinks:
+
+Trusted storage symlinks
+=========================
+
+The processor validates that both the source image and the
+target variant resolve (via ``realpath()``) to a location
+inside an allowed root -- the public webroot, or a Local FAL
+storage's own base path -- before reading or writing anything.
+This rejects requests for images reached through a symlink that
+escapes those roots (for example a symlink accidentally or
+maliciously pointing at :file:`/etc`).
+
+Some deployments relocate TYPO3 core's own
+:file:`_processed_` image cache -- a subdirectory *inside* a FAL
+storage's own directory, e.g. :file:`fileadmin/_processed_` --
+onto local/ephemeral storage, to keep frequently-rewritten
+derivative images off shared/NFS storage. That leaves only a
+symlink behind inside the storage, which the FAL-storage
+basePath lookup above does not see (it only resolves the
+storage's own base path, never looks inside it), so variant
+requests for such images are rejected even though the original
+file is legitimately part of the deployed application.
+
+The ``additionalTrustedStorageSymlinks`` extension configuration
+setting closes this gap on an explicit, per-instance, opt-in
+basis: a comma-separated list of directory names that, when
+found as a symlink directly inside a Local FAL storage's base
+path, are resolved and added to the allow-list too.
+
+..  code-block:: php
+    :caption: config/system/additional.php
+
+    $GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['nr_image_optimize']['additionalTrustedStorageSymlinks'] = '_processed_';
+
+The setting can also be edited via the backend:
+*Admin Tools > Settings > Extension Configuration >
+nr_image_optimize*.
+
+..  attention::
+    This widens the set of filesystem locations the processor
+    will read from and publicly serve variants of. Only add
+    well-known, infrastructure-managed names here -- never a
+    name an untrusted party (e.g. an FTP-only content account)
+    could create on their own. The default is empty, which
+    keeps today's behavior unchanged for every installation that
+    does not configure it.
