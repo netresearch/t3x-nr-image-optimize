@@ -400,24 +400,26 @@ final class SystemRequirementsServiceTest extends TestCase
     public function makeFormatSupportItemReturnsCorrectStructureWhenSupported(): void
     {
         /** @var array<string, mixed> $result */
-        $result = $this->callMethod('makeFormatSupportItem', 'sysreq.webpSupport', true);
+        $result = $this->callMethod('makeFormatSupportItem', 'sysreq.webpSupport', true, 'Imagick delegate');
 
         self::assertSame('sysreq.webpSupport', $result['labelKey']);
         self::assertSame('success', $result['status']);
         self::assertSame('sysreq.yes', $result['currentKey']);
         self::assertSame('sysreq.optional', $result['requiredKey']);
+        self::assertSame('Provided by Imagick delegate', $result['details']);
     }
 
     #[Test]
     public function makeFormatSupportItemReturnsCorrectStructureWhenNotSupported(): void
     {
         /** @var array<string, mixed> $result */
-        $result = $this->callMethod('makeFormatSupportItem', 'sysreq.avifSupport', false);
+        $result = $this->callMethod('makeFormatSupportItem', 'sysreq.avifSupport', false, 'GD libavif');
 
         self::assertSame('sysreq.avifSupport', $result['labelKey']);
         self::assertSame('warning', $result['status']);
         self::assertSame('sysreq.no', $result['currentKey']);
         self::assertSame('sysreq.optional', $result['requiredKey']);
+        self::assertSame('Not provided by GD libavif', $result['details']);
     }
 
     #[Test]
@@ -598,7 +600,9 @@ final class SystemRequirementsServiceTest extends TestCase
     public function findVersionFromComposerInstalledReturnsNullForNonexistentFile(): void
     {
         // Environment points to temp dir with no installed.json or composer.lock
-        $result = $this->callMethod('findVersionFromComposerInstalled', 'nonexistent/package');
+        /** @var array{0: ?string, 1: ?string} $tuple */
+        $tuple  = $this->callMethod('findVersionFromComposerInstalledWithSource', 'nonexistent/package');
+        $result = $tuple[0];
 
         self::assertNull($result);
     }
@@ -621,7 +625,9 @@ final class SystemRequirementsServiceTest extends TestCase
         ], JSON_THROW_ON_ERROR);
         file_put_contents($vendorDir . '/installed.json', $data);
 
-        $result = $this->callMethod('findVersionFromComposerInstalled', 'test/package');
+        /** @var array{0: ?string, 1: ?string} $tuple */
+        $tuple  = $this->callMethod('findVersionFromComposerInstalledWithSource', 'test/package');
+        $result = $tuple[0];
         self::assertSame('1.2.3', $result);
 
         // Cleanup
@@ -647,7 +653,9 @@ final class SystemRequirementsServiceTest extends TestCase
         ], JSON_THROW_ON_ERROR);
         file_put_contents($vendorDir . '/installed.json', $data);
 
-        $result = $this->callMethod('findVersionFromComposerInstalled', 'test/package');
+        /** @var array{0: ?string, 1: ?string} $tuple */
+        $tuple  = $this->callMethod('findVersionFromComposerInstalledWithSource', 'test/package');
+        $result = $tuple[0];
         self::assertSame('v1.0.0', $result);
 
         unlink($vendorDir . '/installed.json'); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
@@ -670,7 +678,9 @@ final class SystemRequirementsServiceTest extends TestCase
         ], JSON_THROW_ON_ERROR);
         file_put_contents($projectPath . '/composer.lock', $data);
 
-        $result = $this->callMethod('findVersionFromComposerInstalled', 'lock/package');
+        /** @var array{0: ?string, 1: ?string} $tuple */
+        $tuple  = $this->callMethod('findVersionFromComposerInstalledWithSource', 'lock/package');
+        $result = $tuple[0];
         self::assertSame('2.0.0', $result);
 
         unlink($projectPath . '/composer.lock'); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
@@ -692,7 +702,9 @@ final class SystemRequirementsServiceTest extends TestCase
         ], JSON_THROW_ON_ERROR);
         file_put_contents($projectPath . '/composer.lock', $data);
 
-        $result = $this->callMethod('findVersionFromComposerInstalled', 'dev/package');
+        /** @var array{0: ?string, 1: ?string} $tuple */
+        $tuple  = $this->callMethod('findVersionFromComposerInstalledWithSource', 'dev/package');
+        $result = $tuple[0];
         self::assertSame('3.0.0', $result);
 
         unlink($projectPath . '/composer.lock'); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
@@ -720,7 +732,9 @@ final class SystemRequirementsServiceTest extends TestCase
         ], JSON_THROW_ON_ERROR);
         file_put_contents($projectPath . '/composer.lock', $data);
 
-        $result = $this->callMethod('findVersionFromComposerInstalled', 'missing/package');
+        /** @var array{0: ?string, 1: ?string} $tuple */
+        $tuple  = $this->callMethod('findVersionFromComposerInstalledWithSource', 'missing/package');
+        $result = $tuple[0];
         self::assertNull($result);
 
         unlink($vendorDir . '/installed.json'); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
@@ -746,7 +760,9 @@ final class SystemRequirementsServiceTest extends TestCase
         ], JSON_THROW_ON_ERROR);
         file_put_contents($vendorDir . '/installed.json', $data);
 
-        $result = $this->callMethod('findVersionFromComposerInstalled', 'flat/package');
+        /** @var array{0: ?string, 1: ?string} $tuple */
+        $tuple  = $this->callMethod('findVersionFromComposerInstalledWithSource', 'flat/package');
+        $result = $tuple[0];
         self::assertSame('4.0.0', $result);
 
         unlink($vendorDir . '/installed.json'); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
@@ -1494,8 +1510,10 @@ final class SystemRequirementsServiceTest extends TestCase
         file_put_contents($vendorDir . '/installed.json', $data);
 
         // The findVersionFromComposerInstalled method should find it
-        $version = $this->callMethod('findVersionFromComposerInstalled', 'intervention/image');
-        // Should find a version (either from InstalledVersions or the file)
+        /** @var array{0: ?string, 1: ?string} $tuple */
+        $tuple   = $this->callMethod('findVersionFromComposerInstalledWithSource', 'intervention/image');
+        $version = $tuple[0];
+
         self::assertNotNull($version, 'Should find version from InstalledVersions or installed.json fallback');
 
         unlink($vendorDir . '/installed.json'); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file

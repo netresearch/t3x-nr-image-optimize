@@ -40,7 +40,7 @@
                         </thead>
                         <tbody>
                             <f:for each="{category.items}" as="item">
-                                <tr class="align-middle">
+                                <tr class="align-top">
                                     <td class="ps-3">
                                         <f:if condition="{item.labelKey}">
                                             <f:then>
@@ -80,11 +80,11 @@
                                     <td>
                                         <f:if condition="{item.currentKey}">
                                             <f:then>
-                                                <code class="text-dark bg-light px-2 py-1 rounded small"><f:translate key="{item.currentKey}" extensionName="NrImageOptimize" /></code>
+                                                <span class="sysreq-code-color"><f:translate key="{item.currentKey}" extensionName="NrImageOptimize" /></span>
                                             </f:then>
                                             <f:else>
                                                 <f:if condition="{item.current}">
-                                                    <code class="text-dark bg-light px-2 py-1 rounded small">{item.current}</code>
+                                                    <span class="sysreq-code-color">{item.current}</span>
                                                 </f:if>
                                             </f:else>
                                         </f:if>
@@ -92,24 +92,18 @@
                                     <td>
                                         <f:if condition="{item.requiredKey}">
                                             <f:then>
-                                                <span class="text-muted small"><f:translate key="{item.requiredKey}" extensionName="NrImageOptimize" /></span>
+                                                <span class="text-muted"><f:translate key="{item.requiredKey}" extensionName="NrImageOptimize" /></span>
                                             </f:then>
                                             <f:else>
                                                 <f:if condition="{item.required}">
-                                                    <span class="text-muted small">{item.required}</span>
+                                                    <span class="text-muted">{item.required}</span>
                                                 </f:if>
                                             </f:else>
                                         </f:if>
                                     </td>
                                     <td class="pe-3">
                                         <f:if condition="{item.details}">
-                                            <button type="button"
-                                                    class="btn btn-link btn-sm p-0 text-decoration-none"
-                                                    data-bs-toggle="tooltip"
-                                                    data-bs-placement="left"
-                                                    title="{item.details -> f:format.htmlspecialchars()}">
-                                                <core:icon identifier="actions-info" size="small"/>
-                                            </button>
+                                            <span class="text-muted sysreq-details">{item.details}</span>
                                         </f:if>
                                     </td>
                                 </tr>
@@ -135,7 +129,7 @@
         </div>
     </div>
 
-    <f:be.pageRenderer includeJsFiles="{0: 'EXT:nr_image_optimize/Resources/Public/JavaScript/SystemRequirements.js'}" includeCssFiles="{0: 'EXT:nr_image_optimize/Resources/Public/Css/SystemRequirements.css'}" />
+    <f:be.pageRenderer includeCssFiles="{0: 'EXT:nr_image_optimize/Resources/Public/Css/SystemRequirements.css'}" />
 </f:section>
 
 </html>

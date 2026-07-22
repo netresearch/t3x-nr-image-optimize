@@ -44,6 +44,7 @@ use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Information\Typo3Version;
 
 use function version_compare;
+use function zend_version;
 
 /**
  * Service to collect and check system requirements for the image optimization extension.
@@ -139,25 +140,41 @@ final class SystemRequirementsService
         $ok       = version_compare($current, self::MIN_PHP_VERSION, '>=');
 
         $items   = [];
-        $items[] = $this->makeItem('sysreq.phpVersion', $current, $required, $ok ? 'success' : 'error');
+        $items[] = $this->makeItem(
+            'sysreq.phpVersion',
+            $current,
+            $required,
+            $ok ? 'success' : 'error',
+            details: $this->getPhpDetails(),
+        );
 
         foreach (self::REQUIRED_PHP_EXTENSIONS as $ext) {
             $loaded     = extension_loaded($ext);
             $isOptional = in_array($ext, self::OPTIONAL_PHP_EXTENSIONS, true);
             $status     = $loaded ? 'success' : ($isOptional ? 'warning' : 'error');
+            $rawVersion = $loaded ? phpversion($ext) : false;
+            $extVersion = $rawVersion !== false ? $rawVersion : null;
 
             $items[] = $this->makeItem(
                 'sysreq.phpExtension',
                 null,
                 null,
                 $status,
-                null,
-                [$ext],
-                $loaded ? 'sysreq.loaded' : 'sysreq.notLoaded',
+                details: $extVersion !== null ? 'Version: ' . $extVersion : null,
+                labelArguments: [$ext],
+                currentKey: $loaded ? 'sysreq.loaded' : 'sysreq.notLoaded',
             );
         }
 
         return $this->makeCategory('sysreq.phpRequirements', $items);
+    }
+
+    /**
+     * Build runtime details string for the PHP version row.
+     */
+    private function getPhpDetails(): string
+    {
+        return 'Zend Engine ' . zend_version() . ', SAPI: ' . PHP_SAPI;
     }
 
     /**
@@ -191,21 +208,41 @@ final class SystemRequirementsService
             $imagickVersion,
             null,
             'success',
-            null,
-            [],
-            $imagickVersion === null ? 'sysreq.unknown' : null,
+            details: $imagickVersion !== null ? 'PECL imagick ' . $imagickVersion : null,
+            currentKey: $imagickVersion === null ? 'sysreq.unknown' : null,
         );
 
         try {
             $imInfo  = Imagick::getVersion();
-            $items[] = $this->makeItem('sysreq.imageMagickVersion', $imInfo['versionString'], null, 'success');
+            $items[] = $this->makeItem(
+                'sysreq.imageMagickVersion',
+                $imInfo['versionString'],
+                null,
+                'success',
+                details: $this->getImageMagickBuildDetails($imInfo),
+            );
 
-            $formats = Imagick::queryFormats();
-            $items[] = $this->makeFormatSupportItem('sysreq.webpSupport', in_array('WEBP', $formats, true));
-            $items[] = $this->makeFormatSupportItem('sysreq.avifSupport', in_array('AVIF', $formats, true));
+            $formats      = Imagick::queryFormats();
+            $totalFormats = count($formats);
+            $items[]      = $this->makeFormatSupportItem(
+                'sysreq.webpSupport',
+                in_array('WEBP', $formats, true),
+                'Imagick delegate',
+            );
+            $items[] = $this->makeFormatSupportItem(
+                'sysreq.avifSupport',
+                in_array('AVIF', $formats, true),
+                'Imagick delegate',
+            );
 
             $relevant = array_values(array_intersect($formats, self::RELEVANT_IMAGE_FORMATS));
-            $items[]  = $this->makeItem('sysreq.supportedFormats', implode(', ', $relevant), null, 'success');
+            $items[]  = $this->makeItem(
+                'sysreq.supportedFormats',
+                implode(', ', $relevant),
+                null,
+                'success',
+                details: sprintf('%d total formats: %s', $totalFormats, implode(', ', $formats)),
+            );
         } catch (Throwable $e) {
             $items[] = $this->makeItem(
                 'sysreq.imageMagickVersion',
@@ -252,15 +289,60 @@ final class SystemRequirementsService
             $gdVersion,
             null,
             'success',
-            null,
-            [],
-            $gdVersion === null ? 'sysreq.unknown' : null,
+            details: $this->getGdBuildDetails($info),
+            currentKey: $gdVersion === null ? 'sysreq.unknown' : null,
         );
 
-        $items[] = $this->makeFormatSupportItem('sysreq.webpSupport', (bool) ($info['WebP Support'] ?? false));
-        $items[] = $this->makeFormatSupportItem('sysreq.avifSupport', (bool) ($info['AVIF Support'] ?? false));
+        $items[] = $this->makeFormatSupportItem(
+            'sysreq.webpSupport',
+            (bool) ($info['WebP Support'] ?? false),
+            'GD libwebp',
+        );
+        $items[] = $this->makeFormatSupportItem(
+            'sysreq.avifSupport',
+            (bool) ($info['AVIF Support'] ?? false),
+            'GD libavif',
+        );
 
         return $this->makeCategory('sysreq.gdCategory', $items);
+    }
+
+    /**
+     * Build ImageMagick build-info string from Imagick::getVersion() output.
+     *
+     * @param array<string, mixed> $imInfo
+     */
+    private function getImageMagickBuildDetails(array $imInfo): string
+    {
+        $parts = [];
+
+        if (array_key_exists('versionString', $imInfo) && is_string($imInfo['versionString'])) {
+            $parts[] = $imInfo['versionString'];
+        }
+
+        if (array_key_exists('versionNumber', $imInfo) && (is_int($imInfo['versionNumber']) || is_string($imInfo['versionNumber']))) {
+            $parts[] = 'versionNumber=' . $imInfo['versionNumber'];
+        }
+
+        return implode("\n", $parts);
+    }
+
+    /**
+     * Build a build-info string from gd_info() output (feature flags only).
+     *
+     * @param array<array-key, mixed> $info
+     */
+    private function getGdBuildDetails(array $info): ?string
+    {
+        $features = [];
+
+        foreach (['FreeType Support', 'JPEG Support', 'PNG Support', 'WBMP Support', 'XPM Support', 'XBM Support', 'WebP Support', 'AVIF Support', 'BMP Support', 'TGA Read Support', 'GIF Read Support', 'GIF Create Support'] as $flag) {
+            if (array_key_exists($flag, $info) && $info[$flag] === true) {
+                $features[] = $flag;
+            }
+        }
+
+        return $features === [] ? null : 'Compiled with: ' . implode(', ', $features);
     }
 
     /**
@@ -268,20 +350,20 @@ final class SystemRequirementsService
      *
      * @param string $labelKey  Translation key for the format label
      * @param bool   $supported Whether the format is supported
+     * @param string $provider  Library that would provide this format (e.g. "Imagick delegate", "GD libwebp")
      *
      * @return array<string, mixed>
      */
-    private function makeFormatSupportItem(string $labelKey, bool $supported): array
+    private function makeFormatSupportItem(string $labelKey, bool $supported, string $provider): array
     {
         return $this->makeItem(
             $labelKey,
             null,
             null,
             $supported ? 'success' : 'warning',
-            null,
-            [],
-            $supported ? 'sysreq.yes' : 'sysreq.no',
-            'sysreq.optional',
+            details: $supported ? 'Provided by ' . $provider : 'Not provided by ' . $provider,
+            currentKey: $supported ? 'sysreq.yes' : 'sysreq.no',
+            requiredKey: 'sysreq.optional',
         );
     }
 
@@ -295,14 +377,17 @@ final class SystemRequirementsService
         $items = [];
 
         foreach (self::REQUIRED_COMPOSER_PACKAGES as $name) {
+            $source    = null;
             $installed = class_exists(InstalledVersions::class) && InstalledVersions::isInstalled($name);
             $version   = $installed
                 ? (InstalledVersions::getPrettyVersion($name) ?? InstalledVersions::getVersion($name))
                 : null;
 
-            if (!$installed) {
-                $version   = $this->findVersionFromComposerInstalled($name);
-                $installed = $version !== null;
+            if ($installed) {
+                $source = InstalledVersions::class;
+            } else {
+                [$version, $source] = $this->findVersionFromComposerInstalledWithSource($name);
+                $installed          = $version !== null;
             }
 
             $items[] = $this->makeItem(
@@ -310,11 +395,9 @@ final class SystemRequirementsService
                 $version,
                 null,
                 $installed ? 'success' : 'error',
-                null,
-                [],
-                $installed ? null : 'sysreq.notInstalled',
-                null,
-                $name,
+                details: $source !== null ? 'Source: ' . $source : null,
+                currentKey: $installed ? null : 'sysreq.notInstalled',
+                label: $name,
             );
         }
 
@@ -328,11 +411,19 @@ final class SystemRequirementsService
      */
     private function checkTypo3(): array
     {
-        $typo3 = (new Typo3Version())->getVersion();
-        $ok    = version_compare($typo3, self::MIN_TYPO3_VERSION, '>=');
+        $versionInfo = new Typo3Version();
+        $typo3       = $versionInfo->getVersion();
+        $branch      = $versionInfo->getBranch();
+        $ok          = version_compare($typo3, self::MIN_TYPO3_VERSION, '>=');
 
         return $this->makeCategory('sysreq.typo3Requirements', [
-            $this->makeItem('sysreq.typo3Version', $typo3, self::TYPO3_VERSION_REQUIREMENT, $ok ? 'success' : 'error'),
+            $this->makeItem(
+                'sysreq.typo3Version',
+                $typo3,
+                self::TYPO3_VERSION_REQUIREMENT,
+                $ok ? 'success' : 'error',
+                details: 'Branch ' . $branch,
+            ),
         ]);
     }
 
@@ -350,33 +441,45 @@ final class SystemRequirementsService
             $disableFunctions = '';
         }
 
-        $disabled    = array_map(trim(...), explode(',', $disableFunctions));
-        $execAllowed = function_exists('shell_exec') && !in_array('shell_exec', $disabled, true);
+        $disabled     = array_map(trim(...), explode(',', $disableFunctions));
+        $execAllowed  = function_exists('shell_exec') && !in_array('shell_exec', $disabled, true);
+        $disabledList = array_values(array_filter($disabled, static fn (string $f): bool => $f !== ''));
 
         $items[] = $this->makeItem(
             'sysreq.execAvailability',
             null,
             null,
             $execAllowed ? 'success' : 'warning',
-            null,
-            [],
-            $execAllowed ? 'sysreq.enabled' : 'sysreq.disabled',
-            'sysreq.optional',
+            details: $disabledList === [] ? 'disable_functions is empty' : 'disable_functions: ' . implode(', ', $disabledList),
+            currentKey: $execAllowed ? 'sysreq.enabled' : 'sysreq.disabled',
+            requiredKey: 'sysreq.optional',
         );
 
         foreach (self::CLI_TOOLS as $cmd => $labelKey) {
-            $res    = $this->checkBinaryAvailability($cmd, $execAllowed);
-            $status = $res['available'] === true ? 'success' : 'warning';
+            $res = $this->checkBinaryAvailability($cmd, $execAllowed);
+
+            if ($res['available'] === null) {
+                $items[] = $this->makeItem(
+                    $labelKey,
+                    null,
+                    null,
+                    'warning',
+                    details: 'Cannot probe binary while exec is disabled',
+                    currentKey: 'sysreq.unavailable',
+                    requiredKey: 'sysreq.optional',
+                );
+
+                continue;
+            }
 
             $items[] = $this->makeItem(
                 $labelKey,
                 $res['version'],
                 null,
-                $status,
-                null,
-                [],
-                $res['available'] === true ? 'sysreq.found' : 'sysreq.notFound',
-                'sysreq.optional',
+                $res['available'] ? 'success' : 'warning',
+                details: $this->buildCliDetails($res),
+                currentKey: $res['available'] ? 'sysreq.found' : 'sysreq.notFound',
+                requiredKey: 'sysreq.optional',
             );
         }
 
@@ -384,12 +487,42 @@ final class SystemRequirementsService
     }
 
     /**
+     * Build the inline details string for a CLI tool item (binary path + full version output).
+     *
+     * @param array{available: bool|null, version: string|null, path?: string|null, fullVersion?: string|null} $res
+     */
+    private function buildCliDetails(array $res): ?string
+    {
+        if ($res['available'] !== true) {
+            return null;
+        }
+
+        $parts = [];
+
+        if (array_key_exists('path', $res) && is_string($res['path']) && $res['path'] !== '') {
+            $parts[] = 'Path: ' . $res['path'];
+        }
+
+        if (array_key_exists('fullVersion', $res) && is_string($res['fullVersion']) && $res['fullVersion'] !== '') {
+            $parts[] = $res['fullVersion'];
+        }
+
+        return $parts === [] ? null : implode("\n", $parts);
+    }
+
+    /**
      * Check whether a CLI binary is available and retrieve its version.
+     *
+     * Returned shape:
+     *   - `available`: true|false|null (null = exec disabled)
+     *   - `version`: short first-line version string for the table cell
+     *   - `path`: absolute path to the binary (only when available)
+     *   - `fullVersion`: complete (multi-line) version output for the Details cell
      *
      * @param string $cmd         Command name to look up
      * @param bool   $execAllowed Whether exec/shell_exec is permitted
      *
-     * @return array{available: bool|null, version: string|null}
+     * @return array{available: bool|null, version: string|null, path?: string|null, fullVersion?: string|null}
      */
     private function checkBinaryAvailability(string $cmd, bool $execAllowed): array
     {
@@ -412,28 +545,38 @@ final class SystemRequirementsService
             $ver = trim((string) $ver);
         }
 
+        $firstLine = $ver !== '' ? trim(strtok($ver, "\n")) : '';
+
         return [
-            'available' => true,
-            'version'   => $ver !== '' ? $ver : null,
+            'available'   => true,
+            'version'     => $firstLine !== '' ? $firstLine : null,
+            'path'        => $path,
+            'fullVersion' => $ver !== '' ? $ver : null,
         ];
     }
 
     /**
-     * Find package version from composer installed.json or composer.lock.
+     * Find package version and report which fallback source provided it.
      *
-     * @param string $package Composer package name (e.g., 'vendor/package')
+     * @param string $package Composer package name
      *
-     * @return string|null Package version or null if not found
+     * @return array{0: string|null, 1: string|null} [version, source-label]
      */
-    private function findVersionFromComposerInstalled(string $package): ?string
+    private function findVersionFromComposerInstalledWithSource(string $package): array
     {
         $version = $this->findVersionFromInstalledJson($package);
 
         if ($version !== null) {
-            return $version;
+            return [$version, 'vendor/composer/installed.json'];
         }
 
-        return $this->findVersionFromComposerLock($package);
+        $version = $this->findVersionFromComposerLock($package);
+
+        if ($version !== null) {
+            return [$version, 'composer.lock'];
+        }
+
+        return [null, null];
     }
 
     /**
@@ -546,7 +689,7 @@ final class SystemRequirementsService
      * @param string|null        $current        Current value (raw string, not translated)
      * @param string|null        $required       Required value (raw string, not translated)
      * @param string             $status         Status: 'success', 'warning', or 'error'
-     * @param string|null        $details        Tooltip details
+     * @param string|null        $details        Details cell content
      * @param array<int, string> $labelArguments Arguments for the label translation key
      * @param string|null        $currentKey     Translation key for the current value
      * @param string|null        $requiredKey    Translation key for the required value
