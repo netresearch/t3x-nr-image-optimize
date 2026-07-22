@@ -21,7 +21,7 @@
 
     <f:for each="{requirements}" as="category">
         <div class="card mb-4">
-            <div class="card-header bg-light">
+            <div class="card-header bg-body-tertiary">
                 <h2 class="card-title mb-0 h5">
                     <strong><f:translate key="{category.labelKey}" extensionName="NrImageOptimize" /></strong>
                 </h2>
@@ -29,7 +29,7 @@
             <div class="card-body p-0">
                 <div class="table-responsive">
                     <table class="table table-hover table-sm mb-0">
-                        <thead class="table-light">
+                        <thead>
                             <tr>
                                 <th class="ps-3 sysreq-col-component"><f:translate key="sysreq.component" extensionName="NrImageOptimize" /></th>
                                 <th class="sysreq-col-status"><f:translate key="sysreq.status" extensionName="NrImageOptimize" /></th>
@@ -80,11 +80,11 @@
                                     <td>
                                         <f:if condition="{item.currentKey}">
                                             <f:then>
-                                                <code class="text-dark bg-light px-2 py-1 rounded small"><f:translate key="{item.currentKey}" extensionName="NrImageOptimize" /></code>
+                                                <code class="bg-body-tertiary px-2 py-1 rounded small"><f:translate key="{item.currentKey}" extensionName="NrImageOptimize" /></code>
                                             </f:then>
                                             <f:else>
                                                 <f:if condition="{item.current}">
-                                                    <code class="text-dark bg-light px-2 py-1 rounded small">{item.current}</code>
+                                                    <code class="bg-body-tertiary px-2 py-1 rounded small">{item.current}</code>
                                                 </f:if>
                                             </f:else>
                                         </f:if>
