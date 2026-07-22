@@ -124,6 +124,7 @@ final class ProcessorSymlinkedFileadminTest extends FunctionalTestCase
 
     protected function tearDown(): void
     {
+        unset($GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['nr_image_optimize']['additionalTrustedStorageSymlinks']);
         $this->resetAllowedRootsCache();
 
         if ($this->externalMount !== '' && is_dir($this->externalMount)) {
@@ -233,6 +234,88 @@ final class ProcessorSymlinkedFileadminTest extends FunctionalTestCase
             . 'Check the regression conditions of issue #117.',
         );
         self::assertSame(200, $response->getStatusCode());
+    }
+
+    /**
+     * Regression for the "additionalTrustedStorageSymlinks" extension
+     * configuration setting: some deployments relocate TYPO3 core's own
+     * fileadmin/_processed_ image cache to local/ephemeral storage (kept
+     * off shared/NFS storage), leaving only a symlink behind inside the
+     * FAL storage's own directory. That nested symlink is invisible to the
+     * FAL-storage basePath lookup, so requesting a variant of an image
+     * reached through it must succeed once the storage-local directory
+     * name is explicitly opted into via extension configuration.
+     */
+    #[Test]
+    public function uncachedVariantUnderConfiguredTrustedStorageSymlinkReturns200(): void
+    {
+        $publicPath = Environment::getPublicPath();
+
+        $processedCacheMount = dirname($publicPath) . '/nr-pio-processed-cache-' . uniqid('', true);
+        self::assertTrue(mkdir($processedCacheMount, 0o777, true));
+
+        $fixture = $publicPath . '/typo3temp/nr-pio-fixture/test-image.png';
+        self::assertFileExists($fixture, 'Fixture staging failed');
+        self::assertTrue(copy($fixture, $processedCacheMount . '/test-image.png'));
+
+        // fileadmin/_processed_ symlinked to a SEPARATE local mount, distinct
+        // from the fileadmin symlink target itself -- mirroring infra that
+        // moves TYPO3 core's own image-processing cache off shared/NFS
+        // storage while fileadmin's originals stay there.
+        symlink($processedCacheMount, $this->externalMount . '/fileadmin/_processed_');
+
+        $GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['nr_image_optimize']['additionalTrustedStorageSymlinks'] = '_processed_';
+        $this->resetAllowedRootsCache();
+
+        $processor = $this->get(Processor::class);
+
+        $uri     = new Uri('https://example.com/processed/fileadmin/_processed_/test-image.w50h38m0q80.png');
+        $request = new ServerRequest($uri);
+
+        $response = $processor->generateAndSend($request);
+
+        self::assertNotSame(
+            400,
+            $response->getStatusCode(),
+            'Path validation rejected a request under a configured trusted storage symlink.',
+        );
+        self::assertSame(200, $response->getStatusCode());
+    }
+
+    /**
+     * Security guarantee: the "additionalTrustedStorageSymlinks" setting is
+     * opt-in. Without configuring it, the exact same nested storage symlink
+     * from the test above must still be rejected -- this is the default
+     * behavior every other installation of this extension keeps.
+     */
+    #[Test]
+    public function uncachedVariantUnderUnconfiguredNestedStorageSymlinkStillRejected(): void
+    {
+        $publicPath = Environment::getPublicPath();
+
+        $processedCacheMount = dirname($publicPath) . '/nr-pio-processed-cache-' . uniqid('', true);
+        self::assertTrue(mkdir($processedCacheMount, 0o777, true));
+
+        $fixture = $publicPath . '/typo3temp/nr-pio-fixture/test-image.png';
+        self::assertFileExists($fixture, 'Fixture staging failed');
+        self::assertTrue(copy($fixture, $processedCacheMount . '/test-image.png'));
+
+        symlink($processedCacheMount, $this->externalMount . '/fileadmin/_processed_');
+
+        $this->resetAllowedRootsCache();
+
+        $processor = $this->get(Processor::class);
+
+        $uri     = new Uri('https://example.com/processed/fileadmin/_processed_/test-image.w50h38m0q80.png');
+        $request = new ServerRequest($uri);
+
+        $response = $processor->generateAndSend($request);
+
+        self::assertSame(
+            400,
+            $response->getStatusCode(),
+            'A nested storage symlink was trusted without being explicitly configured via additionalTrustedStorageSymlinks.',
+        );
     }
 
     /**
