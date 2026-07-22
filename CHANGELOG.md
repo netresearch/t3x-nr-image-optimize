@@ -19,6 +19,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+## [2.3.0] - 2026-07-22
+
+### Added
+
+- **`additionalTrustedStorageSymlinks` extension configuration** —
+  per-instance, opt-in, comma-separated list of directory names that,
+  when found as a symlink directly inside a Local FAL storage's own
+  base path (e.g. `fileadmin/_processed_`), are resolved and added to
+  the path-validation allow-list. Closes the gap where deployments
+  relocate TYPO3 core's own `_processed_` image cache onto
+  local/ephemeral storage to keep it off shared/NFS storage, leaving a
+  symlink behind that the FAL-storage basePath lookup cannot see.
+  Default empty; keeps today's behaviour for every installation that
+  doesn't opt in ([#120], [#123]).
+
+### Fixed
+
+- **Images published via `public/_assets/<hash>` symlinks (extension
+  `Resources/Public/` assets) were rejected with HTTP 400.** TYPO3 core
+  publishes each extension's `Resources/Public/` directory by
+  symlinking `public/_assets/<hash>/` to a location outside the public
+  webroot (`vendor/<package>/Resources/Public/` for composer-managed
+  extensions, or `typo3conf/ext/<key>/Resources/Public/` in classic
+  mode). `getAllowedRoots()` did not resolve these symlinks, so variant
+  requests for e.g. an extension's default/fallback image failed even
+  though the file is a legitimate part of the deployed application.
+  Every immediate child of `_assets` is now resolved individually
+  ([#117], [#118]).
+
+[#117]: https://github.com/netresearch/t3x-nr-image-optimize/issues/117
+[#118]: https://github.com/netresearch/t3x-nr-image-optimize/pull/118
+[#120]: https://github.com/netresearch/t3x-nr-image-optimize/issues/120
+[#123]: https://github.com/netresearch/t3x-nr-image-optimize/pull/123
+
 ## [2.2.4] - 2026-07-14
 
 ### Added
@@ -356,7 +390,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Corrected crop variant examples.
 - Improved lazy loading behavior.
 
-[Unreleased]: https://github.com/netresearch/t3x-nr-image-optimize/compare/v2.2.4...HEAD
+[Unreleased]: https://github.com/netresearch/t3x-nr-image-optimize/compare/v2.3.0...HEAD
+[2.3.0]: https://github.com/netresearch/t3x-nr-image-optimize/compare/v2.2.4...v2.3.0
 [2.2.4]: https://github.com/netresearch/t3x-nr-image-optimize/compare/v2.2.3...v2.2.4
 [2.2.3]: https://github.com/netresearch/t3x-nr-image-optimize/compare/v2.2.2...v2.2.3
 [2.2.2]: https://github.com/netresearch/t3x-nr-image-optimize/compare/2.2.1...v2.2.2

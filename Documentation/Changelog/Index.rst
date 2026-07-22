@@ -6,6 +6,36 @@
 Changelog
 =========
 
+..  _changelog-2-3-0:
+
+2.3.0
+=====
+
+-   Added: ``additionalTrustedStorageSymlinks`` extension
+    configuration -- per-instance, opt-in, comma-separated list of
+    directory names that, when found as a symlink directly inside a
+    Local FAL storage's own base path (e.g.
+    :file:`fileadmin/_processed_`), are resolved and added to the
+    path-validation allow-list. Closes the gap where deployments
+    relocate TYPO3 core's own :file:`_processed_` image cache onto
+    local/ephemeral storage to keep it off shared/NFS storage,
+    leaving a symlink behind that the FAL-storage basePath lookup
+    cannot see. Default empty; keeps today's behaviour for every
+    installation that doesn't opt in. See :ref:`configuration-trusted-storage-symlinks`.
+    Reported in
+    `issue #120 <https://github.com/netresearch/t3x-nr-image-optimize/issues/120>`__.
+-   Fixed: images published via :file:`public/_assets/<hash>`
+    symlinks (extension :file:`Resources/Public/` assets) were
+    rejected with HTTP 400. TYPO3 core publishes each extension's
+    :file:`Resources/Public/` directory by symlinking
+    :file:`public/_assets/<hash>/` to a location outside the public
+    webroot. ``getAllowedRoots()`` did not resolve these symlinks, so
+    variant requests for e.g. an extension's default/fallback image
+    failed even though the file is a legitimate part of the deployed
+    application. Every immediate child of :file:`_assets` is now
+    resolved individually. Reported in
+    `issue #117 <https://github.com/netresearch/t3x-nr-image-optimize/issues/117>`__.
+
 ..  _changelog-2-2-4:
 
 2.2.4
