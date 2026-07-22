@@ -46,6 +46,7 @@ use function preg_match;
 use function preg_match_all;
 use function realpath;
 use function round;
+use function scandir;
 use function sprintf;
 use function str_contains;
 use function str_starts_with;
@@ -724,7 +725,10 @@ class Processor
      * Always includes the TYPO3 public path. Additionally includes the
      * resolved base path of every Local-driver FAL storage so that storages
      * whose directory is a symlink to an external mount (e.g. fileadmin on
-     * AWS EFS or another NFS share) remain servable.
+     * AWS EFS or another NFS share) remain servable, and the resolved
+     * target of every extension asset published under public/_assets/
+     * (see the dedicated block below) so that images shipped inside an
+     * extension's Resources/Public/ directory remain servable too.
      *
      * Storages are silently skipped when their driver type is not "Local",
      * when basePath is missing or empty, or when the configured directory
@@ -833,26 +837,54 @@ class Processor
         // namespaces relevant to image serving are covered.
         if ($publicPath !== false) {
             foreach (['processed', 'uploads'] as $knownChild) {
-                $childPath = $publicPathRaw . DIRECTORY_SEPARATOR . $knownChild;
+                $resolvedChild = $this->resolveSymlinkedDirectory(
+                    $publicPathRaw . DIRECTORY_SEPARATOR . $knownChild,
+                );
 
-                if (!is_link($childPath)) {
-                    continue;
+                if ($resolvedChild !== null) {
+                    $roots[$resolvedChild] = true;
                 }
+            }
 
-                $resolvedChild = realpath($childPath);
+            // TYPO3 core publishes each extension's Resources/Public/
+            // directory by symlinking public/_assets/<hash>/ to it --
+            // typically vendor/<package>/Resources/Public/ for
+            // composer-managed extensions, or
+            // typo3conf/ext/<key>/Resources/Public/ in classic mode. Both
+            // targets sit outside the public webroot, so requesting a
+            // variant of an image shipped this way (e.g. an extension's
+            // default/fallback image) would otherwise be rejected as
+            // "outside allowed roots" even though the file is a legitimate
+            // part of the deployed application.
+            //
+            // Unlike processed/uploads, the hash-named children are not a
+            // fixed set -- one is created per published extension -- so
+            // every immediate child of _assets is resolved individually
+            // rather than a hardcoded name. The blast radius is bounded to
+            // that one well-known directory: an admin-created symlink
+            // elsewhere in the public root (e.g. `public/etc -> /etc`)
+            // still does not widen the allow-list.
+            $assetsDir      = $publicPathRaw . DIRECTORY_SEPARATOR . '_assets';
+            $assetsChildren = is_dir($assetsDir) ? scandir($assetsDir) : false;
 
-                if ($resolvedChild === false) {
-                    continue;
+            if ($assetsChildren !== false) {
+                foreach ($assetsChildren as $assetsChild) {
+                    if ($assetsChild === '.') {
+                        continue;
+                    }
+
+                    if ($assetsChild === '..') {
+                        continue;
+                    }
+
+                    $resolvedChild = $this->resolveSymlinkedDirectory(
+                        $assetsDir . DIRECTORY_SEPARATOR . $assetsChild,
+                    );
+
+                    if ($resolvedChild !== null) {
+                        $roots[$resolvedChild] = true;
+                    }
                 }
-
-                // A symlinked *file* (e.g. public/uploads -> /etc/passwd)
-                // must not become an allowed root via the equality branch in
-                // isWithinAnyRoot(). Require the target to be a directory.
-                if (!is_dir($resolvedChild)) {
-                    continue;
-                }
-
-                $roots[$resolvedChild] = true;
             }
         }
 
@@ -873,6 +905,34 @@ class Processor
         // cache on the next invocation, giving findAll() another chance.
         if (!$storageLookupFailed) {
             self::$resolvedAllowedRootsByPublicPath[$publicPathRaw] = $resolved;
+        }
+
+        return $resolved;
+    }
+
+    /**
+     * Resolve a symlink at `$path` to its real, existing directory target.
+     *
+     * Returns null when `$path` is not a symlink, when the target cannot be
+     * resolved via realpath(), or when the resolved target is not a
+     * directory. The directory requirement matters because a symlinked
+     * *file* (e.g. `public/uploads -> /etc/passwd`) must not become an
+     * allowed root via the equality branch in isWithinAnyRoot().
+     *
+     * @param string $path Absolute filesystem path that may be a symlink
+     *
+     * @return string|null Realpath-resolved directory, or null if not applicable
+     */
+    private function resolveSymlinkedDirectory(string $path): ?string
+    {
+        if (!is_link($path)) {
+            return null;
+        }
+
+        $resolved = realpath($path);
+
+        if ($resolved === false || !is_dir($resolved)) {
+            return null;
         }
 
         return $resolved;
