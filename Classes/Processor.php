@@ -58,6 +58,7 @@ use function str_starts_with;
 use function strtolower;
 
 use Throwable;
+use TYPO3\CMS\Core\Configuration\ExtensionConfiguration;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Locking\Exception\LockCreateException;
 use TYPO3\CMS\Core\Locking\LockFactory;
@@ -132,6 +133,12 @@ final class Processor implements LoggerAwareInterface, ProcessorInterface
     private const CACHE_MAX_AGE = 31_536_000;
 
     /**
+     * Extension key used to read the "additionalTrustedStorageSymlinks"
+     * extension configuration setting.
+     */
+    private const EXTENSION_KEY = 'nr_image_optimize';
+
+    /**
      * Maps file extensions to MIME types for processed image responses.
      *
      * @var array<string, string>
@@ -202,14 +209,16 @@ final class Processor implements LoggerAwareInterface, ProcessorInterface
     /**
      * Initialize the image processor with all required dependencies.
      *
-     * @param ImageReaderInterface     $imageReader       Adapter for loading images (v3/v4 compatible)
-     * @param LockFactory              $lockFactory       TYPO3 lock factory for concurrent processing coordination
-     * @param ResponseFactoryInterface $responseFactory   PSR-17 response factory
-     * @param StreamFactoryInterface   $streamFactory     PSR-17 stream factory
-     * @param EventDispatcherInterface $eventDispatcher   PSR-14 event dispatcher for post-processing hooks
-     * @param StorageRepository        $storageRepository FAL storage repository used to expand the set of
-     *                                                    filesystem roots from which images may be served
-     *                                                    (supports symlinked storage targets, e.g. NFS/EFS)
+     * @param ImageReaderInterface     $imageReader            Adapter for loading images (v3/v4 compatible)
+     * @param LockFactory              $lockFactory            TYPO3 lock factory for concurrent processing coordination
+     * @param ResponseFactoryInterface $responseFactory        PSR-17 response factory
+     * @param StreamFactoryInterface   $streamFactory          PSR-17 stream factory
+     * @param EventDispatcherInterface $eventDispatcher        PSR-14 event dispatcher for post-processing hooks
+     * @param StorageRepository        $storageRepository      FAL storage repository used to expand the set of
+     *                                                         filesystem roots from which images may be served
+     *                                                         (supports symlinked storage targets, e.g. NFS/EFS)
+     * @param ExtensionConfiguration   $extensionConfiguration Provides the per-instance-configurable
+     *                                                         "additionalTrustedStorageSymlinks" setting
      */
     public function __construct(
         private readonly ImageReaderInterface $imageReader,
@@ -218,6 +227,7 @@ final class Processor implements LoggerAwareInterface, ProcessorInterface
         private readonly StreamFactoryInterface $streamFactory,
         private readonly EventDispatcherInterface $eventDispatcher,
         private readonly StorageRepository $storageRepository,
+        private readonly ExtensionConfiguration $extensionConfiguration,
     ) {
         $this->logger = new NullLogger();
     }
@@ -813,7 +823,10 @@ final class Processor implements LoggerAwareInterface, ProcessorInterface
      * AWS EFS or another NFS share) remain servable, and the resolved
      * target of every extension asset published under public/_assets/
      * (see the dedicated block below) so that images shipped inside an
-     * extension's Resources/Public/ directory remain servable too.
+     * extension's Resources/Public/ directory remain servable too, and,
+     * per-instance opt-in only, the resolved target of any configured
+     * "additionalTrustedStorageSymlinks" name found directly inside a FAL
+     * storage's own base path (see ext_conf_template.txt).
      *
      * Storages are silently skipped when their driver type is not "Local",
      * when basePath is missing or empty, or when the configured directory
@@ -856,6 +869,12 @@ final class Processor implements LoggerAwareInterface, ProcessorInterface
         $storageLookupFailed = false;
 
         try {
+            // Extension-configuration read intentionally happens inside this
+            // try block: an ExtensionConfiguration failure degrades path
+            // validation to the public root, exactly like a StorageRepository
+            // failure, rather than needing a second failure path.
+            $trustedStorageSymlinkNames = $this->getTrustedStorageSymlinkNames();
+
             foreach ($this->storageRepository->findAll() as $storage) {
                 if ($storage->getDriverType() !== 'Local') {
                     continue;
@@ -881,6 +900,23 @@ final class Processor implements LoggerAwareInterface, ProcessorInterface
 
                 if ($resolvedBasePath !== false) {
                     $roots[$resolvedBasePath] = true;
+                }
+
+                // Per-instance opt-in: resolve any of the configured
+                // "additionalTrustedStorageSymlinks" names found directly
+                // inside this storage's own base path (e.g.
+                // fileadmin/_processed_ symlinked to local/ephemeral
+                // storage to keep frequently-rewritten image-processing
+                // caches off shared/NFS storage). Empty by default -- see
+                // ext_conf_template.txt.
+                foreach ($trustedStorageSymlinkNames as $symlinkName) {
+                    $resolvedChild = $this->resolveSymlinkedDirectory(
+                        rtrim($absolutePath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $symlinkName,
+                    );
+
+                    if ($resolvedChild !== null) {
+                        $roots[$resolvedChild] = true;
+                    }
                 }
             }
         } catch (Throwable $e) {
@@ -1019,6 +1055,46 @@ final class Processor implements LoggerAwareInterface, ProcessorInterface
         }
 
         return $resolved;
+    }
+
+    /**
+     * Parse the "additionalTrustedStorageSymlinks" extension configuration
+     * into a normalized list of directory names.
+     *
+     * Empty by default: this is an explicit per-instance opt-in, not a
+     * behavior change for installations that don't configure it. See
+     * ext_conf_template.txt for the setting and its security rationale.
+     *
+     * @return list<string> Trimmed, non-empty directory names
+     */
+    private function getTrustedStorageSymlinkNames(): array
+    {
+        try {
+            $raw = $this->extensionConfiguration->get(self::EXTENSION_KEY, 'additionalTrustedStorageSymlinks');
+        } catch (Throwable) {
+            // Deliberately independent from the caller's own try/catch:
+            // an uninitialized readonly property in test scaffolding (see
+            // ReflectionClass::newInstanceWithoutConstructor() callers) or a
+            // genuinely unconfigured extension must not also disable the
+            // unrelated FAL-storage basePath resolution below.
+            return [];
+        }
+
+        if (!is_string($raw) || trim($raw) === '') {
+            return [];
+        }
+
+        $names = [];
+
+        foreach (explode(',', $raw) as $name) {
+            $name = trim($name);
+
+            if ($name !== '') {
+                $names[] = $name;
+            }
+        }
+
+        return $names;
     }
 
     /**
