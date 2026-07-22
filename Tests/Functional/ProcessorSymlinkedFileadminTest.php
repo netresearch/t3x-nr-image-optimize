@@ -194,6 +194,53 @@ final class ProcessorSymlinkedFileadminTest extends FunctionalTestCase
     }
 
     /**
+     * Regression for #117: TYPO3 core publishes each extension's
+     * Resources/Public/ folder by symlinking public/_assets/<hash>/ to a
+     * location outside the public root (typically vendor/<package>/Resources/Public/
+     * via composer, or typo3conf/ext/<key>/Resources/Public/ for
+     * classic-mode extensions). Requesting a variant of an image shipped
+     * inside such a directory (e.g. an extension's default/fallback image)
+     * must succeed instead of being rejected as "outside allowed roots".
+     */
+    #[Test]
+    public function uncachedVariantUnderAssetsPackageSymlinkReturns200(): void
+    {
+        $publicPath = Environment::getPublicPath();
+
+        $packageResourcesDir = $this->externalMount . '/vendor-package/Resources/Public/Images';
+        self::assertTrue(mkdir($packageResourcesDir, 0o777, true));
+
+        $fixture = $publicPath . '/typo3temp/nr-pio-fixture/test-image.png';
+        self::assertFileExists($fixture, 'Fixture staging failed');
+        self::assertTrue(copy($fixture, $packageResourcesDir . '/default.png'));
+
+        $assetsDir = $publicPath . '/_assets';
+        if (!is_dir($assetsDir)) {
+            self::assertTrue(mkdir($assetsDir, 0o777, true));
+        }
+
+        $assetChild = $assetsDir . '/deadbeefdeadbeefdeadbeefdeadbeef';
+        symlink($this->externalMount . '/vendor-package/Resources/Public', $assetChild);
+
+        $this->resetAllowedRootsCache();
+
+        $processor = $this->get(Processor::class);
+
+        $uri     = new Uri('https://example.com/processed/_assets/deadbeefdeadbeefdeadbeefdeadbeef/Images/default.w50h38m0q80.png');
+        $request = new ServerRequest($uri);
+
+        $response = $processor->generateAndSend($request);
+
+        self::assertNotSame(
+            400,
+            $response->getStatusCode(),
+            'Path validation rejected a request for an image published via public/_assets/<hash> symlink into vendor/. '
+            . 'Check the regression conditions of issue #117.',
+        );
+        self::assertSame(200, $response->getStatusCode());
+    }
+
+    /**
      * Security guarantee: the symlinked-fileadmin fix must not be
      * permissive enough to let a traversal sequence escape the allowed
      * roots and hit an arbitrary file on disk.
