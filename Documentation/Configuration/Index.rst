@@ -212,6 +212,10 @@ without modifications.
 Trusted storage symlinks
 =========================
 
+..  versionadded:: 1.2.0
+    The ``additionalTrustedStorageSymlinks`` extension configuration
+    setting.
+
 The processor validates that both the source image and the
 target variant resolve (via ``realpath()``) to a location
 inside an allowed root -- the public webroot, or a Local FAL
