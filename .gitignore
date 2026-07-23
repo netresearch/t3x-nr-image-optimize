@@ -40,5 +40,5 @@ coverage/
 /packages/
 /var/
 
-# Superpowers transient working documents
-docs/superpowers/
+# Superpowers skill working files (transient, never committed — see AGENTS.md)
+/docs/superpowers/
