@@ -828,7 +828,9 @@ final class Processor implements LoggerAwareInterface, ProcessorInterface
      * extension's Resources/Public/ directory remain servable too, and,
      * per-instance opt-in only, the resolved target of any configured
      * "additionalTrustedStorageSymlinks" name found directly inside a FAL
-     * storage's own base path (see ext_conf_template.txt).
+     * storage's own base path, and any configured "additionalTrustedRoots"
+     * absolute path used directly as a filesystem root (see
+     * ext_conf_template.txt for both settings).
      *
      * Storages are silently skipped when their driver type is not "Local",
      * when basePath is missing or empty, or when the configured directory
@@ -868,6 +870,10 @@ final class Processor implements LoggerAwareInterface, ProcessorInterface
 
         if ($varPath !== false) {
             $roots[$varPath] = true;
+        }
+
+        foreach ($this->getAdditionalTrustedRoots() as $trustedRoot) {
+            $roots[$trustedRoot] = true;
         }
 
         // The try/catch also protects tests that construct Processor via
@@ -1103,6 +1109,64 @@ final class Processor implements LoggerAwareInterface, ProcessorInterface
         }
 
         return $names;
+    }
+
+    /**
+     * Parse the "additionalTrustedRoots" extension configuration into a
+     * normalized list of realpath-resolved, existing absolute directories.
+     *
+     * Empty by default: this is an explicit per-instance opt-in, not a
+     * behavior change for installations that don't configure it. Unlike
+     * additionalTrustedStorageSymlinks (directory *names* resolved relative
+     * to a FAL storage's own base path), each entry here is used directly
+     * as an absolute filesystem root -- see ext_conf_template.txt for the
+     * setting and its security rationale.
+     *
+     * @return list<string> Realpath-resolved, existing absolute directories
+     */
+    private function getAdditionalTrustedRoots(): array
+    {
+        try {
+            $raw = $this->extensionConfiguration->get(self::EXTENSION_KEY, 'additionalTrustedRoots');
+        } catch (Throwable) {
+            // Deliberately independent from the caller's own try/catch and
+            // from getTrustedStorageSymlinkNames() -- see that method's
+            // equivalent comment for why an uninitialized readonly property
+            // in test scaffolding must not also disable unrelated root
+            // resolution.
+            return [];
+        }
+
+        if (!is_string($raw) || trim($raw) === '') {
+            return [];
+        }
+
+        $roots = [];
+
+        foreach (explode(',', $raw) as $candidate) {
+            $candidate = trim($candidate);
+
+            if ($candidate === '') {
+                continue;
+            }
+
+            // A relative path would resolve against the PHP process's cwd,
+            // which is unpredictable for this setting -- reject outright
+            // instead of calling realpath() on it.
+            if (!str_starts_with($candidate, DIRECTORY_SEPARATOR)) {
+                continue;
+            }
+
+            $resolved = realpath($candidate);
+
+            if ($resolved === false || !is_dir($resolved)) {
+                continue;
+            }
+
+            $roots[$resolved] = true;
+        }
+
+        return array_keys($roots);
     }
 
     /**

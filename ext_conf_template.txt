@@ -1,2 +1,5 @@
 # cat=basic/enable; type=string; label=Additional trusted storage symlink names (comma-separated): directory names that, when found as a symlink directly inside a Local FAL storage's base path (e.g. fileadmin/_processed_), are resolved and added to the path-validation allow-list. Leave empty (default) to keep today's behavior. Only add well-known, infrastructure-managed names here (e.g. TYPO3 core's own "_processed_" image cache relocated off shared/NFS storage onto local disk) -- this widens the set of filesystem locations the processor will read from and publicly serve variants of.
 additionalTrustedStorageSymlinks =
+
+# cat=basic/enable; type=string; label=Additional trusted absolute roots (comma-separated): absolute filesystem paths, outside FAL and TYPO3-internal locations, that are realpath-resolved and added to the path-validation allow-list. Leave empty (default). Only add paths you fully trust -- this widens where the processor will read from and publicly serve variants of.
+additionalTrustedRoots =
