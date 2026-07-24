@@ -1159,7 +1159,11 @@ final class Processor implements LoggerAwareInterface, ProcessorInterface
 
             $resolved = realpath($candidate);
 
-            if ($resolved === false || !is_dir($resolved)) {
+            if ($resolved === false) {
+                continue;
+            }
+
+            if (!is_dir($resolved)) {
                 continue;
             }
 
