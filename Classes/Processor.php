@@ -817,9 +817,11 @@ final class Processor implements LoggerAwareInterface, ProcessorInterface
      * Build (and cache statically) the list of realpath-resolved absolute
      * roots under which image paths are considered safe.
      *
-     * Always includes the TYPO3 public path. Additionally includes the
-     * resolved base path of every Local-driver FAL storage so that storages
-     * whose directory is a symlink to an external mount (e.g. fileadmin on
+     * Always includes the TYPO3 public path, as well as the TYPO3 var path
+     * (Environment::getVarPath(), the composer-mode var/ directory that is
+     * a sibling of public/). Additionally includes the resolved base path
+     * of every Local-driver FAL storage so that storages whose directory
+     * is a symlink to an external mount (e.g. fileadmin on
      * AWS EFS or another NFS share) remain servable, and the resolved
      * target of every extension asset published under public/_assets/
      * (see the dedicated block below) so that images shipped inside an
