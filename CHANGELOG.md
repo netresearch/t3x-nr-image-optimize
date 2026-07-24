@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`Environment::getVarPath()` is now an allowed root** — TYPO3-internal
+  generated assets under `var/` (cache, lock, transient, log) are now
+  accepted by path validation even in composer-mode installs where `var/`
+  is a sibling of `public/`, not nested under it.
+
 ### Changed
 
 ### Deprecated

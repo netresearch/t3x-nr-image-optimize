@@ -1995,6 +1995,43 @@ final class ProcessorTest extends TestCase
     }
 
     /**
+     * Environment::getVarPath() is a SIBLING of the public path in
+     * composer-mode TYPO3 installs (var/ lives outside public/), so
+     * TYPO3-internal generated assets under var/ (cache, lock, transient,
+     * log) must be an allowed root in their own right, not merely reachable
+     * because they happen to sit under the public path.
+     */
+    #[Test]
+    public function isPathWithinAllowedRootsAcceptsPathUnderVarPath(): void
+    {
+        $tempDir = sys_get_temp_dir() . '/nr-pio-varpath-' . uniqid('', true);
+        mkdir($tempDir . '/public', 0o777, true);
+        mkdir($tempDir . '/var/transient', 0o777, true);
+
+        try {
+            $this->initializeEnvironment($tempDir, $tempDir . '/public');
+            $this->resetAllowedRootsCache();
+
+            self::assertTrue($this->callMethod(
+                $this->processor,
+                'isPathWithinAllowedRoots',
+                $tempDir . '/var/transient/image.jpg',
+            ));
+
+            // A sibling outside both public/ and var/ must still be rejected.
+            self::assertFalse($this->callMethod(
+                $this->processor,
+                'isPathWithinAllowedRoots',
+                $tempDir . '/other/image.jpg',
+            ));
+        } finally {
+            $this->removeOwnedTempTree($tempDir);
+            $this->resetAllowedRootsCache();
+            $this->initializeDefaultEnvironment();
+        }
+    }
+
+    /**
      * When the public path itself cannot be realpath'd (e.g. because
      * Environment::getPublicPath() points at a directory that does not exist
      * yet on disk), FAL storages configured with absolute basePaths must

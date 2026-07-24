@@ -862,6 +862,12 @@ final class Processor implements LoggerAwareInterface, ProcessorInterface
             $roots[$publicPath] = true;
         }
 
+        $varPath = realpath(Environment::getVarPath());
+
+        if ($varPath !== false) {
+            $roots[$varPath] = true;
+        }
+
         // The try/catch also protects tests that construct Processor via
         // ReflectionClass::newInstanceWithoutConstructor() without injecting
         // this readonly property — accessing an uninitialized typed property
