@@ -1,3 +1,45 @@
+# 1.3.0
+
+## FEATURE
+
+- **`additionalTrustedRoots` extension configuration, and TYPO3's `var/`
+  directory trusted automatically.** Per-instance, opt-in, comma-separated
+  list of absolute filesystem paths, outside FAL and TYPO3-internal
+  locations, that are realpath-resolved and added to the path-validation
+  allow-list -- for locations not covered by FAL storage or the built-in
+  TYPO3 paths (e.g. a custom mount reached via a symlink under the public
+  webroot). `var/` (a sibling of `public/` in composer-mode installs, where
+  TYPO3's own processing mechanisms generate transient/cache assets) is now
+  trusted without any configuration. Port of the main-branch feature
+  released in 2.4.0.
+  See [#135](https://github.com/netresearch/t3x-nr-image-optimize/pull/135).
+
+- **Configurable `qualityWebp`/`qualityAvif` extension configuration.**
+  Previously both sidecar formats were encoded at the same numeric quality as
+  the primary image; AVIF's steeper quality scale meant AVIF variants often
+  came out larger than WebP at the same setting, so format negotiation ended
+  up serving the biggest file instead of the smallest. New `qualityWebp`
+  (default 75) and `qualityAvif` (default 60) settings let each format be
+  tuned independently. Port of the main-branch feature released in 2.4.0.
+  See [#134](https://github.com/netresearch/t3x-nr-image-optimize/pull/134).
+
+## BUGFIX
+
+- **Clearing processed images failed on symlinked "processed" deployments.**
+  The Maintenance module's "clear processed images" action validated
+  `processed` with `realpath()`-equality against the public path, which fails
+  whenever `processed` is a symlink to a shared volume (a common
+  Deployer/CI deployment layout) -- clearing failed on every symlinked
+  deployment. The directory is now emptied in place (children removed,
+  directory/symlink itself preserved) instead of being removed and
+  recreated. Port of the main-branch fix released in 2.4.0.
+  See [#133](https://github.com/netresearch/t3x-nr-image-optimize/pull/133).
+
+## Contributors
+
+- Axel Seemann
+- Gitsko
+
 # 1.2.0
 
 ## FEATURE

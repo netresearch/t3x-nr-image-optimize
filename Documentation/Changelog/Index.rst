@@ -6,6 +6,34 @@
 Changelog
 =========
 
+..  _changelog-1-3-0:
+
+1.3.0
+=====
+
+-   Added: ``additionalTrustedRoots`` extension configuration --
+    per-instance, opt-in, comma-separated list of absolute
+    filesystem paths, outside FAL and TYPO3-internal locations,
+    that are realpath-resolved and added to the path-validation
+    allow-list. TYPO3's :file:`var/` directory is now trusted
+    automatically. Port of the fix on ``main`` (2.4.0). See
+    :ref:`configuration-additional-trusted-roots`.
+-   Added: ``qualityWebp`` (default ``75``) and ``qualityAvif``
+    (default ``60``) extension configuration settings, so the
+    WebP and AVIF sidecar variants can be tuned independently of
+    the primary variant's quality. AVIF's steeper quality scale
+    previously meant AVIF variants came out larger than WebP at
+    the same numeric quality. Port of the fix on ``main`` (2.4.0).
+    See :ref:`configuration-sidecar-quality`.
+-   Fixed: the Maintenance module's "clear processed images"
+    action failed whenever :file:`processed` was a symlink to a
+    shared volume -- a common Deployer/CI deployment layout. It
+    validated the target with ``realpath()``-equality, which
+    resolves the symlink and never matches, so clearing failed on
+    every symlinked deployment. The directory is now emptied in
+    place instead of recreated, so the symlink survives. Port of
+    the fix on ``main`` (2.4.0).
+
 ..  _changelog-1-2-0:
 
 1.2.0
