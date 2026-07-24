@@ -315,6 +315,50 @@ These flags are useful when specific consumers (for example
 e-mail clients or legacy RSS renderers) cannot handle modern
 formats.
 
+..  _configuration-sidecar-quality:
+
+WebP/AVIF output quality
+========================
+
+..  versionadded:: 2.4.0
+    The ``qualityWebp`` and ``qualityAvif`` extension configuration
+    settings.
+
+The primary variant's quality is controlled per-request via the
+``q<n>`` URL segment (see :ref:`configuration-url-format`). The
+``.webp`` and ``.avif`` sidecars previously reused that same numeric
+quality, but AVIF's quality scale is steeper than WebP's or JPEG's --
+at matching numbers an AVIF file comes out larger than the WebP
+sidecar, defeating the point of serving AVIF at all.
+
+Two extension configuration settings control sidecar quality
+independently of the primary variant:
+
+``qualityWebp`` (default ``75``)
+    Output quality for the generated WebP variant.
+
+``qualityAvif`` (default ``60``)
+    Output quality for the generated AVIF variant. The lower default
+    keeps AVIF variants genuinely smaller than WebP while staying
+    visually comparable.
+
+..  code-block:: php
+    :caption: config/system/additional.php
+
+    $GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['nr_image_optimize']['qualityWebp'] = 75;
+    $GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['nr_image_optimize']['qualityAvif'] = 60;
+
+The settings can also be edited via the backend:
+*Admin Tools > Settings > Extension Configuration >
+nr_image_optimize*.
+
+..  attention::
+    Per-format quality is not part of the processed-variant cache
+    filename. Changing either setting only affects newly generated
+    variants -- clear already-processed images (see
+    :ref:`maintenance-clear`) to apply the new quality to existing
+    ones.
+
 ..  _configuration-cache-headers:
 
 Cache headers

@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [2.4.0] - 2026-07-24
+
+### Added
+
 - **`Environment::getVarPath()` is now an allowed root** — TYPO3-internal
   generated assets under `var/` (cache, lock, transient, log) are now
   accepted by path validation even in composer-mode installs where `var/`
@@ -21,15 +35,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   locations that are neither a FAL storage base path nor one of the
   hardcoded TYPO3-internal locations.
 
-### Changed
-
-### Deprecated
-
-### Removed
+- **Configurable WebP/AVIF output quality** — new `qualityWebp` (default
+  75) and `qualityAvif` (default 60) extension-configuration settings.
+  Previously both variants were encoded at the same numeric quality as
+  the primary image; AVIF's steeper quality scale made AVIF variants
+  larger than WebP at matching numbers, so format negotiation ended up
+  serving the biggest file. The lower AVIF default keeps AVIF variants
+  genuinely smaller than WebP while staying visually comparable.
+  Changing either setting requires clearing processed images, since
+  per-format quality is not part of the cache filename ([#132], [#134]).
 
 ### Fixed
 
-### Security
+- **`clear-processed-images` (Maintenance module) failed on symlinked
+  deployments.** The action validated the target path with `realpath()`,
+  which resolves a `processed` symlink (shared-directory deployment
+  layouts, e.g. Deployer) to its target and never matched
+  `<public>/processed` — so clearing failed on every symlinked
+  deployment. The directory is now emptied in place instead of
+  `rmdir()` + `mkdir()`, preserving the symlink ([#131], [#133]).
+
+[#131]: https://github.com/netresearch/t3x-nr-image-optimize/issues/131
+[#132]: https://github.com/netresearch/t3x-nr-image-optimize/issues/132
+[#133]: https://github.com/netresearch/t3x-nr-image-optimize/pull/133
+[#134]: https://github.com/netresearch/t3x-nr-image-optimize/pull/134
+
+## [2.3.1] - 2026-07-22
+
+### Fixed
+
+- **Backend module icon and templates were not TYPO3 v14 theme-aware.**
+  The module icon (`module-image-optimize.svg`) and extension icon
+  (`Extension.svg`) were flat, hard-coded tiles that did not adapt to
+  the v14 backend light/dark colour scheme. The Maintenance module's
+  Fluid templates also used Bootstrap utility classes with fixed light
+  values (`bg-light`, `table-light`, `text-dark`), causing card headers,
+  table heads, and code chips to render as light boxes on a dark
+  backend. The module icon is now theme-aware via `fill="currentColor"`
+  (TYPO3 v14+, with a legacy full-colour tile kept for v13), and the
+  templates use adaptive `bg-body-tertiary` tokens instead ([#127]).
+
+[#127]: https://github.com/netresearch/t3x-nr-image-optimize/pull/127
 
 ## [2.3.0] - 2026-07-22
 
@@ -402,7 +448,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Corrected crop variant examples.
 - Improved lazy loading behavior.
 
-[Unreleased]: https://github.com/netresearch/t3x-nr-image-optimize/compare/v2.3.0...HEAD
+[Unreleased]: https://github.com/netresearch/t3x-nr-image-optimize/compare/v2.4.0...HEAD
+[2.4.0]: https://github.com/netresearch/t3x-nr-image-optimize/compare/v2.3.1...v2.4.0
+[2.3.1]: https://github.com/netresearch/t3x-nr-image-optimize/compare/v2.3.0...v2.3.1
 [2.3.0]: https://github.com/netresearch/t3x-nr-image-optimize/compare/v2.2.4...v2.3.0
 [2.2.4]: https://github.com/netresearch/t3x-nr-image-optimize/compare/v2.2.3...v2.2.4
 [2.2.3]: https://github.com/netresearch/t3x-nr-image-optimize/compare/v2.2.2...v2.2.3
