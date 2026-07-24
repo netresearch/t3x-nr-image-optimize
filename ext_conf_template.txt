@@ -3,3 +3,9 @@ additionalTrustedStorageSymlinks =
 
 # cat=basic/enable; type=string; label=Additional trusted absolute roots (comma-separated): absolute filesystem paths, outside FAL and TYPO3-internal locations, that are realpath-resolved and added to the path-validation allow-list. Leave empty (default). Only add paths you fully trust -- this widens where the processor will read from and publicly serve variants of.
 additionalTrustedRoots =
+
+# cat=quality/enable/10; type=int+; label=WebP quality (1-100): output quality for the generated WebP variant.
+qualityWebp = 75
+
+# cat=quality/enable/20; type=int+; label=AVIF quality (1-100): output quality for the generated AVIF variant. AVIF's quality scale is steeper than WebP/JPEG -- at the same number an AVIF comes out larger and defeats the point of serving AVIF, so a lower value (default 60) keeps it genuinely smaller while staying visually comparable. Changing this requires clearing the processed images.
+qualityAvif = 60

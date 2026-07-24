@@ -39,6 +39,7 @@ use RuntimeException;
 use SplFileInfo;
 use Throwable;
 use TypeError;
+use TYPO3\CMS\Core\Configuration\ExtensionConfiguration;
 use TYPO3\CMS\Core\Core\ApplicationContext;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Locking\Exception\LockCreateException;
@@ -586,6 +587,42 @@ final class ProcessorTest extends TestCase
         self::assertFalse($this->callMethod($this->processor, 'hasVariantFor', $base, 'avif'));
 
         unlink($webp); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
+    }
+
+    #[Test]
+    public function resolveFormatQualityFallsBackToDefaultWhenConfigurationUnavailable(): void
+    {
+        // extensionConfiguration is intentionally not injected in setUp(), so
+        // reading it throws and the method must fall back to the given default.
+        self::assertSame(60, $this->callMethod($this->processor, 'resolveFormatQuality', 'qualityAvif', 60));
+    }
+
+    #[Test]
+    #[DataProvider('configuredQualityProvider')]
+    public function resolveFormatQualityClampsConfiguredValue(int|string $configured, int $expected): void
+    {
+        $extensionConfiguration = $this->createMock(ExtensionConfiguration::class);
+        $extensionConfiguration->method('get')->willReturn($configured);
+        $this->setProperty($this->processor, 'extensionConfiguration', $extensionConfiguration);
+
+        self::assertSame(
+            $expected,
+            $this->callMethod($this->processor, 'resolveFormatQuality', 'qualityAvif', 60),
+        );
+    }
+
+    /**
+     * @return array<string, array{int|string, int}>
+     */
+    public static function configuredQualityProvider(): array
+    {
+        return [
+            'in range'               => ['55', 55],
+            'clamped to max'         => ['150', 100],
+            'clamped to min'         => ['0', 1],
+            'non-numeric falls back' => ['nan', 60],
+            'integer value'          => [42, 42],
+        ];
     }
 
     #[Test]
