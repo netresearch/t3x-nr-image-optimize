@@ -11,11 +11,13 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Controller;
 
+use FilesystemIterator;
 use Netresearch\NrImageOptimize\Service\SystemRequirementsService;
 use Psr\Http\Message\ResponseInterface;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use RuntimeException;
+use SplFileInfo;
 use Throwable;
 use TYPO3\CMS\Backend\Template\ModuleTemplateFactory;
 use TYPO3\CMS\Core\Core\Environment;
@@ -26,6 +28,7 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Extbase\Mvc\Controller\ActionController;
 
 use function array_slice;
+use function basename;
 use function count;
 use function date;
 use function error_log;
@@ -112,27 +115,26 @@ final class MaintenanceController extends ActionController
      */
     public function clearProcessedImagesAction(): ResponseInterface
     {
-        $processedPath      = Environment::getPublicPath() . '/processed';
-        $resolvedPublicPath = realpath(Environment::getPublicPath());
-
-        if ($resolvedPublicPath === false) {
-            throw new RuntimeException('Security check failed: Public path could not be resolved');
-        }
-
-        $expectedPath = $resolvedPublicPath . '/processed';
+        $processedPath = Environment::getPublicPath() . '/processed';
 
         try {
             if (is_dir($processedPath)) {
-                $resolvedPath = realpath($processedPath);
+                // "processed" is commonly a symlink to a shared volume on
+                // Deployer/CI deployments. Resolve the real target and require
+                // it to actually be a directory named "processed" before
+                // deleting its contents -- a guard against a mis-pointed symlink
+                // that, unlike realpath-equality, does not force the target to
+                // live inside the web root.
+                $resolved = realpath($processedPath);
 
-                if ($resolvedPath === false || $resolvedPath !== $expectedPath) {
-                    throw new RuntimeException('Security check failed: Path mismatch');
+                if ($resolved === false || basename($resolved) !== 'processed') {
+                    throw new RuntimeException('Security check failed: unexpected processed path target');
                 }
 
-                GeneralUtility::rmdir($processedPath, true);
+                $this->emptyDirectory($processedPath);
+            } else {
+                GeneralUtility::mkdir($processedPath);
             }
-
-            GeneralUtility::mkdir($processedPath);
 
             $this->addFlashMessage(
                 $this->getLanguageService()->sL('LLL:EXT:nr_image_optimize/Resources/Private/Language/locallang.xlf:flash.clear.success'),
@@ -155,6 +157,28 @@ final class MaintenanceController extends ActionController
         }
 
         return $this->redirect('index');
+    }
+
+    /**
+     * Delete every entry inside a directory while keeping the directory itself
+     * (or a symlink pointing at it) in place.
+     *
+     * Removing and recreating the directory would replace a "processed" symlink
+     * with a real directory and detach the shared volume on symlinked
+     * deployments, so only the children are removed.
+     *
+     * @param string $path Absolute path to the directory to empty
+     */
+    private function emptyDirectory(string $path): void
+    {
+        $entries = new FilesystemIterator($path, FilesystemIterator::SKIP_DOTS);
+
+        // GeneralUtility::rmdir() is symlink-safe: it recurses into real
+        // subdirectories but only unlinks a symlinked child, never follows it.
+        /** @var SplFileInfo $entry */
+        foreach ($entries as $entry) {
+            GeneralUtility::rmdir($entry->getPathname(), true);
+        }
     }
 
     /**
