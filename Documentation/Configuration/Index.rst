@@ -434,3 +434,41 @@ nr_image_optimize*.
     could create on their own. The default is empty, which
     keeps today's behavior unchanged for every installation that
     does not configure it.
+
+..  _configuration-additional-trusted-roots:
+
+Additional trusted roots
+=========================
+
+..  versionadded:: 2.4.0
+    The ``additionalTrustedRoots`` extension configuration setting.
+
+Some deployments need to serve variants of images that live under
+an absolute filesystem path that is neither the public webroot,
+a Local FAL storage's own base path, nor one of the hardcoded
+TYPO3-internal locations (``var/``, symlinked
+:file:`processed`/:file:`uploads`, or extension-published
+:file:`_assets/<hash>` directories) -- for example a custom mount
+managed outside of FAL.
+
+The ``additionalTrustedRoots`` extension configuration setting
+closes this gap on an explicit, per-instance, opt-in basis: a
+comma-separated list of *absolute* filesystem paths that are
+realpath-resolved and added to the allow-list directly.
+
+..  code-block:: php
+    :caption: config/system/additional.php
+
+    $GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['nr_image_optimize']['additionalTrustedRoots'] = '/mnt/custom-assets';
+
+The setting can also be edited via the backend:
+*Admin Tools > Settings > Extension Configuration >
+nr_image_optimize*.
+
+..  attention::
+    This widens the set of filesystem locations the processor
+    will read from and publicly serve variants of. Only add paths
+    you fully trust. Relative paths are rejected outright (never
+    resolved against the PHP process's working directory). The
+    default is empty, which keeps today's behavior unchanged for
+    every installation that does not configure it.

@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`Environment::getVarPath()` is now an allowed root** — TYPO3-internal
+  generated assets under `var/` (cache, lock, transient, log) are now
+  accepted by path validation even in composer-mode installs where `var/`
+  is a sibling of `public/`, not nested under it.
+
+- **`additionalTrustedRoots` extension configuration** —
+  per-instance, opt-in, comma-separated list of absolute filesystem
+  paths that are realpath-resolved and added directly to the
+  path-validation allow-list. Closes the gap for integrator-trusted
+  locations that are neither a FAL storage base path nor one of the
+  hardcoded TYPO3-internal locations.
+
 ### Changed
 
 ### Deprecated

@@ -125,7 +125,13 @@ final class ProcessorSymlinkedFileadminTest extends FunctionalTestCase
     protected function tearDown(): void
     {
         unset($GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['nr_image_optimize']['additionalTrustedStorageSymlinks']);
+        unset($GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['nr_image_optimize']['additionalTrustedRoots']);
         $this->resetAllowedRootsCache();
+
+        $customSymlink = Environment::getPublicPath() . '/customfiles';
+        if (is_link($customSymlink)) {
+            unlink($customSymlink); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp symlink
+        }
 
         if ($this->externalMount !== '' && is_dir($this->externalMount)) {
             $this->removeRecursive($this->externalMount);
@@ -280,6 +286,121 @@ final class ProcessorSymlinkedFileadminTest extends FunctionalTestCase
             'Path validation rejected a request under a configured trusted storage symlink.',
         );
         self::assertSame(200, $response->getStatusCode());
+    }
+
+    /**
+     * Regression for the "additionalTrustedRoots" extension configuration
+     * setting: a symlink placed directly inside the public root under a
+     * name that is neither FAL-covered nor one of the hardcoded
+     * processed/uploads/_assets names (here: "customfiles") must be
+     * accepted once its resolved target is explicitly opted into via
+     * extension configuration.
+     */
+    #[Test]
+    public function uncachedVariantUnderConfiguredAdditionalTrustedRootReturns200(): void
+    {
+        $publicPath = Environment::getPublicPath();
+
+        $customMount = $this->externalMount . '/customfiles';
+        self::assertTrue(mkdir($customMount, 0o777, true));
+
+        $fixture = $publicPath . '/typo3temp/nr-pio-fixture/test-image.png';
+        self::assertFileExists($fixture, 'Fixture staging failed');
+        self::assertTrue(copy($fixture, $customMount . '/test-image.png'));
+
+        // "customfiles" is not fileadmin/processed/uploads/_assets -- today's
+        // allow-list has no reason to trust it without the new setting.
+        $this->replaceDirWithSymlink($publicPath . '/customfiles', $customMount);
+
+        $GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['nr_image_optimize']['additionalTrustedRoots'] = $customMount;
+        $this->resetAllowedRootsCache();
+
+        $processor = $this->get(Processor::class);
+
+        $uri     = new Uri('https://example.com/processed/customfiles/test-image.w50h38m0q80.png');
+        $request = new ServerRequest($uri);
+
+        $response = $processor->generateAndSend($request);
+
+        self::assertNotSame(
+            400,
+            $response->getStatusCode(),
+            'Path validation rejected a request under a configured additionalTrustedRoots entry.',
+        );
+        self::assertSame(200, $response->getStatusCode());
+    }
+
+    /**
+     * Security guarantee: the "additionalTrustedRoots" setting is opt-in.
+     * Without configuring it, the exact same "customfiles" symlink from the
+     * test above must still be rejected -- this is the default behavior
+     * every other installation of this extension keeps.
+     */
+    #[Test]
+    public function uncachedVariantUnderUnconfiguredCustomSymlinkStillRejected(): void
+    {
+        $publicPath = Environment::getPublicPath();
+
+        $customMount = $this->externalMount . '/customfiles';
+        self::assertTrue(mkdir($customMount, 0o777, true));
+
+        $fixture = $publicPath . '/typo3temp/nr-pio-fixture/test-image.png';
+        self::assertFileExists($fixture, 'Fixture staging failed');
+        self::assertTrue(copy($fixture, $customMount . '/test-image.png'));
+
+        $this->replaceDirWithSymlink($publicPath . '/customfiles', $customMount);
+        $this->resetAllowedRootsCache();
+
+        $processor = $this->get(Processor::class);
+
+        $uri     = new Uri('https://example.com/processed/customfiles/test-image.w50h38m0q80.png');
+        $request = new ServerRequest($uri);
+
+        $response = $processor->generateAndSend($request);
+
+        self::assertSame(
+            400,
+            $response->getStatusCode(),
+            'A custom symlink target was trusted without being explicitly configured via additionalTrustedRoots.',
+        );
+    }
+
+    /**
+     * A relative-path value in "additionalTrustedRoots" must never be
+     * resolved -- realpath() on a relative path resolves against the PHP
+     * process's cwd, which is unpredictable and must not silently become a
+     * working root. The setting only accepts absolute paths, so a relative
+     * entry must leave the exact same "customfiles" symlink rejected.
+     */
+    #[Test]
+    public function relativeAdditionalTrustedRootsValueIsRejected(): void
+    {
+        $publicPath = Environment::getPublicPath();
+
+        $customMount = $this->externalMount . '/customfiles';
+        self::assertTrue(mkdir($customMount, 0o777, true));
+
+        $fixture = $publicPath . '/typo3temp/nr-pio-fixture/test-image.png';
+        self::assertFileExists($fixture, 'Fixture staging failed');
+        self::assertTrue(copy($fixture, $customMount . '/test-image.png'));
+
+        $this->replaceDirWithSymlink($publicPath . '/customfiles', $customMount);
+
+        $GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['nr_image_optimize']['additionalTrustedRoots'] = 'relative/mount';
+        $this->resetAllowedRootsCache();
+
+        $processor = $this->get(Processor::class);
+
+        $uri     = new Uri('https://example.com/processed/customfiles/test-image.w50h38m0q80.png');
+        $request = new ServerRequest($uri);
+
+        $response = $processor->generateAndSend($request);
+
+        self::assertSame(
+            400,
+            $response->getStatusCode(),
+            'A relative additionalTrustedRoots entry must be rejected, not resolved against cwd.',
+        );
     }
 
     /**
