@@ -36,6 +36,7 @@ use ReflectionProperty;
 use RuntimeException;
 use SplFileInfo;
 use TypeError;
+use TYPO3\CMS\Core\Configuration\ExtensionConfiguration;
 use TYPO3\CMS\Core\Core\ApplicationContext;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Locking\Exception\LockCreateException;
@@ -1998,6 +1999,88 @@ class ProcessorTest extends TestCase
                 $processor,
                 'isPathWithinAllowedRoots',
                 $tempDir . '/srv/other.jpg',
+            ));
+        } finally {
+            $this->removeOwnedTempTree($tempDir);
+            $this->resetAllowedRootsCache();
+            $this->initializeDefaultEnvironment();
+        }
+    }
+
+    /**
+     * Environment::getVarPath() is a SIBLING of the public path in
+     * composer-mode TYPO3 installs (var/ lives outside public/), so
+     * TYPO3-internal generated assets under var/ (cache, lock, transient,
+     * log) must be an allowed root in their own right, not merely reachable
+     * because they happen to sit under the public path.
+     */
+    #[Test]
+    public function isPathWithinAllowedRootsAcceptsPathUnderVarPath(): void
+    {
+        $tempDir = sys_get_temp_dir() . '/nr-pio-varpath-' . uniqid('', true);
+        mkdir($tempDir . '/public', 0o777, true);
+        mkdir($tempDir . '/var/transient', 0o777, true);
+
+        try {
+            $this->initializeEnvironment($tempDir, $tempDir . '/public');
+            $this->resetAllowedRootsCache();
+
+            self::assertTrue($this->callMethod(
+                $this->processor,
+                'isPathWithinAllowedRoots',
+                $tempDir . '/var/transient/image.jpg',
+            ));
+
+            // A sibling outside both public/ and var/ must still be rejected.
+            self::assertFalse($this->callMethod(
+                $this->processor,
+                'isPathWithinAllowedRoots',
+                $tempDir . '/other/image.jpg',
+            ));
+        } finally {
+            $this->removeOwnedTempTree($tempDir);
+            $this->resetAllowedRootsCache();
+            $this->initializeDefaultEnvironment();
+        }
+    }
+
+    /**
+     * The "additionalTrustedRoots" extension configuration lets integrators
+     * opt in an absolute path that is outside FAL and TYPO3-internal
+     * locations (e.g. a custom mount reached via a symlink under the public
+     * webroot, or an entirely separate filesystem location).
+     */
+    #[Test]
+    public function isPathWithinAllowedRootsAcceptsConfiguredAdditionalTrustedRoot(): void
+    {
+        $tempDir     = sys_get_temp_dir() . '/nr-pio-addroot-' . uniqid('', true);
+        $trustedRoot = $tempDir . '/srv/custom-mount';
+        mkdir($tempDir . '/public', 0o777, true);
+        mkdir($trustedRoot, 0o777, true);
+
+        $extensionConfiguration = $this->createMock(ExtensionConfiguration::class);
+        $extensionConfiguration->method('get')->willReturnCallback(
+            static fn (string $extension, string $key): string => $key === 'additionalTrustedRoots' ? $trustedRoot : '',
+        );
+
+        try {
+            $this->initializeEnvironment($tempDir, $tempDir . '/public');
+
+            $processor = $this->createProcessor();
+            $this->setProperty($processor, 'extensionConfiguration', $extensionConfiguration);
+            $this->resetAllowedRootsCache();
+
+            self::assertTrue($this->callMethod(
+                $processor,
+                'isPathWithinAllowedRoots',
+                $trustedRoot . '/image.jpg',
+            ));
+
+            // An unconfigured sibling must still be rejected.
+            self::assertFalse($this->callMethod(
+                $processor,
+                'isPathWithinAllowedRoots',
+                $tempDir . '/srv/other-mount/image.jpg',
             ));
         } finally {
             $this->removeOwnedTempTree($tempDir);

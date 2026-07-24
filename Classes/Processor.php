@@ -782,6 +782,16 @@ class Processor
             $roots[$publicPath] = true;
         }
 
+        $varPath = realpath(Environment::getVarPath());
+
+        if ($varPath !== false) {
+            $roots[$varPath] = true;
+        }
+
+        foreach ($this->getAdditionalTrustedRoots() as $trustedRoot) {
+            $roots[$trustedRoot] = true;
+        }
+
         // The try/catch also protects tests that construct Processor via
         // ReflectionClass::newInstanceWithoutConstructor() without injecting
         // this readonly property — accessing an uninitialized typed property
@@ -1015,6 +1025,57 @@ class Processor
         }
 
         return $names;
+    }
+
+    /**
+     * Parse the "additionalTrustedRoots" extension configuration into a
+     * normalized list of realpath-resolved absolute directories.
+     *
+     * Empty by default: this is an explicit per-instance opt-in for absolute
+     * filesystem paths that are outside FAL and TYPO3-internal locations. See
+     * ext_conf_template.txt for the setting and its security rationale.
+     *
+     * @return list<string> Realpath-resolved absolute directories
+     */
+    private function getAdditionalTrustedRoots(): array
+    {
+        try {
+            $raw = $this->extensionConfiguration->get(self::EXTENSION_KEY, 'additionalTrustedRoots');
+        } catch (Throwable) {
+            return [];
+        }
+
+        if (!is_string($raw) || trim($raw) === '') {
+            return [];
+        }
+
+        $roots = [];
+
+        foreach (explode(',', $raw) as $candidate) {
+            $candidate = trim($candidate);
+
+            if ($candidate === '') {
+                continue;
+            }
+
+            if (!str_starts_with($candidate, DIRECTORY_SEPARATOR)) {
+                continue;
+            }
+
+            $resolved = realpath($candidate);
+
+            if ($resolved === false) {
+                continue;
+            }
+
+            if (!is_dir($resolved)) {
+                continue;
+            }
+
+            $roots[$resolved] = true;
+        }
+
+        return array_keys($roots);
     }
 
     /**
