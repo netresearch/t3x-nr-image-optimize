@@ -38,6 +38,7 @@ use function gmdate;
 use function implode;
 use function is_dir;
 use function is_link;
+use function is_numeric;
 use function is_string;
 use function max;
 use function md5;
@@ -110,6 +111,22 @@ class Processor
      * Matches the default quality of the SourceSetViewHelper.
      */
     private const DEFAULT_QUALITY = 75;
+
+    /**
+     * Default quality for the generated WebP variant when `qualityWebp` is unset.
+     */
+    private const DEFAULT_QUALITY_WEBP = 75;
+
+    /**
+     * Default quality for the generated AVIF variant when `qualityAvif` is unset.
+     *
+     * Lower than WebP/JPEG on purpose: the AVIF (AV1/AOM) quality scale is
+     * steeper, so at the same number an AVIF variant comes out larger than the
+     * WebP equivalent and defeats the point of serving AVIF. Encoding AVIF a
+     * few points lower yields a visually comparable image at a genuinely
+     * smaller size.
+     */
+    private const DEFAULT_QUALITY_AVIF = 60;
 
     /**
      * Cache-Control max-age for processed images (1 year in seconds).
@@ -459,6 +476,12 @@ class Processor
         $targetQuality  = $urlInfo['targetQuality'];
         $processingMode = $urlInfo['processingMode'];
 
+        // WebP/AVIF quality is a config-driven encoding parameter -- unlike the
+        // base quality it is not encoded in the URL/cache key -- so it is
+        // resolved here at encode time rather than in the URL parser.
+        $webpQuality = $this->resolveFormatQuality('qualityWebp', self::DEFAULT_QUALITY_WEBP);
+        $avifQuality = $this->resolveFormatQuality('qualityAvif', self::DEFAULT_QUALITY_AVIF);
+
         $image = $this->processImage($image, $targetWidth, $targetHeight, $processingMode);
 
         $this->ensureDirectoryExists(dirname($urlInfo['pathVariant']));
@@ -474,7 +497,7 @@ class Processor
 
         if (!$this->isWebpImage($extension) && !$queryParams['skipWebP']) {
             try {
-                $this->generateWebpVariant($image, $targetQuality, $pathVariant);
+                $this->generateWebpVariant($image, $webpQuality, $pathVariant);
             } catch (Throwable $e) {
                 error_log('nr_image_optimize: WebP variant failed: ' . $e->getMessage());
             }
@@ -482,7 +505,7 @@ class Processor
 
         if (!$this->isAvifImage($extension) && !$queryParams['skipAvif']) {
             try {
-                $this->generateAvifVariant($image, $targetQuality, $pathVariant);
+                $this->generateAvifVariant($image, $avifQuality, $pathVariant);
             } catch (Throwable $e) {
                 error_log('nr_image_optimize: AVIF variant failed: ' . $e->getMessage());
             }
@@ -623,6 +646,35 @@ class Processor
     private function clampQuality(int $value): int
     {
         return max(self::MIN_QUALITY, min($value, self::MAX_QUALITY));
+    }
+
+    /**
+     * Resolve the configured output quality for a specific variant format.
+     *
+     * Reads the given extension-configuration key (e.g. "qualityAvif") and
+     * clamps it to the valid range. Falls back to $default when the setting is
+     * unconfigured, non-numeric, or the ExtensionConfiguration API is
+     * unavailable (e.g. in test scaffolding that instantiates the Processor
+     * without the container).
+     *
+     * @param non-empty-string $key     Extension-configuration key to read
+     * @param int              $default Fallback quality when unset/invalid
+     *
+     * @return int Clamped quality (1-100)
+     */
+    private function resolveFormatQuality(string $key, int $default): int
+    {
+        try {
+            $raw = $this->extensionConfiguration->get(self::EXTENSION_KEY, $key);
+        } catch (Throwable) {
+            return $default;
+        }
+
+        if (!is_numeric($raw)) {
+            return $default;
+        }
+
+        return $this->clampQuality((int) $raw);
     }
 
     /**
