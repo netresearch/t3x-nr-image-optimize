@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Tests\Unit\Controller;
 
+use FilesystemIterator;
 use Netresearch\NrImageOptimize\Controller\MaintenanceController;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -26,6 +27,8 @@ use TYPO3\CMS\Core\Core\Environment;
 use function array_keys;
 use function file_put_contents;
 use function is_dir;
+use function is_link;
+use function iterator_to_array;
 use function mkdir;
 use function rmdir;
 use function str_repeat;
@@ -141,6 +144,40 @@ class MaintenanceControllerTest extends TestCase
         self::assertSame('1 KB', $this->callMethod('formatBytes', 1024));
         self::assertSame('1 MB', $this->callMethod('formatBytes', 1024 * 1024));
         self::assertSame('1 GB', $this->callMethod('formatBytes', 1024 * 1024 * 1024));
+    }
+
+    #[Test]
+    public function emptyDirectoryRemovesContentsButKeepsDirectory(): void
+    {
+        $dir = $this->tempDir . '/public/processed';
+        mkdir($dir . '/sub', 0o777, true);
+        file_put_contents($dir . '/a.jpg', 'x');
+        file_put_contents($dir . '/sub/b.webp', 'y');
+
+        $this->callMethod('emptyDirectory', $dir);
+
+        self::assertDirectoryExists($dir);
+        self::assertCount(0, iterator_to_array(new FilesystemIterator($dir)));
+    }
+
+    #[Test]
+    public function emptyDirectoryKeepsSymlinkInPlace(): void
+    {
+        // Reproduces the shared-symlink deployment layout: "processed" is a
+        // symlink to a shared volume. rmdir()+mkdir() would replace the symlink
+        // with a real directory and detach the volume -- emptying in place must
+        // keep the symlink and only clear its target.
+        $target = $this->tempDir . '/shared-processed';
+        mkdir($target, 0o777, true);
+        file_put_contents($target . '/cached.avif', 'x');
+
+        $link = $this->tempDir . '/public/processed';
+        symlink($target, $link);
+
+        $this->callMethod('emptyDirectory', $link);
+
+        self::assertTrue(is_link($link), 'the processed symlink must survive the clear');
+        self::assertCount(0, iterator_to_array(new FilesystemIterator($target)), 'the symlink target must be emptied');
     }
 
     #[Test]
