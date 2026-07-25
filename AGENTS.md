@@ -15,7 +15,7 @@
 - **Branch layout:**
   - `main` → TYPO3 13.4 / 14 (v2.x releases)
   - `TYPO3_12` → TYPO3 12.4 LTS (v1.x releases). Port relevant fixes here. Avoid LoggerAware dependencies — TYPO3_12 uses plain `error_log(sprintf(...))` to keep the dep surface narrow.
-- **Release process:** release PR from `main` / `TYPO3_12` → merge → tag signed annotated (`git tag -s vX.Y.Z`) → push tag → the `release.yml` workflow creates the GitHub Release + TER upload + docs.typo3.org publish. **Never run `gh release create`** — it makes the release tag immutable and blocks re-publishing.
+- **Release process:** one release PR from `main` / `TYPO3_12` carrying **both** the CHANGELOG/`Documentation/Changelog` entries **and** the version bumps (`ext_emconf.php`, `Documentation/guides.xml` `release=`, `composer.json` branch-alias on a minor/major) → merge → tag signed annotated on `main`'s post-merge HEAD (`git tag -s vX.Y.Z`) → push tag → the `release.yml` workflow creates the GitHub Release + TER upload + docs.typo3.org publish. The workflow **validates** the tag against `ext_emconf.php`, it does not bump anything — a tag pushed ahead of the bump fails the TER job after Packagist has already recorded the tag. **Never run `gh release create`** — it makes the release tag immutable and blocks re-publishing.
 
 ## Commands (unverified)
 > Source: Makefile — CI-sourced commands are most reliable
@@ -147,7 +147,8 @@ composer.json    → Composer metadata (authoritative version + PHP/TYPO3 constr
 - Push directly to `main` or `TYPO3_12` — always via PR.
 - Merge a PR before all review threads are resolved and CI is fully green (including annotations — check via `gh api repos/netresearch/t3x-nr-image-optimize/commits/<SHA>/check-runs`).
 - Squash commits during merge — use merge commits to preserve signed-commit chain.
-- Touch `Documentation/Settings.cfg` or `ext_emconf.php` version manually — the release workflow updates these.
+- Bump `ext_emconf.php` / `Documentation/guides.xml` outside a release PR — those versions change only as part of the release PR (see "Release process"), never in a feature PR.
+- Re-point a tag that already exists. Delete-and-re-push burns the version: Packagist pins a stable version to the reference it first saw and blocks the change ([immutable versions](https://blog.packagist.com/immutable-versions-on-packagist/)), so the package keeps serving the old commit. Recovery is the next patch version, never a retag.
 
 ## Contributing (for AI agents)
 - **Comprehension**: Understand the problem before submitting code. Read the linked issue, understand *why* the change is needed, not just *what* to change.
