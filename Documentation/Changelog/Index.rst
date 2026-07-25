@@ -6,6 +6,26 @@
 Changelog
 =========
 
+..  _changelog-2-4-1:
+
+2.4.1
+=====
+
+-   Fixed: the TYPO3 version constraint now targets the v14 LTS.
+    ``typo3/cms-core`` was declared as ``^13.4 || ^14.0`` and
+    :file:`ext_emconf.php` as ``13.4.0-14.4.99``, which also covered
+    the 14.0--14.2 sprint releases. Both now target 14.3
+    (``^13.4 || ^14.3``, ``13.4.0-14.3.99``). See
+    `pull request #139 <https://github.com/netresearch/t3x-nr-image-optimize/pull/139>`__.
+-   Fixed: the version metadata published to Packagist matches the
+    release again. The ``v2.4.0`` tag was first pushed against a commit
+    whose :file:`ext_emconf.php` still read ``2.3.1``. Packagist
+    recorded that reference for ``2.4.0`` and, under its
+    immutable-version policy, kept it when the tag was moved -- so
+    ``2.4.0`` installed via Composer reports ``2.3.1`` to the Extension
+    Manager. Installs from 2.4.1 on carry the matching version. The
+    ``2.4.0`` release on TER is unaffected.
+
 ..  _changelog-2-4-0:
 
 2.4.0

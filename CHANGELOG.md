@@ -19,6 +19,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+## [2.4.1] - 2026-07-25
+
+### Fixed
+
+- **TYPO3 version constraint now targets the v14 LTS.** `typo3/cms-core` was
+  declared as `^13.4 || ^14.0` and `ext_emconf.php` as `13.4.0-14.4.99`, which
+  also covered the 14.0–14.2 sprint releases. Both now target 14.3
+  (`^13.4 || ^14.3`, `13.4.0-14.3.99`) ([#139]).
+
+- **Version metadata on Packagist matches the release again.** The `v2.4.0`
+  tag was first pushed against a commit whose `ext_emconf.php` still read
+  `2.3.1`. Packagist recorded that reference for `2.4.0` and, under its
+  immutable-version policy, kept it when the tag was moved — so `2.4.0`
+  installed from Packagist reports `2.3.1` to the TYPO3 Extension Manager.
+  Installs from 2.4.1 on carry the matching version. The `2.4.0` release on
+  TER is unaffected.
+
+[#139]: https://github.com/netresearch/t3x-nr-image-optimize/pull/139
+
 ## [2.4.0] - 2026-07-24
 
 ### Added
@@ -448,7 +467,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Corrected crop variant examples.
 - Improved lazy loading behavior.
 
-[Unreleased]: https://github.com/netresearch/t3x-nr-image-optimize/compare/v2.4.0...HEAD
+[Unreleased]: https://github.com/netresearch/t3x-nr-image-optimize/compare/v2.4.1...HEAD
+[2.4.1]: https://github.com/netresearch/t3x-nr-image-optimize/compare/v2.4.0...v2.4.1
 [2.4.0]: https://github.com/netresearch/t3x-nr-image-optimize/compare/v2.3.1...v2.4.0
 [2.3.1]: https://github.com/netresearch/t3x-nr-image-optimize/compare/v2.3.0...v2.3.1
 [2.3.0]: https://github.com/netresearch/t3x-nr-image-optimize/compare/v2.2.4...v2.3.0
