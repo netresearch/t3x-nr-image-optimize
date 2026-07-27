@@ -58,9 +58,6 @@ final readonly class ImageManagerAdapter implements ImageReaderInterface
 
     public function read(string $path): ImageInterface
     {
-        $result = ($this->readCallback)($path);
-        assert($result instanceof ImageInterface);
-
-        return $result;
+        return ($this->readCallback)($path);
     }
 }
