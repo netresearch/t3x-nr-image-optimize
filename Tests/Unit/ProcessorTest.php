@@ -345,6 +345,31 @@ final class ProcessorTest extends TestCase
     }
 
     #[Test]
+    public function gatherInformationBasedOnUrlTreatsZeroHeightAsAutoDimension(): void
+    {
+        // The SourceSetViewHelper encodes "derive from aspect ratio" as 0
+        // (e.g. stage teaser desktop variants: w1920h0). A zero must map to
+        // null so calculateTargetDimensions() fills it in — not to a 1px floor.
+        /** @var array<string, mixed> $result */
+        $result = $this->callMethod($this->processor, 'gatherInformationBasedOnUrl', '/processed/path/to/image.w1920h0m0q75.jpg');
+
+        self::assertSame(1920, $result['targetWidth']);
+        self::assertNull($result['targetHeight']);
+    }
+
+    #[Test]
+    public function gatherInformationBasedOnUrlTreatsZeroWidthAsAutoDimension(): void
+    {
+        // Height-based variants (e.g. footer logos: w0h100) leave the width
+        // to be derived from the aspect ratio.
+        /** @var array<string, mixed> $result */
+        $result = $this->callMethod($this->processor, 'gatherInformationBasedOnUrl', '/processed/path/to/image.w0h100m1q75.png');
+
+        self::assertNull($result['targetWidth']);
+        self::assertSame(100, $result['targetHeight']);
+    }
+
+    #[Test]
     public function parseAllModeValuesExtractsAllParameters(): void
     {
         /** @var array<string, int> $result */
@@ -907,14 +932,16 @@ final class ProcessorTest extends TestCase
     }
 
     #[Test]
-    public function gatherInformationClampsZeroDimensionToOne(): void
+    public function gatherInformationTreatsZeroDimensionsAsAuto(): void
     {
         /** @var array<string, mixed> $result */
         $result = $this->callMethod($this->processor, 'gatherInformationBasedOnUrl', '/processed/image.w0h0q0m0.jpg');
 
-        // Width and height of 0 should be clamped to 1
-        self::assertSame(1, $result['targetWidth']);
-        self::assertSame(1, $result['targetHeight']);
+        // Width and height of 0 mean "derive from the aspect ratio" (the
+        // SourceSetViewHelper always writes both dimensions and encodes the
+        // unspecified side as 0) — they must map to null, not a 1px floor.
+        self::assertNull($result['targetWidth']);
+        self::assertNull($result['targetHeight']);
         // Quality of 0 should be clamped to 1
         self::assertSame(1, $result['targetQuality']);
     }
@@ -928,7 +955,9 @@ final class ProcessorTest extends TestCase
     #[Test]
     public function clampDimensionClampsToRange(): void
     {
-        self::assertSame(1, $this->callMethod($this->processor, 'clampDimension', 0));
+        // 0 encodes "auto" in variant URLs and maps to null (see
+        // gatherInformationTreatsZeroDimensionsAsAuto)
+        self::assertNull($this->callMethod($this->processor, 'clampDimension', 0));
         self::assertSame(1, $this->callMethod($this->processor, 'clampDimension', -5));
         self::assertSame(100, $this->callMethod($this->processor, 'clampDimension', 100));
         self::assertSame(8192, $this->callMethod($this->processor, 'clampDimension', 99999));
