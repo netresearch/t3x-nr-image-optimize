@@ -13,11 +13,16 @@ namespace Netresearch\NrImageOptimize;
 
 use function array_key_exists;
 use function array_keys;
+use function copy;
 use function count;
 use function dirname;
+use function fclose;
+use function feof;
 use function file_exists;
 use function filemtime;
 use function filesize;
+use function fopen;
+use function fread;
 use function gmdate;
 
 use Intervention\Image\Interfaces\ImageInterface;
@@ -58,6 +63,7 @@ use function sprintf;
 use function str_contains;
 use function str_starts_with;
 use function strtolower;
+use function substr;
 
 use Throwable;
 use TYPO3\CMS\Core\Configuration\ExtensionConfiguration;
@@ -172,6 +178,32 @@ final class Processor implements LoggerAwareInterface, ProcessorInterface
         'tiff' => 'image/tiff',
         'tif'  => 'image/tiff',
     ];
+
+    /**
+     * Regex pattern matching the byte sequence that separates GIF frames:
+     * a block terminator (0x00) followed by a Graphic Control Extension
+     * (0x21 0xF9, block size 0x04, four data bytes, block terminator 0x00)
+     * and the introducer of the next block (image separator 0x2C or
+     * extension introducer 0x21).
+     *
+     * Every frame after the first — and, in looping GIFs, the first frame
+     * following the NETSCAPE application extension — produces exactly one
+     * such sequence, so two or more matches reliably identify an animation.
+     * Requiring the leading 0x00 keeps false positives out of palette data.
+     */
+    private const ANIMATED_GIF_FRAME_PATTERN = '#\x00\x21\xF9\x04.{4}\x00[\x2C\x21]#s';
+
+    /**
+     * Byte length of a full ANIMATED_GIF_FRAME_PATTERN match. The last
+     * (length - 1) bytes of each scanned chunk are re-prepended to the next
+     * chunk so a frame separator spanning a chunk boundary is still found.
+     */
+    private const ANIMATED_GIF_FRAME_PATTERN_LENGTH = 10;
+
+    /**
+     * Chunk size (100 KiB) used when scanning a GIF for frame separators.
+     */
+    private const ANIMATED_GIF_SCAN_CHUNK_BYTES = 102_400;
 
     /**
      * Regex pattern for parsing variant URLs.
@@ -512,6 +544,17 @@ final class Processor implements LoggerAwareInterface, ProcessorInterface
     ): ResponseInterface {
         if (!file_exists($urlInfo['pathOriginal'])) {
             return $this->responseFactory->createResponse(404);
+        }
+
+        // Animated GIFs are excluded from variant processing entirely: the
+        // original file is copied to the variant path and served as-is. This
+        // check runs before the image is even loaded — decoding a multi-frame
+        // GIF is exactly the work that must be avoided (see issue #142:
+        // re-encoding every frame ran into the uncatchable
+        // max_execution_time fatal, and completed variants came out ~5.5x
+        // LARGER than the source).
+        if ($urlInfo['extension'] === 'gif' && $this->isAnimatedGif($urlInfo['pathOriginal'])) {
+            return $this->passThroughOriginal($urlInfo);
         }
 
         $image = $this->imageReader->read($urlInfo['pathOriginal']);
@@ -1474,6 +1517,120 @@ final class Processor implements LoggerAwareInterface, ProcessorInterface
             1       => $image->scale($targetWidth, $targetHeight),
             default => $image->cover($targetWidth, $targetHeight),
         };
+    }
+
+    /**
+     * Detect whether a GIF file is animated (contains more than one frame)
+     * without decoding any image data.
+     *
+     * The file is scanned in bounded chunks for the frame-separator byte
+     * sequence (see ANIMATED_GIF_FRAME_PATTERN); the scan stops as soon as
+     * two separators are found. A byte scan is used instead of
+     * Imagick::pingImage() because it behaves identically under both
+     * Intervention drivers — GD (the ImageManagerFactory fallback) has no
+     * frame-count API at all — and it never allocates image resources.
+     *
+     * A chunk-boundary carry of (pattern length - 1) bytes ensures a
+     * separator spanning two chunks is still matched; a carry that short
+     * can never contain a full match, so nothing is counted twice.
+     *
+     * False negatives (e.g. a two-frame GIF without the near-universal
+     * NETSCAPE looping extension) degrade to the current behavior of
+     * normal variant processing, never to a broken response.
+     *
+     * @param string $path Absolute path to an existing file with a .gif extension
+     *
+     * @return bool True when the file contains more than one GIF frame
+     */
+    private function isAnimatedGif(string $path): bool
+    {
+        // TOCTOU-suppressed like @mkdir above: the caller already checked
+        // file_exists(), and the false return value is handled.
+        $handle = @fopen($path, 'rb');
+
+        if ($handle === false) {
+            return false;
+        }
+
+        $frameSeparators = 0;
+        $carry           = '';
+
+        try {
+            $header = fread($handle, 6);
+
+            // Not a GIF container at all -> let normal processing deal with it.
+            if ($header === false || !str_starts_with($header, 'GIF8')) {
+                return false;
+            }
+
+            while (!feof($handle) && $frameSeparators < 2) {
+                $chunk = fread($handle, self::ANIMATED_GIF_SCAN_CHUNK_BYTES);
+
+                if ($chunk === false || $chunk === '') {
+                    break;
+                }
+
+                $haystack = $carry . $chunk;
+                $matches  = preg_match_all(self::ANIMATED_GIF_FRAME_PATTERN, $haystack);
+
+                if ($matches !== false) {
+                    $frameSeparators += $matches;
+                }
+
+                $carry = substr($haystack, -(self::ANIMATED_GIF_FRAME_PATTERN_LENGTH - 1));
+            }
+        } finally {
+            fclose($handle);
+        }
+
+        return $frameSeparators >= 2;
+    }
+
+    /**
+     * Serve the unmodified original file as the requested variant.
+     *
+     * The original bytes are copied to the variant path so that every
+     * follow-up request is served straight from disk by
+     * serveCachedVariant() — identical cache behavior to a processed
+     * variant. No resized, WebP, or AVIF variants are generated.
+     *
+     * @param array{
+     *     pathVariant: string,
+     *     pathOriginal: string,
+     *     extension: string,
+     *     targetWidth: int|null,
+     *     targetHeight: int|null,
+     *     targetQuality: int,
+     *     processingMode: int,
+     * } $urlInfo Parsed URL information
+     *
+     * @return ResponseInterface The original file with full HTTP caching headers
+     *
+     * @throws RuntimeException If the original cannot be copied to the variant path
+     */
+    private function passThroughOriginal(array $urlInfo): ResponseInterface
+    {
+        $this->getLogger()->info(
+            'Animated GIF excluded from variant processing; passing original through',
+            [
+                'pathOriginal' => $urlInfo['pathOriginal'],
+                'pathVariant'  => $urlInfo['pathVariant'],
+            ],
+        );
+
+        $this->ensureDirectoryExists(dirname($urlInfo['pathVariant']));
+
+        if (!copy($urlInfo['pathOriginal'], $urlInfo['pathVariant'])) {
+            throw new RuntimeException(
+                sprintf(
+                    'Failed to copy original "%s" to variant path "%s"',
+                    $urlInfo['pathOriginal'],
+                    $urlInfo['pathVariant'],
+                ),
+            );
+        }
+
+        return $this->buildOutputResponse($urlInfo['extension'], $urlInfo['pathVariant']);
     }
 
     /**
