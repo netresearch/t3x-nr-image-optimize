@@ -702,8 +702,11 @@ final class Processor implements LoggerAwareInterface, ProcessorInterface
     /**
      * Clamp a dimension value to the allowed range.
      *
-     * Returns null if input is null (dimension not specified), otherwise
-     * restricts to 1..MAX_DIMENSION to prevent zero-pixel images and
+     * Returns null if input is null or zero: the SourceSetViewHelper always
+     * writes both dimensions into the variant URL and encodes "derive this
+     * side from the aspect ratio" as 0 (e.g. w1920h0), so a zero must map to
+     * "not specified" for calculateTargetDimensions() to fill it in — not to
+     * a 1px floor. Otherwise restricts to 1..MAX_DIMENSION to prevent
      * excessive memory allocation.
      *
      * @param int|null $value Raw dimension from URL
@@ -712,7 +715,7 @@ final class Processor implements LoggerAwareInterface, ProcessorInterface
      */
     private function clampDimension(?int $value): ?int
     {
-        if ($value === null) {
+        if ($value === null || $value === 0) {
             return null;
         }
 
