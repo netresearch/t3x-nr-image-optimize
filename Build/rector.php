@@ -9,54 +9,34 @@
 
 declare(strict_types=1);
 
-use Rector\CodingStyle\Rector\Catch_\CatchExceptionNameMatchingTypeRector;
 use Rector\Config\RectorConfig;
-use Rector\DeadCode\Rector\ClassMethod\RemoveUnusedPrivateMethodParameterRector;
-use Rector\DeadCode\Rector\ClassMethod\RemoveUselessParamTagRector;
-use Rector\DeadCode\Rector\ClassMethod\RemoveUselessReturnTagRector;
-use Rector\DeadCode\Rector\Property\RemoveUselessVarTagRector;
-use Rector\Php80\Rector\Class_\ClassPropertyAssignToConstructorPromotionRector;
-use Rector\Set\ValueObject\LevelSetList;
-use Rector\Set\ValueObject\SetList;
 use Ssch\TYPO3Rector\Set\Typo3LevelSetList;
 
-return static function (RectorConfig $rectorConfig): void {
-    $rectorConfig->paths([
-        __DIR__ . '/../Classes',
-        __DIR__ . '/../Configuration',
-        __DIR__ . '/../Resources',
-        __DIR__ . '/../Tests',
-        __DIR__ . '/../ext_*',
-    ]);
+$configure = require __DIR__ . '/../.build/vendor/netresearch/typo3-ci-workflows/config/rector/rector.php';
 
-    $rectorConfig->phpstanConfig('Build/phpstan.neon');
-    $rectorConfig->importNames();
-    $rectorConfig->removeUnusedImports();
+return static function (RectorConfig $rectorConfig) use ($configure): void {
+    // Shared org base config: code-quality sets, rule skips, phpstan-rector.neon
+    $configure($rectorConfig, __DIR__ . '/..');
+
+    // paths() replaces the shared list — re-declared to keep Tests/ in scope,
+    // which the shared $projectRoot default leaves out.
+    $rectorConfig->paths(array_merge(
+        [
+            __DIR__ . '/../Classes',
+            __DIR__ . '/../Configuration',
+            __DIR__ . '/../Resources',
+            __DIR__ . '/../Tests',
+        ],
+        glob(__DIR__ . '/../ext_*.php') ?: [],
+    ));
+
     $rectorConfig->disableParallel();
-    $rectorConfig->phpVersion(80200);
 
-    // Define what rule sets will be applied
     $rectorConfig->sets([
-        SetList::CODE_QUALITY,
-        SetList::CODING_STYLE,
-        SetList::DEAD_CODE,
-        SetList::EARLY_RETURN,
-        SetList::INSTANCEOF,
-        SetList::PRIVATIZATION,
-        SetList::TYPE_DECLARATION,
-        LevelSetList::UP_TO_PHP_82,
         Typo3LevelSetList::UP_TO_TYPO3_13,
     ]);
 
-    // Skip paths and rules
     $rectorConfig->skip([
-        __DIR__ . '/../ext_emconf.php',
         __DIR__ . '/../ext_*.sql',
-        CatchExceptionNameMatchingTypeRector::class,
-        ClassPropertyAssignToConstructorPromotionRector::class,
-        RemoveUselessParamTagRector::class,
-        RemoveUselessReturnTagRector::class,
-        RemoveUselessVarTagRector::class,
-        RemoveUnusedPrivateMethodParameterRector::class,
     ]);
 };
