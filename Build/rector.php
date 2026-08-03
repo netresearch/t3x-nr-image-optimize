@@ -12,7 +12,7 @@ declare(strict_types=1);
 use Rector\Config\RectorConfig;
 use Ssch\TYPO3Rector\Set\Typo3LevelSetList;
 
-$configure = require __DIR__ . '/../.build/vendor/netresearch/typo3-ci-workflows/config/rector/rector.php';
+$configure = require_once __DIR__ . '/../.build/vendor/netresearch/typo3-ci-workflows/config/rector/rector.php';
 
 return static function (RectorConfig $rectorConfig) use ($configure): void {
     // Shared org base config: code-quality sets, rule skips, phpstan-rector.neon
