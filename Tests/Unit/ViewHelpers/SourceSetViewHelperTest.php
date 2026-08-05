@@ -42,6 +42,7 @@ use function sys_get_temp_dir;
 
 use TYPO3\CMS\Core\Core\ApplicationContext;
 use TYPO3\CMS\Core\Core\Environment;
+use TYPO3\CMS\Core\Resource\FileReference;
 use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper;
 use TYPO3Fluid\Fluid\Core\ViewHelper\ArgumentDefinition;
 
@@ -1994,5 +1995,140 @@ final class SourceSetViewHelperTest extends TestCase
         foreach ($result as $width) {
             self::assertGreaterThan(0, $width, 'All returned widths must be positive');
         }
+    }
+
+    // =========================================================================
+    // Crop-aware height derivation (NEXT-100)
+    // =========================================================================
+
+    /**
+     * @param array<string, mixed> $properties
+     */
+    private function createFileReference(array $properties): FileReference
+    {
+        $image = $this->createMock(FileReference::class);
+        $image->method('getProperty')->willReturnCallback(
+            static fn (string $key): mixed => $properties[$key] ?? null,
+        );
+
+        return $image;
+    }
+
+    #[Test]
+    public function resolveEffectiveHeightDerivesNonSquareHeightFromCropArea(): void
+    {
+        // 1000x1000 original, "default" crop variant narrows height to 50% of width
+        $image = $this->createFileReference([
+            'width'  => 1000,
+            'height' => 1000,
+            'crop'   => json_encode(['default' => ['cropArea' => ['width' => 1.0, 'height' => 0.5]]]),
+        ]);
+
+        $this->viewHelper->setArguments([
+            'image' => $image,
+        ]);
+
+        self::assertSame(200, $this->callMethod('resolveEffectiveHeight', 400));
+    }
+
+    #[Test]
+    public function resolveEffectiveHeightFallsBackToOriginalRatioWhenCropMissing(): void
+    {
+        $image = $this->createFileReference([
+            'width'  => 800,
+            'height' => 600,
+            'crop'   => '',
+        ]);
+
+        $this->viewHelper->setArguments([
+            'image' => $image,
+        ]);
+
+        self::assertSame(300, $this->callMethod('resolveEffectiveHeight', 400));
+    }
+
+    #[Test]
+    public function resolveEffectiveHeightFallsBackToOriginalRatioWhenCropJsonInvalid(): void
+    {
+        $image = $this->createFileReference([
+            'width'  => 800,
+            'height' => 600,
+            'crop'   => 'not-json',
+        ]);
+
+        $this->viewHelper->setArguments([
+            'image' => $image,
+        ]);
+
+        self::assertSame(300, $this->callMethod('resolveEffectiveHeight', 400));
+    }
+
+    #[Test]
+    public function resolveEffectiveHeightUsesSelectedCropVariant(): void
+    {
+        $image = $this->createFileReference([
+            'width'  => 1000,
+            'height' => 1000,
+            'crop'   => json_encode([
+                'default' => ['cropArea' => ['width' => 1.0, 'height' => 0.5]],
+                'wide'    => ['cropArea' => ['width' => 1.0, 'height' => 0.25]],
+            ]),
+        ]);
+
+        $this->viewHelper->setArguments([
+            'image'       => $image,
+            'cropVariant' => 'wide',
+        ]);
+
+        self::assertSame(100, $this->callMethod('resolveEffectiveHeight', 400));
+    }
+
+    #[Test]
+    public function resolveEffectiveHeightKeepsExplicitHeightWhenNoImageProvided(): void
+    {
+        $this->viewHelper->setArguments([
+            'height' => 337,
+        ]);
+
+        self::assertSame(337, $this->callMethod('resolveEffectiveHeight', 400));
+    }
+
+    #[Test]
+    public function renderResponsiveSrcsetUsesCropAwareHeightFromImage(): void
+    {
+        $image = $this->createFileReference([
+            'width'  => 1000,
+            'height' => 1000,
+            'crop'   => json_encode(['default' => ['cropArea' => ['width' => 1.0, 'height' => 0.5]]]),
+        ]);
+
+        $this->viewHelper->setArguments([
+            'path'             => '/path/to/image.jpg',
+            'width'            => 400,
+            'height'           => 999, // must be ignored in favor of crop-derived height
+            'image'            => $image,
+            'responsiveSrcset' => true,
+        ]);
+
+        $result = $this->viewHelper->render();
+
+        self::assertStringContainsString('height="200"', $result);
+        self::assertStringContainsString('/processed/path/to/image.w400h200m0q75.jpg', $result);
+    }
+
+    #[Test]
+    public function initializeArgumentsRegistersImageAndCropVariantArguments(): void
+    {
+        $viewHelper = new SourceSetViewHelper();
+        $viewHelper->initializeArguments();
+
+        $reflection = new ReflectionProperty(AbstractViewHelper::class, 'argumentDefinitions');
+        /** @var array<string, ArgumentDefinition> $definitions */
+        $definitions = $reflection->getValue($viewHelper);
+
+        self::assertArrayHasKey('image', $definitions);
+        self::assertFalse($definitions['image']->isRequired(), "'image' must be optional.");
+        self::assertArrayHasKey('cropVariant', $definitions);
+        self::assertSame('default', $definitions['cropVariant']->getDefaultValue());
     }
 }
