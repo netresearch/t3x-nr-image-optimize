@@ -213,6 +213,31 @@ final class ProcessorTest extends FunctionalTestCase
     }
 
     #[Test]
+    public function processorHandlesSourceImageInDirectoryWithNonAsciiCharacters(): void
+    {
+        // Regression test for FX-1155: Intervention's decoder auto-detection
+        // misclassified absolute paths containing non-ASCII bytes (umlauts)
+        // as binary image data instead of a file path, causing a 500 for any
+        // source image living under a folder such as "Gründung".
+        $sourceDir = Environment::getPublicPath() . '/fileadmin/Gründung';
+        self::assertTrue(mkdir($sourceDir, 0o777, true));
+        self::assertNotFalse(copy(__DIR__ . '/Fixtures/test-image.png', $sourceDir . '/test-image.png'));
+
+        $processor = $this->get(Processor::class);
+
+        $uri     = new Uri('https://example.com/processed/fileadmin/Gr%C3%BCndung/test-image.w50h38m0q80.png');
+        $request = new ServerRequest($uri);
+
+        $response = $processor->generateAndSend($request);
+
+        self::assertSame(200, $response->getStatusCode());
+        self::assertGreaterThan(0, $response->getBody()->getSize(), 'Response body should contain image data');
+
+        $variantPath = Environment::getPublicPath() . '/processed/fileadmin/Gründung/test-image.w50h38m0q80.png';
+        self::assertFileExists($variantPath, 'Variant file should be created on disk for a non-ASCII source path');
+    }
+
+    #[Test]
     public function processorSkipsWebpVariantWhenFlagged(): void
     {
         $processor = $this->get(Processor::class);

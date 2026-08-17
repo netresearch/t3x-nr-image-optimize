@@ -67,6 +67,32 @@ final class ImageManagerAdapterTest extends TestCase
     }
 
     #[Test]
+    public function readDecodesFilePathContainingNonAsciiCharacters(): void
+    {
+        $tmpDir = sys_get_temp_dir() . '/nr-pio-adapter-test-' . uniqid('', true) . '/Gründung';
+        self::assertTrue(mkdir($tmpDir, 0o777, true));
+
+        $tmpFile = $tmpDir . '/test.png';
+        $gd      = imagecreatetruecolor(4, 5);
+        self::assertNotFalse($gd);
+        imagepng($gd, $tmpFile);
+        imagedestroy($gd);
+
+        try {
+            $imageManager = new ImageManager(Driver::class);
+            $adapter      = new ImageManagerAdapter($imageManager);
+            $image        = $adapter->read($tmpFile);
+
+            self::assertSame(4, $image->width());
+            self::assertSame(5, $image->height());
+        } finally {
+            unlink($tmpFile); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
+            rmdir($tmpDir);
+            rmdir(dirname($tmpDir));
+        }
+    }
+
+    #[Test]
     public function adapterIsReadonly(): void
     {
         $reflection = new ReflectionClass(ImageManagerAdapter::class);

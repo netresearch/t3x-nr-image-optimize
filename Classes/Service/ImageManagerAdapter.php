@@ -14,6 +14,7 @@ namespace Netresearch\NrImageOptimize\Service;
 use Closure;
 use Intervention\Image\ImageManager;
 use Intervention\Image\Interfaces\ImageInterface;
+use SplFileInfo;
 
 /**
  * Adapter that bridges Intervention Image v3 and v4 API differences.
@@ -30,7 +31,7 @@ use Intervention\Image\Interfaces\ImageInterface;
 final readonly class ImageManagerAdapter implements ImageReaderInterface
 {
     /**
-     * @var Closure(string): ImageInterface
+     * @var Closure(SplFileInfo): ImageInterface
      */
     private Closure $readCallback;
 
@@ -46,18 +47,28 @@ final readonly class ImageManagerAdapter implements ImageReaderInterface
      * The object parameter type prevents PHPStan from statically narrowing
      * the method_exists() check against a single installed library version.
      *
-     * @return Closure(string): ImageInterface
+     * @return Closure(SplFileInfo): ImageInterface
      */
     private function resolveReadMethod(object $manager): Closure
     {
         $method = method_exists($manager, 'read') ? 'read' : 'decode';
 
-        /** @var Closure(string): ImageInterface */
+        /** @var Closure(SplFileInfo): ImageInterface */
         return $manager->{$method}(...);
     }
 
     public function read(string $path): ImageInterface
     {
-        return ($this->readCallback)($path);
+        // Wrapping the path in SplFileInfo forces Intervention's decoder
+        // auto-detection (InputHandler::handle()) to match on the input's
+        // *type* via SplFileInfoImageDecoder rather than inspecting its
+        // *content*. Without this, CanDetectImageSources::couldBeBinaryData()
+        // treats any path containing non-ASCII bytes (e.g. an umlaut in a
+        // directory name) as binary image data -- BinaryImageDecoder is
+        // tried before FilePathImageDecoder in the decoder chain -- and
+        // routes the raw path string into Imagick::readImageBlob() /
+        // imagecreatefromstring(), which fails to decode and throws
+        // ImageDecoderException.
+        return ($this->readCallback)(new SplFileInfo($path));
     }
 }
