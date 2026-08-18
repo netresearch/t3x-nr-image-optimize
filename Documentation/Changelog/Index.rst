@@ -6,6 +6,26 @@
 Changelog
 =========
 
+..  _changelog-2-4-2:
+
+2.4.2
+=====
+
+-   Fixed: source images under a folder with a non-ASCII character
+    (e.g. an umlaut) no longer return an empty-body HTTP 500 for
+    :file:`/processed/*` requests. The regression was in
+    ``intervention/image`` v4: ``InputHandler::handle()`` checks
+    ``BinaryImageDecoder`` before ``FilePathImageDecoder``, and
+    ``BinaryImageDecoder``'s heuristic treats any string containing a
+    byte outside printable ASCII as binary image data -- including a
+    legitimate absolute path whose only non-ASCII content is a UTF-8
+    umlaut. Wrapping the path in ``SplFileInfo`` before handing it to
+    ``ImageManager::read()``/``decode()`` makes decoder selection match
+    on input *type* rather than content, sidestepping the heuristic.
+    ``v3`` (3.7.2, 3.11.1) was not affected -- no ``TYPO3_12`` backport
+    needed. See
+    `pull request #156 <https://github.com/netresearch/t3x-nr-image-optimize/pull/156>`__.
+
 ..  _changelog-2-4-1:
 
 2.4.1
