@@ -1,4 +1,4 @@
-<!-- Managed by agent: keep sections and order; edit content, not structure. Last updated: 2026-04-24 -->
+<!-- Managed by agent: keep sections and order; edit content, not structure. Last updated: 2026-08-19 -->
 
 # AGENTS.md — Classes
 
@@ -106,6 +106,15 @@ This extension has **no** `Classes/Domain/` (no Extbase models), **no** `Configu
 | ViewHelper | `*ViewHelper` | `SourceSetViewHelper` |
 | Event | `*Event` | `VariantServedEvent` |
 | Command | `*Command` | `OptimizeImagesCommand` |
+
+### Implementation conventions (distilled from PR #49-53 review cycles)
+- Decouple middleware from processing via `ProcessorInterface` (enforced by `Tests/Architecture/ArchitectureTest.php`).
+- PSR-14 events (`ImageProcessedEvent`, `VariantServedEvent`) are dispatched with a guarded `try/catch` so a faulty listener never breaks image serving.
+- Use the `getLogger()` helper to narrow the nullable `LoggerAwareTrait` property for PHPStan (instead of touching the property directly).
+- Serve variants with HTTP caching headers: `Cache-Control: immutable`, `ETag`, `Last-Modified`, and `Content-Length` (via `filesize`).
+- Stream responses with `createStreamFromFile()` rather than reading the whole file with `file_get_contents()`.
+- Cache the realpath-resolved allowed roots (including the public path) in a static property.
+- Parse request data in a single pass (`parseAllModeValues()`, `parseQueryParams()`) — avoid redundant re-parsing.
 <!-- AGENTS-GENERATED:END code-style -->
 
 <!-- AGENTS-GENERATED:START security -->
@@ -115,6 +124,11 @@ This extension has **no** `Classes/Domain/` (no Extbase models), **no** `Configu
 - **External binaries**: `ImageOptimizer` invokes optipng/jpegoptim/cwebp/avifenc via `proc_open` with argument arrays (not shell strings) — keep it that way. Never concatenate user input into a command string.
 - **nosemgrep tags**: the three `@unlink()` finally-block cleanups in `Classes/Service/ImageOptimizer.php` carry `// nosemgrep: php.lang.security.unlink-use.unlink-use` — only suppress with this exact pattern after verifying the path originates from `getForLocalProcessing(true)`.
 - **Backend access**: `MaintenanceController` relies on TYPO3 backend-user session; no additional check needed for routed actions. For ad-hoc access, use `$GLOBALS['BE_USER']->check()`.
+- **Path traversal**: combine the regex negative lookahead `(?:(?!\.\.).)` with a `realpath()` check against the cached public path — not one or the other.
+- **XSS**: run `htmlspecialchars()` on **every** tag attribute emitted in a ViewHelper `tag()` method.
+- **CSP**: include external JS/CSS through `f:be.pageRenderer` `includeJsFiles` / `includeCssFiles`, **not** `includeJavaScriptFiles` (inline-emitting variants break CSP).
+- **Locks**: wrap acquisition in `try/finally`, catch `LockCreateException`, and log lock exhaustion.
+- **Error suppression** is acceptable only for genuine races: `@mkdir` for TOCTOU, `@file_get_contents` only when the return value is checked.
 <!-- AGENTS-GENERATED:END security -->
 
 <!-- AGENTS-GENERATED:START checklist -->

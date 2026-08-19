@@ -1,4 +1,4 @@
-<!-- Managed by agent: keep sections and order; edit content, not structure. Last updated: 2026-04-24 -->
+<!-- Managed by agent: keep sections and order; edit content, not structure. Last updated: 2026-08-19 -->
 
 # AGENTS.md — workflows
 
@@ -8,14 +8,18 @@ GitHub Actions workflows and CI/CD automation
 <!-- AGENTS-GENERATED:END overview -->
 
 <!-- AGENTS-GENERATED:START filemap -->
-## Key Files
+## Workflow files
 | File | Purpose |
 |------|---------|
-| `ci.yml` | Matrix CI: lint / phpstan / unit / functional (SQLite) across PHP 8.2–8.5 × TYPO3 13.4 / 14. Thin caller of the reusable `netresearch/typo3-ci-workflows/.github/workflows/ci.yml@main`. |
+| `ci.yml` | Matrix CI: lint / phpstan / unit / functional / acceptance (SQLite) across PHP 8.2–8.5 × TYPO3 ^13.4 / ^14.0. Thin caller of the reusable `netresearch/typo3-ci-workflows/.github/workflows/ci.yml@main`. Per-extension matrix = intentional drift. |
+| `checks.yml` | Security + quality jobs (security, gitleaks, zizmor, fuzz, license-check, CodeQL, scorecard, dependency-review, pr-quality) funnelled into one `gate` job named `All security checks`. **Byte-identical and drift-enforced across every typo3-extension** — change it via the template, not here. Any job added must also be added to `gate.needs`. |
+| `check-template-drift.yml` | Enforces `checks.yml` template parity (`netresearch/.github` reusable, `template: typo3-extension`). |
 | `release.yml` | Thin caller of `netresearch/typo3-ci-workflows/.github/workflows/release-typo3-extension.yml@main`. Fires on signed `v*` tag push. Creates GH Release + TER upload + docs.typo3.org publish. |
 | `republish.yml` | Manual `workflow_dispatch` with `target: all | ter | docs | packagist`. Use to re-trigger one publishing channel without cutting a new release. |
 | `auto-merge-deps.yml` | Auto-merge green Renovate/Dependabot PRs. |
-| `community.yml` | Issue/PR labelling + greeter. |
+| `labeler.yml` | PR labelling from changed paths (config: `.github/labeler.yml`). |
+| `community.yml` | Stale/lock/greetings automation (`stale.yml`, `lock.yml`, `greetings.yml` reusables). |
+| `harness-verify.yml` | Agent-harness consistency check — runs `Build/Scripts/verify-harness.sh` via the shared `script-check.yml` reusable. |
 <!-- AGENTS-GENERATED:END filemap -->
 
 <!-- AGENTS-GENERATED:START golden-samples -->
@@ -28,12 +32,17 @@ Project workflows should be **thin callers** of reusable workflows in `netresear
 ```
 .github/
   workflows/
-    ci.yml                 → matrix CI (calls typo3-ci-workflows/ci.yml)
-    release.yml            → release pipeline (calls release-typo3-extension.yml)
-    republish.yml          → manual re-publish to TER/docs/packagist
-    auto-merge-deps.yml    → dependency-bot automerge
-    community.yml          → labels/greeter
-  dependabot.yml           → Renovate config is separate (see renovate.json in root)
+    ci.yml                    → matrix CI (calls typo3-ci-workflows/ci.yml)
+    checks.yml                → security/quality gate (drift-enforced template)
+    check-template-drift.yml  → template-parity enforcement for checks.yml
+    release.yml               → release pipeline (calls release-typo3-extension.yml)
+    republish.yml             → manual re-publish to TER/docs/packagist
+    auto-merge-deps.yml       → dependency-bot automerge
+    labeler.yml               → PR path-based labels
+    community.yml             → stale/lock/greetings
+    harness-verify.yml        → agent-harness consistency check
+  labeler.yml                 → label→path config for workflows/labeler.yml
+  dependabot.yml              → Renovate config is separate (see renovate.json in root)
 ```
 No `actions/` local composite actions. All reusable logic lives in `netresearch/typo3-ci-workflows`.
 <!-- AGENTS-GENERATED:END structure -->
@@ -45,6 +54,7 @@ No `actions/` local composite actions. All reusable logic lives in `netresearch/
 - **Minimal permissions**: each `permissions:` block lists only what the job needs; never `write-all`.
 - **Never `secrets: inherit`**: pass each secret explicitly into the reusable workflow call. Supply-chain hygiene — limits blast radius if any action in the chain is compromised.
 - **Required-checks list** is enforced by the `CI Required Checks` ruleset (see root AGENTS.md → Repository Settings). Any new matrix cell that becomes "required" must be added to that ruleset, not assumed.
+- **codecov**: the patch target in `codecov.yml` accounts for extension-dependent code paths that cannot be covered in isolation.
 
 ### Naming
 | Type | Convention | Example |
@@ -57,15 +67,18 @@ No `actions/` local composite actions. All reusable logic lives in `netresearch/
 <!-- AGENTS-GENERATED:END code-style -->
 
 <!-- AGENTS-GENERATED:START patterns -->
-## Pattern (this repo): thin caller of a reusable workflow
+## Common patterns (this repo): thin caller of a reusable workflow
 
 ```yaml
 # .github/workflows/ci.yml — abridged
 name: CI
 on:
   push:
-    branches: [main, TYPO3_12]
+    branches: [main]
   pull_request:
+  merge_group:
+  schedule:
+    - cron: '0 6 * * 1'
 
 permissions:
   contents: read
@@ -73,8 +86,14 @@ permissions:
 jobs:
   ci:
     uses: netresearch/typo3-ci-workflows/.github/workflows/ci.yml@main
+    permissions:
+      contents: read
     with:
+      php-versions: '["8.2","8.3","8.4","8.5"]'
+      typo3-versions: '["^13.4","^14.0"]'
+      upload-coverage: true
       run-functional-tests: true
+      run-acceptance-tests: true
       functional-test-db: 'sqlite'
       php-extensions: 'intl, mbstring, xml, imagick, gd'
       coverage-tool: 'xdebug'
@@ -102,7 +121,7 @@ The reusable workflow handles matrix expansion, action pinning, and PHPStan/PHPU
 <!-- AGENTS-GENERATED:END checklist -->
 
 <!-- AGENTS-GENERATED:START examples -->
-## Reference
+## Examples
 - This repo's `ci.yml`, `release.yml`, `republish.yml` are the canonical thin-caller examples.
 - Reusable workflow source: https://github.com/netresearch/typo3-ci-workflows/.github/workflows/
 <!-- AGENTS-GENERATED:END examples -->

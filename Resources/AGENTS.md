@@ -1,4 +1,4 @@
-<!-- Managed by agent: keep sections and order; edit content, not structure. Last updated: 2026-04-24 -->
+<!-- Managed by agent: keep sections and order; edit content, not structure. Last updated: 2026-08-19 -->
 
 # AGENTS.md — Resources
 
@@ -6,6 +6,20 @@
 ## Overview
 TYPO3 extension public/private resources: Fluid templates (backend module), icons, language labels, CSS/JS for the backend maintenance module.
 <!-- AGENTS-GENERATED:END overview -->
+
+<!-- AGENTS-GENERATED:START setup -->
+## Prerequisites
+- No asset build pipeline: CSS/JS under `Resources/Public/` are committed as-is (no bundler, no npm). Edit the files directly.
+- Optional image tooling for committing optimized assets: `optipng`/`pngcrush` (PNG), `cwebp` (WebP).
+<!-- AGENTS-GENERATED:END setup -->
+
+<!-- AGENTS-GENERATED:START commands -->
+## Build & tests for resources
+- There is nothing to build here; verification is indirect:
+- Template output is covered by the acceptance suite: `composer ci:test:php:acceptance` (e.g. `Tests/Acceptance/ViewHelpers/SourceSetViewHelperHtmlOutputTest.php`).
+- XLIFF well-formedness: `xmllint --noout Resources/Private/Language/locallang.xlf`.
+- Backend-module templates are exercised by `Tests/Functional/Controller/` and `Tests/Unit/Controller/`.
+<!-- AGENTS-GENERATED:END commands -->
 
 <!-- AGENTS-GENERATED:START filemap -->
 ## Structure (this repo, verified)
@@ -78,7 +92,7 @@ There are no `FlexForms/`, `TCA/`, or frontend image assets here. This is a back
 <!-- AGENTS-GENERATED:END checklist -->
 
 <!-- AGENTS-GENERATED:START examples -->
-## Reference templates in this repo
+## Examples (reference templates in this repo)
 - `Resources/Private/Templates/Maintenance/Index.html` — backend module landing page with `<f:be.pageRenderer>` JS includes.
 - `Resources/Private/Templates/Maintenance/SystemRequirements.html` — system requirements view with both JS and CSS includes.
 <!-- AGENTS-GENERATED:END examples -->

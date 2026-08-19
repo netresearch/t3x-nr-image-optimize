@@ -1,6 +1,6 @@
 <!-- FOR AI AGENTS - Human readability is a side effect, not a goal -->
 <!-- Managed by agent: keep sections and order; edit content, not structure -->
-<!-- Last updated: 2026-06-03 | Last verified: never -->
+<!-- Last updated: 2026-08-19 | Last verified: 2026-08-19 -->
 
 # AGENTS.md
 
@@ -8,7 +8,7 @@
 
 ## Project
 
-**`netresearch/nr-image-optimize`** — TYPO3 extension. Serves processed image variants (WebP/AVIF fallbacks, responsive `srcset`) by intercepting `/processed/*` URLs via PSR-15 middleware.
+**`netresearch/nr-image-optimize`** — TYPO3 extension. Serves processed image variants (WebP/AVIF fallbacks, responsive `srcset`) by intercepting `/processed/*` URLs via PSR-15 middleware. Component map + data flow: `docs/ARCHITECTURE.md`.
 
 - **PHP:** >=8.2
 - **TYPO3 image library:** Intervention Image. `Classes/Service/ImageManagerFactory` auto-selects Imagick when available, falls back to GD.
@@ -17,9 +17,7 @@
   - `TYPO3_12` → TYPO3 12.4 LTS (v1.x releases). Port relevant fixes here. Avoid LoggerAware dependencies — TYPO3_12 uses plain `error_log(sprintf(...))` to keep the dep surface narrow.
 - **Release process:** one release PR from `main` / `TYPO3_12` carrying **both** the CHANGELOG/`Documentation/Changelog` entries **and** the version bumps (`ext_emconf.php`, `Documentation/guides.xml` `release=`, `composer.json` branch-alias on a minor/major) → merge → tag signed annotated on `main`'s post-merge HEAD (`git tag -s vX.Y.Z`) → push tag → the `release.yml` workflow creates the GitHub Release + TER upload + docs.typo3.org publish. The workflow **validates** the tag against `ext_emconf.php`, it does not bump anything — a tag pushed ahead of the bump fails the TER job after Packagist has already recorded the tag. **Never run `gh release create`** — it makes the release tag immutable and blocks re-publishing.
 
-## Commands (unverified)
-> Source: Makefile — CI-sourced commands are most reliable
-
+## Commands
 <!-- AGENTS-GENERATED:START commands -->
 | Task | Command | ~Time |
 |------|---------|-------|
@@ -39,12 +37,8 @@
 All scripts also work via `make` targets (see `make help`). The `make` targets use `Build/Scripts/runTests.sh` which runs inside a Docker PHP image — use `make` when your host PHP differs from CI or when Imagick isn't installed locally.
 <!-- AGENTS-GENERATED:END commands -->
 
-> If commands fail, verify against Makefile/package.json/composer.json or ask user to update.
-
 ## Response Style
-- Answer first, elaborate only if needed. No sycophantic openers ("Great question!", "Absolutely!").
-- For yes/no or status questions, lead with the answer.
-- Skip preamble. Match response length to task complexity.
+- Answer first, elaborate only if needed; lead with the answer on yes/no or status questions. No sycophantic openers. Match response length to task complexity.
 
 ## Workflow
 1. **Before coding**: Read nearest `AGENTS.md` + check Golden Samples for the area you're touching
@@ -55,21 +49,14 @@ All scripts also work via `make` targets (see `make help`). The `make` targets u
 ## File Map
 <!-- AGENTS-GENERATED:START filemap -->
 ```
-Classes/         → PHP classes (PSR-4: Netresearch\NrImageOptimize\)
-  Command/         Symfony console commands (AnalyzeImages, OptimizeImages)
-  Controller/      MaintenanceController (backend module)
-  Event/           ImageProcessedEvent, VariantServedEvent
-  EventListener/   OptimizeOnUploadListener
-  Middleware/      ProcessingMiddleware (PSR-15)
-  Service/         ImageManagerFactory, ImageManagerAdapter, ImageOptimizer, SystemRequirementsService
-  ViewHelpers/     SourceSetViewHelper (Fluid)
-  Processor.php    Main request dispatcher for /processed/* URLs
+Classes/         → PHP classes (PSR-4: Netresearch\NrImageOptimize\); Processor.php = main dispatcher for /processed/* URLs (see Classes/AGENTS.md for the per-file map)
 Configuration/   → TYPO3 DI + middleware + icons (Services.yaml, RequestMiddlewares.php, Icons.php, Backend/)
 Resources/       → Public JS/CSS + Private Fluid templates + Language labels
 Tests/           → Unit, Functional, Acceptance, Architecture (phpat), Fuzz
 Documentation/   → RST sources for docs.typo3.org
-Build/           → Tooling configs (phpstan.neon, PHPUnit xml, .php-cs-fixer.dist.php, rector.php, fractor.php) + Scripts/runTests.sh
-.github/         → GitHub Actions workflows (release, ci, publish-to-ter, republish)
+Build/           → Tooling configs (phpstan.neon, PHPUnit xml, .php-cs-fixer.dist.php, rector.php, fractor.php) + Scripts/runTests.sh + Scripts/verify-harness.sh
+docs/            → docs/ARCHITECTURE.md (component map), docs/adr/ (ADRs), docs/exec-plans/
+.github/         → GitHub Actions workflows (ci, checks, release, republish, labeler, community, auto-merge-deps, check-template-drift, harness-verify)
 ext_emconf.php   → TYPO3 extension metadata (version, dependencies)
 composer.json    → Composer metadata (authoritative version + PHP/TYPO3 constraints)
 ```
@@ -93,12 +80,8 @@ composer.json    → Composer metadata (authoritative version + PHP/TYPO3 constr
 <!-- AGENTS-GENERATED:START heuristics -->
 | When | Do |
 |------|-----|
-| Adding class | Follow PSR-4 in `Classes/` (no `src/` here) |
-| Adding controller | Create in `Classes/Controller/` |
-| Adding service | Create in `Classes/Service/` |
-| Running tasks | Check `make help` for available commands |
+| Adding class | Follow PSR-4 in `Classes/` (no `src/` here); controllers → `Classes/Controller/`, services → `Classes/Service/` |
 | Committing | Use Conventional Commits (feat:, fix:, docs:, etc.) |
-| Merging PRs | Create merge commits |
 | Adding dependency | Ask first - we minimize deps |
 | Unsure about pattern | Check Golden Samples above |
 <!-- AGENTS-GENERATED:END heuristics -->
@@ -108,12 +91,8 @@ composer.json    → Composer metadata (authoritative version + PHP/TYPO3 constr
 - **Default branch:** `main`
 - **Merge strategy:** merge
 - **Required checks (rulesets):** `ci / Code Style`, `ci / Functional Tests SQLite (8.2, ^13.4)`, `ci / Functional Tests SQLite (8.2, ^14.0)`, `ci / Lint (8.2)`, `ci / PHPStan (8.2, ^13.4)`, `ci / PHPStan (8.2, ^14.0)`, `ci / Rector`, `ci / Unit Tests (8.2, ^13.4)`, `ci / Unit Tests (8.2, ^14.0)`, `security / Composer Audit`
-- **Active rulesets:** CI Required Checks, Copilot review for default branch
+- **Active rulesets:** CI Required Checks, Copilot review for default branch, global, require-signed-commits, t3x-baseline, t3x-pull-request
 <!-- AGENTS-GENERATED:END repo-settings -->
-
-<!-- AGENTS-GENERATED:START ci-rules -->
-
-<!-- AGENTS-GENERATED:END ci-rules -->
 
 ## Boundaries
 
@@ -122,18 +101,14 @@ composer.json    → Composer metadata (authoritative version + PHP/TYPO3 constr
 - **Sign commits** with `git commit -S --signoff` — `main` branch protection requires signed commits (GitHub rejects unsigned pushes).
 - Use **Conventional Commits**: `feat:`, `fix:`, `chore:`, `ci:`, `docs:`, `test:`, `refactor:`. See `git log --oneline -20` for established style.
 - **Atomic commits**: one logical change per commit; each commit builds and passes tests independently.
-- Show test/CI output as evidence before claiming work is complete — never say "try again", "should work now", "tested", "verified", or "all green" without pasted output.
 - Verify `pwd` resolves inside the intended worktree before editing — not `.bare/`, not `~/.claude/skills/…`, not `~/.claude/plugins/cache/…`.
 - Port relevant fixes from `main` to `TYPO3_12` (v12.4 LTS). Use `error_log(sprintf(...))` there instead of PSR Logger.
 - Force-push only with `--force-with-lease`.
 - PHP 8.2+ syntax; PSR-12 + TYPO3 CGL (enforced via `composer ci:test:php:cgl`).
 
 ### Ask First
-- Adding new dependencies
-- Modifying CI/CD configuration
-- Changing public API signatures
-- Running full e2e test suites
-- Repo-wide refactoring or rewrites
+- Adding new dependencies; modifying CI/CD configuration; changing public API signatures
+- Running full e2e test suites; repo-wide refactoring or rewrites
 - Operations that touch >3 repos (produce a dry-run plan first)
 
 ### Never Do
@@ -151,49 +126,16 @@ composer.json    → Composer metadata (authoritative version + PHP/TYPO3 constr
 - Re-point a tag that already exists. Delete-and-re-push burns the version: Packagist pins a stable version to the reference it first saw and blocks the change ([immutable versions](https://blog.packagist.com/immutable-versions-on-packagist/)), so the package keeps serving the old commit. Recovery is the next patch version, never a retag.
 
 ## Contributing (for AI agents)
-- **Comprehension**: Understand the problem before submitting code. Read the linked issue, understand *why* the change is needed, not just *what* to change.
-- **Context**: Every PR must explain the trade-offs considered and link to the issue it addresses. Disclose AI assistance if the project requires it.
-- **Continuity**: Respond to review feedback. Drive-by PRs without follow-up will be closed.
-
-<!-- AGENTS-GENERATED:START module-boundaries -->
-
-<!-- AGENTS-GENERATED:END module-boundaries -->
+- Understand the problem before submitting code: read the linked issue, understand *why*, not just *what*.
+- Every PR explains trade-offs and links its issue. Respond to review feedback — drive-by PRs without follow-up will be closed.
 
 ## Codebase State
 <!-- AGENTS-GENERATED:START codebase-state -->
 - No `@deprecated` markers in `Classes/` as of this verification.
-- Architecture enforcement: `phpat` via `Tests/Architecture/ArchitectureTest` (wired in `Build/phpstan.neon`).
+- Architecture enforcement: `phpat` via `Tests/Architecture/ArchitectureTest` (wired in `Build/phpstan.neon`); rules mirrored in `docs/ARCHITECTURE.md`.
 - PHPStan: level 10, empty baseline (enforced clean). `Build/phpstan.neon` documents path-scoped ergebnis rule suppressions per [PR #99](https://github.com/netresearch/t3x-nr-image-optimize/pull/99) / [#100](https://github.com/netresearch/t3x-nr-image-optimize/pull/100).
+- Implementation conventions (architecture/security/performance) live in `Classes/AGENTS.md`; test conventions in `Tests/AGENTS.md`.
 <!-- AGENTS-GENERATED:END codebase-state -->
-
-## Implementation Conventions (project-specific patterns)
-<!-- Distilled from PR #49-53 review cycles; 2026-06-03 memory cleanup -->
-
-### Architecture
-- Decouple middleware from processing via `ProcessorInterface`.
-- PSR-14 events (`ImageProcessedEvent`, `VariantServedEvent`) are dispatched with a guarded `try/catch` so a faulty listener never breaks image serving.
-- Use the `getLogger()` helper to narrow the nullable `LoggerAwareTrait` property for PHPStan (instead of touching the property directly).
-
-### Security
-- Path traversal: combine the regex negative lookahead `(?:(?!\.\.).)` with a `realpath()` check against the cached public path — not one or the other.
-- XSS: run `htmlspecialchars()` on **every** tag attribute emitted in a ViewHelper `tag()` method.
-- CSP: include external JS/CSS through `f:be.pageRenderer` `includeJsFiles` / `includeCssFiles`, **not** `includeJavaScriptFiles` (inline-emitting variants break CSP).
-- Locks: wrap acquisition in `try/finally`, catch `LockCreateException`, and log lock exhaustion.
-- Error suppression is acceptable only for genuine races: `@mkdir` for TOCTOU, `@file_get_contents` only when the return value is checked.
-
-### Performance
-- Serve variants with HTTP caching headers: `Cache-Control: immutable`, `ETag`, `Last-Modified`, and `Content-Length` (via `filesize`).
-- Stream responses with `createStreamFromFile()` rather than reading the whole file with `file_get_contents()`.
-- Cache the realpath-resolved allowed roots (including the public path) in a static property.
-- Parse request data in a single pass (`parseAllModeValues()`, `parseQueryParams()`) — avoid redundant re-parsing.
-
-### Testing
-- GD-dependent tests: guard with `markTestSkipped` (run on CI where Imagick/GD is present, skip locally when absent).
-- `chmod`/permission tests: skip when running as root (`posix_geteuid() === 0`).
-- Never use `AllowMockObjectsWithoutExpectations` — it is PHPUnit 12-only and not portable across the test matrix.
-
-### CI/CD
-- `codecov` patch target accounts for extension-dependent code paths that cannot be covered in isolation.
 
 ## Scoped AGENTS.md (MUST read when working in these directories)
 <!-- AGENTS-GENERATED:START scope-index -->
@@ -204,8 +146,4 @@ composer.json    → Composer metadata (authoritative version + PHP/TYPO3 constr
 - `./.github/workflows/AGENTS.md` — GitHub Actions workflows and CI/CD automation
 <!-- AGENTS-GENERATED:END scope-index -->
 
-> **Agents**: When you read or edit files in a listed directory, you **must** load its AGENTS.md first. It contains directory-specific conventions that override this root file.
-
-## When instructions conflict
-The nearest `AGENTS.md` wins. Explicit user prompts override files.
-- For PHP-specific patterns, follow PSR standards
+> **Agents**: When you read or edit files in a listed directory, you **must** load its AGENTS.md first. It contains directory-specific conventions that override this root file. When instructions conflict, the nearest `AGENTS.md` wins; explicit user prompts override files.
