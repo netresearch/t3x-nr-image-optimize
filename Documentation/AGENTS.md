@@ -1,4 +1,4 @@
-<!-- Managed by agent: keep sections and order; edit content, not structure. Last updated: 2026-04-24 -->
+<!-- Managed by agent: keep sections and order; edit content, not structure. Last updated: 2026-08-19 -->
 
 # AGENTS.md — Documentation
 
@@ -24,8 +24,14 @@ TYPO3 extension documentation (RST format for docs.typo3.org). **Use the `typo3-
 | `Documentation/Images/` | PNG/SVG assets referenced from RST |
 <!-- AGENTS-GENERATED:END filemap -->
 
+<!-- AGENTS-GENERATED:START setup -->
+## Prerequisites
+- Rendering needs only Docker (image `ghcr.io/typo3-documentation/render-guides`); no local PHP/Sphinx toolchain.
+- `Documentation/CLAUDE.md` is a **regular file, not a symlink** — the TYPO3 docs renderer (Flysystem) aborts on symlinks inside `Documentation/`. Keep it that way.
+<!-- AGENTS-GENERATED:END setup -->
+
 <!-- AGENTS-GENERATED:START golden-samples -->
-## Golden Samples
+## Examples (Golden Samples)
 | Pattern | Reference |
 |---------|-----------|
 | Main entry | `Documentation/Index.rst` |
@@ -56,7 +62,7 @@ This repo uses **`guides.xml`** (modern) not `Settings.cfg` (legacy). Don't rege
 <!-- AGENTS-GENERATED:END structure -->
 
 <!-- AGENTS-GENERATED:START commands -->
-## Rendering Docs
+## Commands (rendering docs)
 | Task | Command |
 |------|---------|
 | Render locally | `docker run --rm -v $(pwd):/project ghcr.io/typo3-documentation/render-guides:latest` |
@@ -90,13 +96,20 @@ This repo uses **`guides.xml`** (modern) not `Settings.cfg` (legacy). Don't rege
 <!-- AGENTS-GENERATED:END screenshots -->
 
 <!-- AGENTS-GENERATED:START code-style -->
-## RST Style
+## Style (RST)
 - Headings: `=` for H1, `-` for H2, `~` for H3, `^` for H4
 - Line length: ~80 characters for readability
 - One sentence per line (for better diffs)
 - Use `.. note::`, `.. warning::`, `.. tip::` for admonitions
 - Tables: use `.. t3-field-list-table::` or grid tables
 <!-- AGENTS-GENERATED:END code-style -->
+
+<!-- AGENTS-GENERATED:START security -->
+## Security
+- Everything here is published to docs.typo3.org — no secrets, no internal hostnames/URLs, no customer identifiers.
+- Screenshots must come from a demo instance: no real usernames, file paths, or production data visible.
+- `Documentation/guides.xml` `release=` changes only in a release PR (see root AGENTS.md → Release process).
+<!-- AGENTS-GENERATED:END security -->
 
 <!-- AGENTS-GENERATED:START checklist -->
 ## PR Checklist
@@ -107,6 +120,13 @@ This repo uses **`guides.xml`** (modern) not `Settings.cfg` (legacy). Don't rege
 - [ ] Code examples are tested
 - [ ] Follows docs.typo3.org structure
 <!-- AGENTS-GENERATED:END checklist -->
+
+<!-- AGENTS-GENERATED:START help -->
+## When stuck
+- Render locally first (see "Commands") — the renderer's warnings name the offending file/line.
+- Renderer source and issue tracker: https://github.com/TYPO3-Documentation/render-guides
+- RST/directive reference: https://docs.typo3.org/m/typo3/docs-how-to-document/main/en-us/
+<!-- AGENTS-GENERATED:END help -->
 
 <!-- AGENTS-GENERATED:START skill-reference -->
 ## Skill Reference

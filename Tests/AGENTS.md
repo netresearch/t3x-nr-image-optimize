@@ -1,4 +1,4 @@
-<!-- Managed by agent: keep sections and order; edit content, not structure. Last updated: 2026-04-24 -->
+<!-- Managed by agent: keep sections and order; edit content, not structure. Last updated: 2026-08-19 -->
 
 # AGENTS.md — Tests
 
@@ -22,8 +22,15 @@ TYPO3 extension test suite. **Use the `typo3-testing` skill** for comprehensive 
 - `Tests/Functional/Fixtures/` — DB + filesystem fixtures for functional tests.
 <!-- AGENTS-GENERATED:END filemap -->
 
+<!-- AGENTS-GENERATED:START setup -->
+## Prerequisites
+- Host runs: `composer install` plus PHP >=8.2 with `imagick` (or GD) for image-encoding tests; coverage needs `xdebug` (CI parity — not pcov).
+- CI-parity runs: `make test-unit` / `make test-functional` invoke `Build/Scripts/runTests.sh` inside a Docker/Podman PHP image that already ships Imagick — use this when host PHP differs from the matrix.
+- Functional tests need no external DB by default (SQLite via TYPO3 testing-framework).
+<!-- AGENTS-GENERATED:END setup -->
+
 <!-- AGENTS-GENERATED:START golden-samples -->
-## Golden Samples
+## Examples (Golden Samples)
 | Pattern | Reference |
 |---------|-----------|
 | Unit test with reflection into `final` class | `Tests/Unit/ProcessorTest.php` |
@@ -84,7 +91,17 @@ Tests/
 - **Imagick**: Functional tests that encode images require the `imagick` PHP extension. CI installs it via `shivammathur/setup-php --extensions: imagick`. Locally, use `make test-functional` (Docker image has Imagick) or install `pecl imagick` on host PHP.
 - **Real DB**: functional tests use SQLite by default on CI. To run against MariaDB/MySQL locally, pass the DBMS via `-d`: `Build/Scripts/runTests.sh -s functional -d mariadb` (or `-d mysql`, `-d postgres`).
 - **Mocks**: use PHPUnit `createMock()`. Avoid Prophecy (project uses PHPUnit's built-in mock builder).
+- **GD-dependent tests**: guard with `markTestSkipped` (run on CI where Imagick/GD is present, skip locally when absent).
+- **`chmod`/permission tests**: skip when running as root (`posix_geteuid() === 0`).
+- **Never use `AllowMockObjectsWithoutExpectations`** — it is PHPUnit 12-only and not portable across the test matrix.
 <!-- AGENTS-GENERATED:END patterns -->
+
+<!-- AGENTS-GENERATED:START security -->
+## Security
+- Path-traversal and symlink-escape coverage is the point of `Tests/Functional/ProcessorSymlinkedFileadminTest.php` and `Tests/Fuzz/` — never delete or weaken these to get green; extend them when touching allowed-roots logic.
+- Fixtures must not contain real customer data, credentials, or absolute host paths.
+- Expected error paths (400/500 branches) are asserted, not suppressed — keep test output pristine.
+<!-- AGENTS-GENERATED:END security -->
 
 <!-- AGENTS-GENERATED:START code-style -->
 ## Code Style
@@ -103,6 +120,13 @@ Tests/
 - [ ] No hardcoded credentials or paths
 - [ ] Coverage hasn't decreased
 <!-- AGENTS-GENERATED:END checklist -->
+
+<!-- AGENTS-GENERATED:START help -->
+## When stuck
+- `Build/Scripts/runTests.sh -h` documents suites, DBMS options, and PHP-version flags.
+- PHPUnit configs live in `Build/` (`UnitTests.xml`, `FunctionalTests.xml`, `AcceptanceTests.xml`, `FuzzTests.xml`); mutation config in `infection.json5` / `infection-full.json5`.
+- A test marked **risky** under strict coverage metadata means a missing `#[CoversClass]`/`#[UsesClass]` — see "Key patterns" above.
+<!-- AGENTS-GENERATED:END help -->
 
 <!-- AGENTS-GENERATED:START skill-reference -->
 ## Skill Reference
