@@ -21,10 +21,10 @@ parameters:
         - %currentWorkingDirectory%/Tests/
 
     excludePaths:
-        - %currentWorkingDirectory%/.build/*
+        - %currentWorkingDirectory%/.Build/*
         - %currentWorkingDirectory%/ext_emconf.php
 
-    tmpDir: %currentWorkingDirectory%/.build/var/phpstan
+    tmpDir: %currentWorkingDirectory%/.Build/var/phpstan
 
     ignoreErrors:
         # --- ergebnis/phpstan-rules opinions that don't fit TYPO3 ---

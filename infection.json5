@@ -1,5 +1,5 @@
 {
-    "$schema": ".build/vendor/infection/infection/resources/schema.json",
+    "$schema": ".Build/vendor/infection/infection/resources/schema.json",
     "source": {
         "directories": [
             "Classes"
@@ -8,14 +8,14 @@
     "timeout": 30,
     "phpUnit": {
         "configDir": "Build",
-        "customPath": ".build/bin/phpunit"
+        "customPath": ".Build/bin/phpunit"
     },
     "logs": {
-        "text": ".build/infection/infection.log",
-        "html": ".build/infection/infection.html",
-        "summary": ".build/infection/summary.log"
+        "text": ".Build/infection/infection.log",
+        "html": ".Build/infection/infection.html",
+        "summary": ".Build/infection/summary.log"
     },
-    "tmpDir": ".build/infection/tmp",
+    "tmpDir": ".Build/infection/tmp",
     "mutators": {
         "@default": true
     },
