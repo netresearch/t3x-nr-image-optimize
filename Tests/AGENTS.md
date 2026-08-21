@@ -11,7 +11,7 @@ TYPO3 extension test suite. **Use the `typo3-testing` skill** for comprehensive 
 ## Test suites
 | Suite | Dir | Invoker |
 |-------|-----|---------|
-| Unit | `Tests/Unit/` | `composer ci:test:php:unit` (uses `Build/UnitTests.xml`) |
+| Unit | `Tests/Unit/` | `composer ci:test:php:unit` (uses `Build/phpunit.xml`) |
 | Functional | `Tests/Functional/` | `composer ci:test:php:functional` (uses `Build/FunctionalTests.xml`) |
 | Acceptance | `Tests/Acceptance/` | `composer ci:test:php:acceptance` |
 | Architecture | `Tests/Architecture/` | runs inside PHPStan via `phpat` (`composer ci:test:php:phpstan`) |
@@ -78,7 +78,7 @@ Tests/
 | Unit tests | `composer ci:test:php:unit` or `Build/Scripts/runTests.sh -s unit` |
 | Functional tests | `composer ci:test:php:functional` or `Build/Scripts/runTests.sh -s functional` |
 | Single file | `Build/Scripts/runTests.sh -s unit -p Tests/Unit/Path/To/Test.php` |
-| Coverage | `composer ci:test:php:unit:coverage` (HTML report → `.build/coverage/`) |
+| Coverage | `composer ci:test:php:unit:coverage` (HTML report → `.Build/coverage/`) |
 <!-- AGENTS-GENERATED:END commands -->
 
 <!-- AGENTS-GENERATED:START patterns -->

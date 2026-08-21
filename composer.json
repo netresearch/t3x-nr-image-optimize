@@ -24,8 +24,8 @@
         "source": "https://github.com/netresearch/t3x-nr-image-optimize"
     },
     "config": {
-        "bin-dir": ".build/bin",
-        "vendor-dir": ".build/vendor",
+        "bin-dir": ".Build/bin",
+        "vendor-dir": ".Build/vendor",
         "discard-changes": true,
         "sort-packages": true,
         "optimize-autoloader": true,
@@ -65,7 +65,7 @@
     "extra": {
         "typo3/cms": {
             "extension-key": "nr_image_optimize",
-            "web-dir": ".build/public"
+            "web-dir": ".Build/public"
         },
         "branch-alias": {
             "dev-main": "2.4.x-dev"
@@ -73,7 +73,7 @@
     },
     "scripts": {
         "ci:cgl": [
-            "php-cs-fixer fix --config Build/.php-cs-fixer.dist.php --diff --verbose --cache-file .build/.php-cs-fixer.cache"
+            "php-cs-fixer fix --config Build/.php-cs-fixer.dist.php --diff --verbose --cache-file .Build/.php-cs-fixer.cache"
         ],
         "ci:rector": [
             "rector process --config Build/rector.php"
@@ -88,11 +88,11 @@
             "phplint --configuration Build/.phplint.yml"
         ],
         "ci:test:php:unit": [
-            "phpunit --configuration Build/UnitTests.xml"
+            "phpunit --configuration Build/phpunit.xml --testsuite unit"
         ],
         "ci:test:php:unit:coverage": [
             "@putenv XDEBUG_MODE=coverage",
-            "phpunit --configuration Build/UnitTests.xml --coverage-html .build/coverage/"
+            "phpunit --configuration Build/phpunit.xml --testsuite unit --coverage-html .Build/coverage/"
         ],
         "ci:test:php:acceptance": [
             "phpunit --configuration Build/AcceptanceTests.xml"
@@ -101,7 +101,7 @@
             "phpunit --configuration Build/FunctionalTests.xml"
         ],
         "ci:test:php:fuzz": [
-            "phpunit --configuration Build/FuzzTests.xml --no-coverage"
+            "phpunit --configuration Build/phpunit.xml --testsuite fuzzy --no-coverage"
         ],
         "ci:test:php:mutation": [
             "@putenv XDEBUG_MODE=coverage",

@@ -39,7 +39,7 @@ PHP source of the `nr_image_optimize` extension. Namespace `Netresearch\NrImageO
 
 <!-- AGENTS-GENERATED:START setup -->
 ## Setup & environment
-- Install: `composer install` (uses `.build/vendor/` per `composer.json` config).
+- Install: `composer install` (uses `.Build/vendor/` per `composer.json` config).
 - PHP: >=8.2; TYPO3: `^13.4 || ^14.0` on `main`, `^12.4` on `TYPO3_12` branch.
 - PHP extension: Intervention Image uses Imagick if available, else GD — both supported via `Classes/Service/ImageManagerFactory`.
 - External binaries (optional, for `ImageOptimizer`): `optipng`, `jpegoptim`, `cwebp`, `avifenc`. Missing binaries degrade gracefully.

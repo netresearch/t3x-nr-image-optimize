@@ -19,6 +19,9 @@ logs/
 composer.lock
 
 # Build
+.Build/
+# Old spelling. Without this line an existing .build/ stops being ignored the
+# moment bin-dir changes, and the next `git add -A` commits a vendor tree.
 .build/
 
 # PHPUnit
