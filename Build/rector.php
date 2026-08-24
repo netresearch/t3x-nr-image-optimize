@@ -45,7 +45,6 @@ return static function (RectorConfig $rectorConfig): void {
         SetList::EARLY_RETURN,
         SetList::INSTANCEOF,
         SetList::PRIVATIZATION,
-        SetList::STRICT_BOOLEANS,
         SetList::TYPE_DECLARATION,
 
         // Only use PHP 8.2 features for maximum compatibility
