@@ -17,6 +17,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
+use Throwable;
 use TYPO3\CMS\Core\Resource\ResourceFactory;
 
 use function is_numeric;
@@ -66,6 +67,7 @@ final class OptimizeImagesCommand extends AbstractImageCommand
             'optimized'  => 0,
             'bytesSaved' => 0,
             'skipped'    => 0,
+            'failed'     => 0,
         ];
 
         $count = $this->countImages($onlyStorageUids);
@@ -141,6 +143,14 @@ final class OptimizeImagesCommand extends AbstractImageCommand
                 } finally {
                     $storage->setEvaluatePermissions($previousPermissions);
                 }
+            } catch (Throwable $e) {
+                // A single corrupt/missing file (e.g. a stale FAL identifier
+                // pointing at a path that no longer exists on disk) must not
+                // abort the whole bulk run.
+                $progress->clear();
+                $io->writeln(sprintf('<error>Failed: %s (%s)</error>', $this->buildLabel($record), $e->getMessage()));
+                $progress->display();
+                ++$total['failed'];
             } finally {
                 $progress->advance();
             }
@@ -148,7 +158,7 @@ final class OptimizeImagesCommand extends AbstractImageCommand
 
         $progress->finish();
         $io->newLine(2);
-        $io->success(sprintf('Done. Files: %d, Optimized: %d, Skipped: %d, Saved: %d Bytes (%s)', $total['files'], $total['optimized'], $total['skipped'], $total['bytesSaved'], $this->formatMbGb($total['bytesSaved'])));
+        $io->success(sprintf('Done. Files: %d, Optimized: %d, Skipped: %d, Failed: %d, Saved: %d Bytes (%s)', $total['files'], $total['optimized'], $total['skipped'], $total['failed'], $total['bytesSaved'], $this->formatMbGb($total['bytesSaved'])));
 
         return self::SUCCESS;
     }

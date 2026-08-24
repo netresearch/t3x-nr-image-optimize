@@ -265,6 +265,12 @@ parameters:
 			path: %currentWorkingDirectory%/Tests/Fuzz/ProcessorFuzzTest.php
 
 		-
+			message: '#^Class Netresearch\\NrImageOptimize\\Tests\\Unit\\Command\\AbstractImageCommandTest has an uninitialized property \$command\. Give it default value or assign it in the constructor\.$#'
+			identifier: property.uninitialized
+			count: 1
+			path: %currentWorkingDirectory%/Tests/Unit/Command/AbstractImageCommandTest.php
+
+		-
 			message: '#^Argument of an invalid type mixed supplied for foreach, only iterables are supported\.$#'
 			identifier: foreach.nonIterable
 			count: 2

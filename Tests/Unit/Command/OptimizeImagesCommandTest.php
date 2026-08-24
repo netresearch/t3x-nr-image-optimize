@@ -17,6 +17,7 @@ use Netresearch\NrImageOptimize\Service\ImageOptimizer;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
 use TYPO3\CMS\Core\Database\Connection;
@@ -508,5 +509,54 @@ final class OptimizeImagesCommandTest extends TestCase
 
         // Toggled off (false) before processing then restored (true) in finally.
         self::assertSame([false, true], $captured);
+    }
+
+    #[Test]
+    public function executeContinuesAndCountsFailedWhenAFileThrows(): void
+    {
+        // Reproduces a stale FAL identifier pointing at a path that no
+        // longer exists on disk (e.g. after an out-of-band directory
+        // rename): getForLocalProcessing() throws. The run must report the
+        // failure and continue to the next record instead of aborting.
+        putenv('JPEGOPTIM_BIN=/bin/true');
+
+        $brokenStorage = $this->createMock(ResourceStorage::class);
+        $brokenStorage->method('getEvaluatePermissions')->willReturn(true);
+
+        $brokenFile = $this->createMock(File::class);
+        $brokenFile->method('getIdentifier')->willReturn('/broken.jpg');
+        $brokenFile->method('getExtension')->willReturn('jpg');
+        $brokenFile->method('getStorage')->willReturn($brokenStorage);
+        $brokenFile->method('getForLocalProcessing')
+            ->willThrowException(new RuntimeException('Copying file "/broken.jpg" to temporary path "/tmp/x" failed.'));
+
+        $localPath          = $this->createTempJpeg();
+        ['file' => $okFile] = $this->createFileAndStorage('/ok.jpg', 'jpg', $localPath);
+
+        $queue   = [$brokenFile, $okFile];
+        $factory = $this->createMock(ResourceFactory::class);
+        $factory->method('getFileObject')
+            ->willReturnCallback(static function () use (&$queue) {
+                return array_shift($queue);
+            });
+
+        $optimizer = new ImageOptimizer();
+
+        $this->installConnectionPoolFake(2, [
+            ['uid' => 1, 'identifier' => '/broken.jpg'],
+            ['uid' => 2, 'identifier' => '/ok.jpg'],
+        ]);
+
+        $command = new OptimizeImagesCommand($factory, $optimizer);
+
+        $tester = new CommandTester($command);
+        $status = $tester->execute([]);
+
+        self::assertSame(Command::SUCCESS, $status);
+        $display = $tester->getDisplay();
+        self::assertStringContainsString('Failed: /broken.jpg', $display);
+        self::assertStringContainsString('Copying file', $display);
+        self::assertStringContainsString('No savings: /ok.jpg', $display);
+        self::assertStringContainsString('Failed: 1', $display);
     }
 }

@@ -17,6 +17,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
+use Throwable;
 use TYPO3\CMS\Core\Resource\ResourceFactory;
 
 use function sprintf;
@@ -67,6 +68,7 @@ final class AnalyzeImagesCommand extends AbstractImageCommand
             'improvable'     => 0,
             'bytesPotential' => 0,
             'noGain'         => 0,
+            'failed'         => 0,
         ];
 
         ['progress' => $progress, 'messageMax' => $messageMax] = $this->createProgress($io, $count);
@@ -96,6 +98,14 @@ final class AnalyzeImagesCommand extends AbstractImageCommand
                 } finally {
                     $storage->setEvaluatePermissions($previousPermissions);
                 }
+            } catch (Throwable $e) {
+                // A single corrupt/missing file (e.g. a stale FAL identifier
+                // pointing at a path that no longer exists on disk) must not
+                // abort the whole bulk run.
+                $progress->clear();
+                $io->writeln(sprintf('<error>Failed: %s (%s)</error>', $this->buildLabel($record), $e->getMessage()));
+                $progress->display();
+                ++$total['failed'];
             } finally {
                 $progress->advance();
             }
@@ -104,7 +114,7 @@ final class AnalyzeImagesCommand extends AbstractImageCommand
         $progress->finish();
         $io->newLine(2);
 
-        $io->success(sprintf('Analysis complete. Files: %d, Improvable: %d, No potential: %d, Potential savings: %d bytes (%s)', $total['files'], $total['improvable'], $total['noGain'], $total['bytesPotential'], $this->formatMbGb($total['bytesPotential'])));
+        $io->success(sprintf('Analysis complete. Files: %d, Improvable: %d, No potential: %d, Failed: %d, Potential savings: %d bytes (%s)', $total['files'], $total['improvable'], $total['noGain'], $total['failed'], $total['bytesPotential'], $this->formatMbGb($total['bytesPotential'])));
 
         return self::SUCCESS;
     }

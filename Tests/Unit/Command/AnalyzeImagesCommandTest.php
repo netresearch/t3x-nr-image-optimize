@@ -1,6 +1,6 @@
 <?php
 
-/*
+/**
  * This file is part of the package netresearch/nr-image-optimize.
  *
  * For the full copyright and license information, please read the
@@ -12,24 +12,14 @@ declare(strict_types=1);
 namespace Netresearch\NrImageOptimize\Tests\Unit\Command;
 
 use Doctrine\DBAL\Result;
-
-use function file_put_contents;
-use function is_file;
-
 use Netresearch\NrImageOptimize\Command\AnalyzeImagesCommand;
 use Netresearch\NrImageOptimize\Service\ImageOptimizer;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
-
-use function putenv;
-use function str_repeat;
-
+use RuntimeException;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
-
-use function sys_get_temp_dir;
-
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Query\Expression\ExpressionBuilder;
@@ -39,6 +29,12 @@ use TYPO3\CMS\Core\Resource\ResourceFactory;
 use TYPO3\CMS\Core\Resource\ResourceStorage;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
+use function array_shift;
+use function file_put_contents;
+use function is_file;
+use function putenv;
+use function str_repeat;
+use function sys_get_temp_dir;
 use function uniqid;
 use function unlink;
 
@@ -401,5 +397,53 @@ final class AnalyzeImagesCommandTest extends TestCase
         $tester->execute([]);
 
         self::assertSame([false, true], $captured);
+    }
+
+    #[Test]
+    public function executeContinuesAndCountsFailedWhenAFileThrows(): void
+    {
+        // Reproduces a stale FAL identifier pointing at a path that no
+        // longer exists on disk (e.g. after an out-of-band directory
+        // rename): getForLocalProcessing() throws. The run must report the
+        // failure and continue to the next record instead of aborting.
+        $brokenStorage = $this->createMock(ResourceStorage::class);
+        $brokenStorage->method('getEvaluatePermissions')->willReturn(true);
+
+        $brokenFile = $this->createMock(File::class);
+        $brokenFile->method('getIdentifier')->willReturn('/broken.png');
+        $brokenFile->method('getExtension')->willReturn('png');
+        $brokenFile->method('getStorage')->willReturn($brokenStorage);
+        $brokenFile->method('exists')->willReturn(true);
+        $brokenFile->method('getForLocalProcessing')
+            ->willThrowException(new RuntimeException('Copying file "/broken.png" to temporary path "/tmp/x" failed.'));
+
+        $localPath          = $this->createLargeFile('png');
+        ['file' => $okFile] = $this->createFileAndStorage('/ok.png', 'png', $localPath);
+        $okFile->method('getProperty')->willReturn(null);
+
+        $queue   = [$brokenFile, $okFile];
+        $factory = $this->createMock(ResourceFactory::class);
+        $factory->method('getFileObject')
+            ->willReturnCallback(static function () use (&$queue) {
+                return array_shift($queue);
+            });
+
+        $optimizer = new ImageOptimizer();
+
+        $this->installConnectionPoolFake(2, [
+            ['uid' => 1, 'identifier' => '/broken.png'],
+            ['uid' => 2, 'identifier' => '/ok.png'],
+        ]);
+
+        $command = new AnalyzeImagesCommand($factory, $optimizer);
+
+        $tester = new CommandTester($command);
+        $status = $tester->execute([]);
+
+        self::assertSame(Command::SUCCESS, $status);
+        $display = $tester->getDisplay();
+        self::assertStringContainsString('Failed: /broken.png', $display);
+        self::assertStringContainsString('Copying file', $display);
+        self::assertStringContainsString('Failed: 1', $display);
     }
 }
