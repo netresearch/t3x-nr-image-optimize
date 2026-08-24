@@ -244,12 +244,6 @@ parameters:
 			message: '#^Cannot cast mixed to string\.$#'
 			identifier: cast.string
 			count: 1
-			path: %currentWorkingDirectory%/Tests/Functional/ProcessorTest.php
-
-		-
-			message: '#^Cannot cast mixed to string\.$#'
-			identifier: cast.string
-			count: 1
 			path: %currentWorkingDirectory%/Tests/Fuzz/ProcessorFuzzTest.php
 
 		-
@@ -325,6 +319,24 @@ parameters:
 			path: %currentWorkingDirectory%/Tests/Unit/Controller/MaintenanceControllerTest.php
 
 		-
+			message: '#^Class Netresearch\\NrImageOptimize\\Tests\\Unit\\EventListener\\OptimizeOnUploadListenerTest has an uninitialized property \$guardProperty\. Give it default value or assign it in the constructor\.$#'
+			identifier: property.uninitialized
+			count: 1
+			path: %currentWorkingDirectory%/Tests/Unit/EventListener/OptimizeOnUploadListenerTest.php
+
+		-
+			message: '#^Class Netresearch\\NrImageOptimize\\Tests\\Unit\\EventListener\\OptimizeOnUploadListenerTest has an uninitialized property \$listener\. Give it default value or assign it in the constructor\.$#'
+			identifier: property.uninitialized
+			count: 1
+			path: %currentWorkingDirectory%/Tests/Unit/EventListener/OptimizeOnUploadListenerTest.php
+
+		-
+			message: '#^Class Netresearch\\NrImageOptimize\\Tests\\Unit\\EventListener\\OptimizeOnUploadListenerTest has an uninitialized property \$optimizer\. Give it default value or assign it in the constructor\.$#'
+			identifier: property.uninitialized
+			count: 1
+			path: %currentWorkingDirectory%/Tests/Unit/EventListener/OptimizeOnUploadListenerTest.php
+
+		-
 			message: '#^Cannot call method getPathname\(\) on mixed\.$#'
 			identifier: method.nonObject
 			count: 2
@@ -383,6 +395,12 @@ parameters:
 			identifier: argument.type
 			count: 1
 			path: %currentWorkingDirectory%/Tests/Unit/ProcessorTest.php
+
+		-
+			message: '#^Class Netresearch\\NrImageOptimize\\Tests\\Unit\\Service\\ImageOptimizerTest has an uninitialized property \$optimizer\. Give it default value or assign it in the constructor\.$#'
+			identifier: property.uninitialized
+			count: 1
+			path: %currentWorkingDirectory%/Tests/Unit/Service/ImageOptimizerTest.php
 
 		-
 			message: '#^Argument of an invalid type mixed supplied for foreach, only iterables are supported\.$#'
