@@ -424,7 +424,7 @@ final class AnalyzeImagesCommandTest extends TestCase
         $queue   = [$brokenFile, $okFile];
         $factory = $this->createMock(ResourceFactory::class);
         $factory->method('getFileObject')
-            ->willReturnCallback(static function () use (&$queue) {
+            ->willReturnCallback(static function () use (&$queue): (File&MockObject)|null {
                 return array_shift($queue);
             });
 
