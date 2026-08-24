@@ -1,3 +1,55 @@
+# 1.4.0
+
+## FEATURE
+
+- **Optimize on upload.** New `OptimizeOnUploadListener` subscribes to
+  `AfterFileAddedEvent` and `AfterFileReplacedEvent` and runs optipng,
+  gifsicle, and jpegoptim inline as a file lands, instead of relying on a
+  separate cron/CLI pass. Two new CLI commands cover existing files:
+  `nr:image:optimize` (bulk optimization pass over FAL storages, with
+  filter/dry-run support) and `nr:image:analyze` (heuristic per-image
+  savings report without modifying files). Port of the main-branch feature
+  released in 2.2.2.
+  See [#166](https://github.com/netresearch/t3x-nr-image-optimize/pull/166).
+
+## BUGFIX
+
+- **Bulk `nr:image:optimize`/`nr:image:analyze` no longer abort the whole
+  run when a single file fails.** A stale FAL identifier (e.g. after an
+  out-of-band folder rename) raised an uncaught `RuntimeException` from
+  `getForLocalProcessing()` mid-run, discarding progress on every file
+  already processed in that run. Both commands now catch per-file
+  failures, report them individually, and continue with the rest of the
+  queue.
+  See [#166](https://github.com/netresearch/t3x-nr-image-optimize/pull/166).
+
+## CI
+
+- **Rector.** `rector/rector` 2.6.3 dropped the `SetList::STRICT_BOOLEANS`
+  constant that this branch's `Build/rector.php` still referenced,
+  breaking every Rector run with `Undefined constant`. Removed the
+  reference.
+  See [#167](https://github.com/netresearch/t3x-nr-image-optimize/pull/167).
+
+## Upgrading
+
+> **Behaviour change -- read before upgrading.** `OptimizeOnUploadListener`
+> is registered by default and runs inline on every `AfterFileAddedEvent`
+> and `AfterFileReplacedEvent`. Existing uploads will start getting
+> optimized transparently. If your workflow depends on uploads being
+> stored byte-for-byte as they arrived, disable the listener in your site
+> package's `Services.yaml` before upgrading:
+>
+> ```yaml
+> services:
+>   Netresearch\NrImageOptimize\EventListener\OptimizeOnUploadListener:
+>     tags: []
+> ```
+
+## Contributors
+
+- Axel Seemann
+
 # 1.3.0
 
 ## FEATURE
