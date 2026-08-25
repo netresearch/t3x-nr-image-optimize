@@ -1,3 +1,32 @@
+# 1.4.1
+
+## DOCUMENTATION
+
+- **Fixed broken ViewHelper examples.** Every README/Documentation example
+  used a non-existent `file="{image}"` `SourceSetViewHelper` argument --
+  only `path` is registered, so these examples failed at Fluid render
+  time. Also removed a fictitious `format` confval that never existed in
+  the code, added the real arguments (`alt`, `title`, `class`,
+  `attributes`, `set`, `lazyload`) that were missing from both READMEs'
+  parameter lists, and documented the `nr:image:optimize`/
+  `nr:image:analyze` CLI commands and the on-upload compression feature
+  (both previously undocumented anywhere).
+- **Backfilled the changelog.** `Documentation/Changelog/Index.rst` had
+  fallen three releases behind; `CHANGELOG.md` was missing the 1.3.1 and
+  1.3.2 entries entirely. Both are now complete.
+
+## CI
+
+- **Adopted `main`'s tag-triggered release pipeline.** Replaced the two
+  legacy release workflows (one required a manually-created GitHub
+  Release; neither produced a signed, verified release) with `main`'s
+  `release.yml`/`republish.yml`, thin callers of the shared
+  `release-typo3-extension.yml` reusable workflow.
+
+## Contributors
+
+- Axel Seemann
+
 # 1.4.0
 
 ## FEATURE
