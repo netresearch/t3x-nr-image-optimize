@@ -6,6 +6,23 @@
 Changelog
 =========
 
+..  _changelog-1-4-1:
+
+1.4.1
+=====
+
+-   Fixed: every README/Documentation ``SourceSetViewHelper`` example
+    used a non-existent ``file`` argument -- only ``path`` is
+    registered, so these examples failed at Fluid render time. Also
+    removed a fictitious ``format`` confval, added the real arguments
+    (``alt``, ``title``, ``class``, ``attributes``, ``set``,
+    ``lazyload``) that were missing from both READMEs' parameter
+    lists, and documented the :ref:`nr:image:optimize/nr:image:analyze
+    CLI commands <usage-cli>` and the on-upload compression feature,
+    both previously undocumented anywhere.
+-   Fixed: this changelog and ``CHANGELOG.md`` had fallen behind --
+    backfilled the missing 1.3.1 and 1.3.2 entries.
+
 ..  _changelog-1-4-0:
 
 1.4.0

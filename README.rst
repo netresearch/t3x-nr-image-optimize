@@ -2,8 +2,8 @@
     :target: https://github.com/netresearch/t3x-nr-image-optimize/releases/latest
 ..  |license| image:: https://img.shields.io/github/license/netresearch/t3x-nr-image-optimize
     :target: https://github.com/netresearch/t3x-nr-image-optimize/blob/main/LICENSE
-..  |ci| image:: https://github.com/netresearch/t3x-nr-image-optimize/actions/workflows/ci.yml/badge.svg
-    :target: https://github.com/netresearch/t3x-nr-image-optimize/actions/workflows/ci.yml
+..  |ci| image:: https://github.com/netresearch/t3x-nr-image-optimize/actions/workflows/ci.yml/badge.svg?branch=TYPO3_12
+    :target: https://github.com/netresearch/t3x-nr-image-optimize/actions/workflows/ci.yml?query=branch%3ATYPO3_12
 ..  |php| image:: https://img.shields.io/badge/PHP-8.2%20|%208.3%20|%208.4-blue.svg
     :target: https://www.php.net/
 ..  |typo3| image:: https://img.shields.io/badge/TYPO3-12-orange.svg
@@ -171,7 +171,7 @@ Documentation
 Full documentation is available in the ``Documentation/``
 directory and is rendered on
 `docs.typo3.org
-<https://docs.typo3.org/p/netresearch/nr-image-optimize/main/en-us/>`__.
+<https://docs.typo3.org/p/netresearch/nr-image-optimize/1.4/en-us/>`__.
 
 Development and testing
 =======================
