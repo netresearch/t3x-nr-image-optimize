@@ -15,11 +15,12 @@
 Image Optimization for TYPO3
 ================================
 
-The ``nr_image_optimize`` extension provides on-demand image
-optimization for TYPO3. Images are processed lazily via
-middleware when first requested, with support for modern formats
-(WebP, AVIF), responsive ``srcset`` generation, and automatic
-format negotiation.
+The ``nr_image_optimize`` extension optimizes images for TYPO3
+via three operating modes: on-demand frontend processing
+(lazily via middleware when first requested), on-upload
+compression, and bulk CLI tools -- with support for modern
+formats (WebP, AVIF), responsive ``srcset`` generation, and
+automatic format negotiation.
 
 Features
 ========
@@ -40,6 +41,12 @@ Features
     middleware intercepts ``/processed/`` requests.
 -   **Backend maintenance module.** View statistics, check
     system requirements, and clear processed images.
+-   **On-upload compression.** Uploaded and replaced files are
+    losslessly compressed in place via ``optipng``,
+    ``gifsicle``, or ``jpegoptim``.
+-   **Bulk CLI tools.** ``nr:image:optimize`` and
+    ``nr:image:analyze`` process or report on existing FAL
+    storages.
 
 Requirements
 ============
@@ -89,7 +96,7 @@ ViewHelper usage
 
     {namespace nr=Netresearch\NrImageOptimize\ViewHelpers}
 
-    <nr:sourceSet file="{image}"
+    <nr:sourceSet path="{f:uri.image(image: image)}"
                   width="1200"
                   height="800"
                   sizes="(max-width: 768px) 100vw, 50vw"
@@ -98,8 +105,10 @@ ViewHelper usage
 Supported parameters
 --------------------
 
-``file``
-    Image file resource.
+``path`` (required)
+    Public path to the source image (for example
+    ``/fileadmin/foo.jpg``), typically generated via
+    ``f:uri.image()``.
 
     The ``/processed/`` pipeline handles **public files only**.
     Absolute URLs (``http://``, ``https://``, ``//``), ``data:`` URIs,
@@ -110,16 +119,38 @@ Supported parameters
     URL's own access control stays intact.
 
 ``width``
-    Target width in pixels.
+    Target width in pixels. Default: ``0`` (auto from file).
 
 ``height``
-    Target height in pixels.
+    Target height in pixels. Default: ``0`` (auto, keeps ratio).
+
+``alt``
+    Alternative text (accessibility). Default: empty string.
+
+``title``
+    Title attribute for the image. Default: empty string.
+
+``class``
+    CSS classes for the ``<img>`` tag; include ``lazyload`` to use
+    JS lazy load. Default: empty string.
+
+``attributes``
+    Extra HTML attributes merged into the rendered tag. Default: ``[]``.
+
+``set``
+    Responsive set in the form ``{maxWidth: {width: int, height:
+    int}}``; each entry becomes a ``<source media="(max-width:
+    <maxWidth>px)">`` tag. Default: ``[]``.
 
 ``sizes``
     Responsive ``sizes`` attribute.
+    Default: ``auto, (min-width: 992px) 991px, 100vw``.
 
 ``mode``
     Render mode: ``cover`` (default) or ``fit``.
+
+``lazyload``
+    Add ``loading="lazy"`` (native lazy loading). Default: ``false``.
 
 ``responsiveSrcset``
     Enable width-based responsive ``srcset`` instead of

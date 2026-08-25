@@ -8,8 +8,7 @@ Configuration
 
 The extension works out of the box with sensible defaults.
 Images are automatically optimized when accessed via the
-``/processed/`` path. All configuration happens through
-ViewHelper attributes in your Fluid templates.
+``/processed/`` path.
 
 ..  _configuration-viewhelper:
 
@@ -24,9 +23,10 @@ with ``srcset`` attributes.
 
     {namespace nr=Netresearch\NrImageOptimize\ViewHelpers}
 
-    <nr:sourceSet file="{image}"
+    <nr:sourceSet path="{f:uri.image(image: image)}"
                   width="1200"
                   height="800"
+                  alt="{image.properties.alternative}"
                   sizes="(max-width: 768px) 100vw, 50vw"
     />
 
@@ -35,49 +35,84 @@ with ``srcset`` attributes.
 Parameters
 ----------
 
-..  confval:: file
-    :name: confval-file
-    :type: object
-    :required: true
-
-    Image file resource (FAL file reference). Either ``file``
-    or ``path`` must be provided.
-
 ..  confval:: path
     :name: confval-path
     :type: string
+    :required: true
 
-    URI string path to the image, typically generated via
-    ``f:uri.image()``. Use ``path`` instead of ``file`` when
-    passing a pre-resolved image URI. Either ``file`` or
-    ``path`` must be provided.
+    Public path to the source image (for example
+    ``/fileadmin/foo.jpg``), typically generated via
+    ``f:uri.image()``.
 
 ..  confval:: width
     :name: confval-width
-    :type: integer
+    :type: int|float
+    :Default: 0
 
-    Target width in pixels.
+    Base width in pixels for the rendered ``<img>``. ``0``
+    resolves automatically from the source file.
 
 ..  confval:: height
     :name: confval-height
-    :type: integer
+    :type: int|float
+    :Default: 0
 
-    Target height in pixels.
+    Base height in pixels. ``0`` preserves aspect ratio
+    relative to :confval:`width <confval-width>`.
+
+..  confval:: set
+    :name: confval-set
+    :type: array
+    :Default: []
+
+    Responsive set in the form
+    ``{maxWidth: {width: int, height: int}}``. Each entry
+    becomes a ``<source media="(max-width: <maxWidth>px)">``
+    tag.
+
+..  confval:: alt
+    :name: confval-alt
+    :type: string
+    :Default: empty string
+
+    Alternative text (accessibility). HTML-escaped.
+
+..  confval:: title
+    :name: confval-title
+    :type: string
+    :Default: empty string
+
+    Title attribute for the image. HTML-escaped.
+
+..  confval:: class
+    :name: confval-class
+    :type: string
+    :Default: empty string
+
+    CSS classes for the ``<img>`` tag; include ``lazyload``
+    to use JS lazy load.
+
+..  confval:: attributes
+    :name: confval-attributes
+    :type: array
+    :Default: []
+
+    Extra HTML attributes merged into the rendered tag.
+
+..  confval:: lazyload
+    :name: confval-lazyload
+    :type: boolean
+    :Default: false
+
+    Add ``loading="lazy"`` (native lazy loading).
 
 ..  confval:: sizes
     :name: confval-sizes
     :type: string
+    :Default: auto, (min-width: 992px) 991px, 100vw
 
     Responsive ``sizes`` attribute for the generated
     ``<img>`` tag.
-
-..  confval:: format
-    :name: confval-format
-    :type: string
-    :Default: auto
-
-    Output format. Allowed values: ``auto``, ``webp``,
-    ``avif``, ``jpg``, ``png``.
 
 ..  confval:: mode
     :name: confval-mode
@@ -107,6 +142,7 @@ Parameters
 ..  confval:: fetchpriority
     :name: confval-fetchpriority
     :type: string
+    :Default: empty string
 
     Native HTML ``fetchpriority`` attribute. Allowed
     values: ``high``, ``low``, ``auto``. Omitted when
