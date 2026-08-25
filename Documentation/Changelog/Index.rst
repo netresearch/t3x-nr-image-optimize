@@ -6,6 +6,63 @@
 Changelog
 =========
 
+..  _changelog-1-4-0:
+
+1.4.0
+=====
+
+-   Added: on-upload compression. ``OptimizeOnUploadListener``
+    subscribes to ``AfterFileAddedEvent`` and
+    ``AfterFileReplacedEvent`` and runs ``optipng``,
+    ``gifsicle``, and ``jpegoptim`` inline as a file lands,
+    instead of relying on a separate cron/CLI pass. Port of the
+    main-branch feature released in 2.2.2.
+-   Added: ``nr:image:optimize`` and ``nr:image:analyze`` console
+    commands to cover existing files -- bulk optimization with
+    filter/dry-run support, and a heuristic per-image savings
+    report without modifying files. See
+    :ref:`Usage <usage-cli>`.
+-   Fixed: bulk ``nr:image:optimize``/``nr:image:analyze`` no
+    longer abort the whole run when a single file fails. A stale
+    FAL identifier (e.g. after an out-of-band folder rename)
+    raised an uncaught ``RuntimeException`` mid-run, discarding
+    progress already made. Both commands now catch per-file
+    failures, report them individually, and continue with the
+    rest of the queue.
+
+..  attention::
+    ``OptimizeOnUploadListener`` is registered by default and
+    runs inline on every upload/replace. If your workflow depends
+    on uploads being stored byte-for-byte as they arrived,
+    disable the listener in your site package's ``Services.yaml``
+    before upgrading -- see the CHANGELOG's "Upgrading" note for
+    1.4.0.
+
+..  _changelog-1-3-2:
+
+1.3.2
+=====
+
+-   Fixed: animated GIFs are passed through unprocessed instead
+    of being collapsed to their first frame. GIFs with more than
+    one frame are excluded from variant processing; the original
+    file is copied to the variant path and served as-is. WebP/AVIF
+    sidecar generation is skipped for animated GIFs too. Port of
+    the main-branch fix (2.x PR #143).
+
+..  _changelog-1-3-1:
+
+1.3.1
+=====
+
+-   Fixed: URL dimensions of ``0`` (meaning "derive this side from
+    the aspect ratio", as ``SourceSetViewHelper`` always writes
+    both dimensions into the variant URL) were floored to ``1``
+    by dimension clamping, turning height-based or width-based
+    variants into 1x1 pixel images. ``0`` now derives the missing
+    side from the aspect ratio, as it already did for an absent
+    dimension.
+
 ..  _changelog-1-3-0:
 
 1.3.0

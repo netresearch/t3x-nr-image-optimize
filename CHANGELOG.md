@@ -50,6 +50,40 @@
 
 - Axel Seemann
 
+# 1.3.2
+
+## BUGFIX
+
+- **Animated GIFs are passed through unprocessed.** Port of the
+  main-branch fix (PR #143, commit d1080ec, issue #142, NRNR-1584):
+  GIFs with more than one frame are excluded from variant processing.
+  The original file is copied to the variant path and served as-is,
+  with the same HTTP caching behavior as processed variants, instead
+  of collapsing an animation down to its first frame. WebP/AVIF
+  sidecar generation is skipped for animated GIFs too.
+
+## Contributors
+
+- Sebastian Mendel
+
+# 1.3.1
+
+## BUGFIX
+
+- **Zero URL dimensions are treated as auto instead of clamped to
+  1px.** `SourceSetViewHelper` always writes both dimensions into the
+  variant URL, encoding "derive this side from the aspect ratio" as
+  `0` (for example a height-based logo as `w0h100`). Dimension
+  clamping introduced in an earlier release floored `0` to `1`,
+  turning such variants into 1x1 pixel images. `0` now maps to
+  "derive the missing side from the aspect ratio", as it already did
+  for an absent dimension; negative values keep the 1px floor.
+  See [#144](https://github.com/netresearch/t3x-nr-image-optimize/pull/144).
+
+## Contributors
+
+- Sebastian Mendel
+
 # 1.3.0
 
 ## FEATURE
