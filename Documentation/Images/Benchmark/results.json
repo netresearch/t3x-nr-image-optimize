@@ -1,0 +1,758 @@
+{
+  "meta": {
+    "date": "2026-08-26T11:12:26.382Z",
+    "images": 24,
+    "sourceImage": "3000x2000 JPEG",
+    "variant": "800x600 crop",
+    "iterations": 3,
+    "aggregate": "median",
+    "viewport": "1280x720",
+    "environment": {
+      "typo3": "14.3.6",
+      "php": "8.4.24",
+      "server": "Apache/2.4.65 (Unix)",
+      "imagick": "ImageMagick 7.1.2-27 (Beta) Q16-HDRI x86_64 24344 https://imagemagick.org",
+      "processor": "Version: ImageMagick 7.1.2-27 (Beta) Q16-HDRI x86_64 24344 https://imagemagick.org"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "render-only",
+      "label": "Page render only",
+      "description": "Caches and variants cold; the browser aborts every image request, so only the HTML response is measured.",
+      "core": {
+        "ttfbMs": 8273.2,
+        "domContentLoadedMs": 8285.6,
+        "loadMs": 8319.2,
+        "lcpMs": 8308,
+        "wallMs": 8825,
+        "imageRequests": 0,
+        "imageBytes": 0,
+        "brokenImages": 0,
+        "phpRequests": 1,
+        "serverCpuMs": 7907.3,
+        "variantsCreated": 24,
+        "variantBytes": 1733248
+      },
+      "ext": {
+        "ttfbMs": 138.7,
+        "domContentLoadedMs": 150.5,
+        "loadMs": 175.9,
+        "lcpMs": 164,
+        "wallMs": 678,
+        "imageRequests": 0,
+        "imageBytes": 0,
+        "brokenImages": 0,
+        "phpRequests": 1,
+        "serverCpuMs": 119.9,
+        "variantsCreated": 0,
+        "variantBytes": 0
+      },
+      "iterations": {
+        "core": [
+          {
+            "ttfbMs": 8273.2,
+            "domContentLoadedMs": 8285.6,
+            "loadMs": 8319.2,
+            "lcpMs": 8308,
+            "wallMs": 8825,
+            "imageRequests": 0,
+            "imageBytes": 0,
+            "brokenImages": 0,
+            "phpRequests": 1,
+            "serverCpuMs": 7907.3,
+            "variantsCreated": 24,
+            "variantBytes": 1733248
+          },
+          {
+            "ttfbMs": 8640.5,
+            "domContentLoadedMs": 8652.2,
+            "loadMs": 8689.5,
+            "lcpMs": 8676,
+            "wallMs": 9192,
+            "imageRequests": 0,
+            "imageBytes": 0,
+            "brokenImages": 0,
+            "phpRequests": 1,
+            "serverCpuMs": 8511.5,
+            "variantsCreated": 24,
+            "variantBytes": 1733248
+          },
+          {
+            "ttfbMs": 7984.2,
+            "domContentLoadedMs": 7995.8,
+            "loadMs": 8020.6,
+            "lcpMs": 8020,
+            "wallMs": 8523,
+            "imageRequests": 0,
+            "imageBytes": 0,
+            "brokenImages": 0,
+            "phpRequests": 1,
+            "serverCpuMs": 7869.2,
+            "variantsCreated": 24,
+            "variantBytes": 1733248
+          }
+        ],
+        "ext": [
+          {
+            "ttfbMs": 226.6,
+            "domContentLoadedMs": 237.1,
+            "loadMs": 281.7,
+            "lcpMs": 268,
+            "wallMs": 784,
+            "imageRequests": 0,
+            "imageBytes": 0,
+            "brokenImages": 0,
+            "phpRequests": 1,
+            "serverCpuMs": 194.2,
+            "variantsCreated": 0,
+            "variantBytes": 0
+          },
+          {
+            "ttfbMs": 138.7,
+            "domContentLoadedMs": 150.5,
+            "loadMs": 173.6,
+            "lcpMs": 164,
+            "wallMs": 676,
+            "imageRequests": 0,
+            "imageBytes": 0,
+            "brokenImages": 0,
+            "phpRequests": 1,
+            "serverCpuMs": 119.9,
+            "variantsCreated": 0,
+            "variantBytes": 0
+          },
+          {
+            "ttfbMs": 130.5,
+            "domContentLoadedMs": 142.9,
+            "loadMs": 175.9,
+            "lcpMs": 156,
+            "wallMs": 678,
+            "imageRequests": 0,
+            "imageBytes": 0,
+            "brokenImages": 0,
+            "phpRequests": 1,
+            "serverCpuMs": 99,
+            "variantsCreated": 0,
+            "variantBytes": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "cold",
+      "label": "Everything cold",
+      "description": "Page cache empty, no variant exists yet: the first visitor after a deployment.",
+      "core": {
+        "ttfbMs": 7947.4,
+        "domContentLoadedMs": 7962,
+        "loadMs": 7995.4,
+        "lcpMs": 7984,
+        "wallMs": 8498,
+        "imageRequests": 24,
+        "imageBytes": 1740448,
+        "brokenImages": 0,
+        "phpRequests": 1,
+        "serverCpuMs": 7834.6,
+        "variantsCreated": 24,
+        "variantBytes": 1733248
+      },
+      "ext": {
+        "ttfbMs": 135.7,
+        "domContentLoadedMs": 148.8,
+        "loadMs": 3082.6,
+        "lcpMs": 792,
+        "wallMs": 3585,
+        "imageRequests": 24,
+        "imageBytes": 808904,
+        "brokenImages": 0,
+        "phpRequests": 25,
+        "serverCpuMs": 14565.8,
+        "variantsCreated": 72,
+        "variantBytes": 3091982
+      },
+      "iterations": {
+        "core": [
+          {
+            "ttfbMs": 7947.4,
+            "domContentLoadedMs": 7962,
+            "loadMs": 7995.4,
+            "lcpMs": 7980,
+            "wallMs": 8498,
+            "imageRequests": 24,
+            "imageBytes": 1740448,
+            "brokenImages": 0,
+            "phpRequests": 1,
+            "serverCpuMs": 7834.6,
+            "variantsCreated": 24,
+            "variantBytes": 1733248
+          },
+          {
+            "ttfbMs": 8639.7,
+            "domContentLoadedMs": 8652.7,
+            "loadMs": 8685.9,
+            "lcpMs": 8680,
+            "wallMs": 9188,
+            "imageRequests": 24,
+            "imageBytes": 1740448,
+            "brokenImages": 0,
+            "phpRequests": 1,
+            "serverCpuMs": 8540,
+            "variantsCreated": 24,
+            "variantBytes": 1733248
+          },
+          {
+            "ttfbMs": 7939.4,
+            "domContentLoadedMs": 7950.9,
+            "loadMs": 7989.7,
+            "lcpMs": 7984,
+            "wallMs": 8492,
+            "imageRequests": 24,
+            "imageBytes": 1740448,
+            "brokenImages": 0,
+            "phpRequests": 1,
+            "serverCpuMs": 7825.4,
+            "variantsCreated": 24,
+            "variantBytes": 1733248
+          }
+        ],
+        "ext": [
+          {
+            "ttfbMs": 181.6,
+            "domContentLoadedMs": 195.8,
+            "loadMs": 3320.2,
+            "lcpMs": 792,
+            "wallMs": 3822,
+            "imageRequests": 24,
+            "imageBytes": 808904,
+            "brokenImages": 0,
+            "phpRequests": 25,
+            "serverCpuMs": 14630,
+            "variantsCreated": 72,
+            "variantBytes": 3091982
+          },
+          {
+            "ttfbMs": 112.2,
+            "domContentLoadedMs": 124.2,
+            "loadMs": 3082.6,
+            "lcpMs": 584,
+            "wallMs": 3585,
+            "imageRequests": 24,
+            "imageBytes": 808904,
+            "brokenImages": 0,
+            "phpRequests": 25,
+            "serverCpuMs": 14565.8,
+            "variantsCreated": 72,
+            "variantBytes": 3091982
+          },
+          {
+            "ttfbMs": 135.7,
+            "domContentLoadedMs": 148.8,
+            "loadMs": 2876.6,
+            "lcpMs": 792,
+            "wallMs": 3379,
+            "imageRequests": 24,
+            "imageBytes": 808904,
+            "brokenImages": 0,
+            "phpRequests": 25,
+            "serverCpuMs": 13482.8,
+            "variantsCreated": 72,
+            "variantBytes": 3091982
+          }
+        ]
+      }
+    },
+    {
+      "id": "page-cache-cold",
+      "label": "Page cache cold, variants exist",
+      "description": "Page cache flushed (editor change, deployment), variant files still on disk.",
+      "core": {
+        "ttfbMs": 198.7,
+        "domContentLoadedMs": 209.2,
+        "loadMs": 250.6,
+        "lcpMs": 232,
+        "wallMs": 753,
+        "imageRequests": 24,
+        "imageBytes": 1740448,
+        "brokenImages": 0,
+        "phpRequests": 1,
+        "serverCpuMs": 148.5,
+        "variantsCreated": 0,
+        "variantBytes": 0
+      },
+      "ext": {
+        "ttfbMs": 135.7,
+        "domContentLoadedMs": 147.3,
+        "loadMs": 188.7,
+        "lcpMs": 180,
+        "wallMs": 692,
+        "imageRequests": 24,
+        "imageBytes": 1746386,
+        "brokenImages": 0,
+        "phpRequests": 1,
+        "serverCpuMs": 102.7,
+        "variantsCreated": 0,
+        "variantBytes": 0
+      },
+      "iterations": {
+        "core": [
+          {
+            "ttfbMs": 183.6,
+            "domContentLoadedMs": 196.1,
+            "loadMs": 228.1,
+            "lcpMs": 216,
+            "wallMs": 731,
+            "imageRequests": 24,
+            "imageBytes": 1740448,
+            "brokenImages": 0,
+            "phpRequests": 1,
+            "serverCpuMs": 135.7,
+            "variantsCreated": 0,
+            "variantBytes": 0
+          },
+          {
+            "ttfbMs": 226.1,
+            "domContentLoadedMs": 236,
+            "loadMs": 277.4,
+            "lcpMs": 264,
+            "wallMs": 780,
+            "imageRequests": 24,
+            "imageBytes": 1740448,
+            "brokenImages": 0,
+            "phpRequests": 1,
+            "serverCpuMs": 173.7,
+            "variantsCreated": 0,
+            "variantBytes": 0
+          },
+          {
+            "ttfbMs": 198.7,
+            "domContentLoadedMs": 209.2,
+            "loadMs": 250.6,
+            "lcpMs": 232,
+            "wallMs": 753,
+            "imageRequests": 24,
+            "imageBytes": 1740448,
+            "brokenImages": 0,
+            "phpRequests": 1,
+            "serverCpuMs": 148.5,
+            "variantsCreated": 0,
+            "variantBytes": 0
+          }
+        ],
+        "ext": [
+          {
+            "ttfbMs": 135.7,
+            "domContentLoadedMs": 147.3,
+            "loadMs": 177.5,
+            "lcpMs": 172,
+            "wallMs": 680,
+            "imageRequests": 24,
+            "imageBytes": 1746386,
+            "brokenImages": 0,
+            "phpRequests": 1,
+            "serverCpuMs": 102.7,
+            "variantsCreated": 0,
+            "variantBytes": 0
+          },
+          {
+            "ttfbMs": 130.1,
+            "domContentLoadedMs": 141.9,
+            "loadMs": 188.7,
+            "lcpMs": 180,
+            "wallMs": 692,
+            "imageRequests": 24,
+            "imageBytes": 1746386,
+            "brokenImages": 0,
+            "phpRequests": 1,
+            "serverCpuMs": 99.5,
+            "variantsCreated": 0,
+            "variantBytes": 0
+          },
+          {
+            "ttfbMs": 146.2,
+            "domContentLoadedMs": 160.2,
+            "loadMs": 203.4,
+            "lcpMs": 192,
+            "wallMs": 706,
+            "imageRequests": 24,
+            "imageBytes": 1746386,
+            "brokenImages": 0,
+            "phpRequests": 1,
+            "serverCpuMs": 112.2,
+            "variantsCreated": 0,
+            "variantBytes": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "warm",
+      "label": "Everything warm",
+      "description": "Steady state: page cache hit, every variant on disk.",
+      "core": {
+        "ttfbMs": 47.7,
+        "domContentLoadedMs": 60.7,
+        "loadMs": 97.5,
+        "lcpMs": 80,
+        "wallMs": 599,
+        "imageRequests": 24,
+        "imageBytes": 1740448,
+        "brokenImages": 0,
+        "phpRequests": 1,
+        "serverCpuMs": 30.9,
+        "variantsCreated": 0,
+        "variantBytes": 0
+      },
+      "ext": {
+        "ttfbMs": 52.7,
+        "domContentLoadedMs": 68,
+        "loadMs": 114.2,
+        "lcpMs": 92,
+        "wallMs": 617,
+        "imageRequests": 24,
+        "imageBytes": 1746386,
+        "brokenImages": 0,
+        "phpRequests": 1,
+        "serverCpuMs": 34.2,
+        "variantsCreated": 0,
+        "variantBytes": 0
+      },
+      "iterations": {
+        "core": [
+          {
+            "ttfbMs": 47.5,
+            "domContentLoadedMs": 59.2,
+            "loadMs": 95.7,
+            "lcpMs": 80,
+            "wallMs": 597,
+            "imageRequests": 24,
+            "imageBytes": 1740448,
+            "brokenImages": 0,
+            "phpRequests": 1,
+            "serverCpuMs": 30.7,
+            "variantsCreated": 0,
+            "variantBytes": 0
+          },
+          {
+            "ttfbMs": 47.7,
+            "domContentLoadedMs": 66.9,
+            "loadMs": 97.5,
+            "lcpMs": 80,
+            "wallMs": 599,
+            "imageRequests": 24,
+            "imageBytes": 1740448,
+            "brokenImages": 0,
+            "phpRequests": 1,
+            "serverCpuMs": 30.9,
+            "variantsCreated": 0,
+            "variantBytes": 0
+          },
+          {
+            "ttfbMs": 49.7,
+            "domContentLoadedMs": 60.7,
+            "loadMs": 101.3,
+            "lcpMs": 84,
+            "wallMs": 604,
+            "imageRequests": 24,
+            "imageBytes": 1740448,
+            "brokenImages": 0,
+            "phpRequests": 1,
+            "serverCpuMs": 54.5,
+            "variantsCreated": 0,
+            "variantBytes": 0
+          }
+        ],
+        "ext": [
+          {
+            "ttfbMs": 48.6,
+            "domContentLoadedMs": 64.7,
+            "loadMs": 97.9,
+            "lcpMs": 80,
+            "wallMs": 600,
+            "imageRequests": 24,
+            "imageBytes": 1746386,
+            "brokenImages": 0,
+            "phpRequests": 1,
+            "serverCpuMs": 31.5,
+            "variantsCreated": 0,
+            "variantBytes": 0
+          },
+          {
+            "ttfbMs": 52.7,
+            "domContentLoadedMs": 68,
+            "loadMs": 116.4,
+            "lcpMs": 100,
+            "wallMs": 629,
+            "imageRequests": 24,
+            "imageBytes": 1746386,
+            "brokenImages": 0,
+            "phpRequests": 1,
+            "serverCpuMs": 34.2,
+            "variantsCreated": 0,
+            "variantBytes": 0
+          },
+          {
+            "ttfbMs": 58.2,
+            "domContentLoadedMs": 77.3,
+            "loadMs": 114.2,
+            "lcpMs": 92,
+            "wallMs": 617,
+            "imageRequests": 24,
+            "imageBytes": 1746386,
+            "brokenImages": 0,
+            "phpRequests": 1,
+            "serverCpuMs": 41.2,
+            "variantsCreated": 0,
+            "variantBytes": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "variants-purged",
+      "label": "Page cache warm, variants purged",
+      "description": "Variant files deleted (cleanup, new server, storage migration) while the page cache still serves the old HTML.",
+      "core": {
+        "ttfbMs": 45.3,
+        "domContentLoadedMs": 57,
+        "loadMs": 831.2,
+        "lcpMs": 188,
+        "wallMs": 1334,
+        "imageRequests": 24,
+        "imageBytes": 111631,
+        "brokenImages": 24,
+        "phpRequests": 25,
+        "serverCpuMs": 932,
+        "variantsCreated": 0,
+        "variantBytes": 0
+      },
+      "ext": {
+        "ttfbMs": 53.1,
+        "domContentLoadedMs": 67.1,
+        "loadMs": 2754.8,
+        "lcpMs": 676,
+        "wallMs": 3258,
+        "imageRequests": 24,
+        "imageBytes": 808904,
+        "brokenImages": 0,
+        "phpRequests": 25,
+        "serverCpuMs": 14197,
+        "variantsCreated": 72,
+        "variantBytes": 3091982
+      },
+      "iterations": {
+        "core": [
+          {
+            "ttfbMs": 43.9,
+            "domContentLoadedMs": 57,
+            "loadMs": 831.2,
+            "lcpMs": 176,
+            "wallMs": 1334,
+            "imageRequests": 24,
+            "imageBytes": 113893,
+            "brokenImages": 24,
+            "phpRequests": 25,
+            "serverCpuMs": 915.6,
+            "variantsCreated": 0,
+            "variantBytes": 0
+          },
+          {
+            "ttfbMs": 55.1,
+            "domContentLoadedMs": 69.7,
+            "loadMs": 844.9,
+            "lcpMs": 216,
+            "wallMs": 1347,
+            "imageRequests": 24,
+            "imageBytes": 108609,
+            "brokenImages": 24,
+            "phpRequests": 25,
+            "serverCpuMs": 1086.4,
+            "variantsCreated": 0,
+            "variantBytes": 0
+          },
+          {
+            "ttfbMs": 45.3,
+            "domContentLoadedMs": 56.3,
+            "loadMs": 809.9,
+            "lcpMs": 188,
+            "wallMs": 1313,
+            "imageRequests": 24,
+            "imageBytes": 111631,
+            "brokenImages": 24,
+            "phpRequests": 25,
+            "serverCpuMs": 932,
+            "variantsCreated": 0,
+            "variantBytes": 0
+          }
+        ],
+        "ext": [
+          {
+            "ttfbMs": 53.5,
+            "domContentLoadedMs": 67.1,
+            "loadMs": 2754.8,
+            "lcpMs": 728,
+            "wallMs": 3258,
+            "imageRequests": 24,
+            "imageBytes": 808904,
+            "brokenImages": 0,
+            "phpRequests": 25,
+            "serverCpuMs": 14197,
+            "variantsCreated": 72,
+            "variantBytes": 3091982
+          },
+          {
+            "ttfbMs": 52.2,
+            "domContentLoadedMs": 65.7,
+            "loadMs": 2874.5,
+            "lcpMs": 676,
+            "wallMs": 3377,
+            "imageRequests": 24,
+            "imageBytes": 808904,
+            "brokenImages": 0,
+            "phpRequests": 25,
+            "serverCpuMs": 14171.9,
+            "variantsCreated": 72,
+            "variantBytes": 3091982
+          },
+          {
+            "ttfbMs": 53.1,
+            "domContentLoadedMs": 70.3,
+            "loadMs": 2656.2,
+            "lcpMs": 664,
+            "wallMs": 3159,
+            "imageRequests": 24,
+            "imageBytes": 808904,
+            "brokenImages": 0,
+            "phpRequests": 25,
+            "serverCpuMs": 14838.8,
+            "variantsCreated": 72,
+            "variantBytes": 3091982
+          }
+        ]
+      }
+    },
+    {
+      "id": "lazy-cold",
+      "label": "Everything cold, lazy loading",
+      "description": "As \"everything cold\", with loading=\"lazy\" on every image and a 1280x720 viewport.",
+      "core": {
+        "ttfbMs": 8271.1,
+        "domContentLoadedMs": 8281.1,
+        "loadMs": 8281.4,
+        "lcpMs": 8316,
+        "wallMs": 8801,
+        "imageRequests": 7,
+        "imageBytes": 507084,
+        "brokenImages": 0,
+        "phpRequests": 1,
+        "serverCpuMs": 8160.1,
+        "variantsCreated": 24,
+        "variantBytes": 1733248
+      },
+      "ext": {
+        "ttfbMs": 145.9,
+        "domContentLoadedMs": 154.5,
+        "loadMs": 154.8,
+        "lcpMs": 800,
+        "wallMs": 1695,
+        "imageRequests": 7,
+        "imageBytes": 235684,
+        "brokenImages": 0,
+        "phpRequests": 8,
+        "serverCpuMs": 4227.5,
+        "variantsCreated": 21,
+        "variantBytes": 901128
+      },
+      "iterations": {
+        "core": [
+          {
+            "ttfbMs": 8112.6,
+            "domContentLoadedMs": 8122.7,
+            "loadMs": 8123.1,
+            "lcpMs": 8156,
+            "wallMs": 8643,
+            "imageRequests": 7,
+            "imageBytes": 507084,
+            "brokenImages": 0,
+            "phpRequests": 1,
+            "serverCpuMs": 7997,
+            "variantsCreated": 24,
+            "variantBytes": 1733248
+          },
+          {
+            "ttfbMs": 8450.3,
+            "domContentLoadedMs": 8459.4,
+            "loadMs": 8459.7,
+            "lcpMs": 8500,
+            "wallMs": 8985,
+            "imageRequests": 7,
+            "imageBytes": 507084,
+            "brokenImages": 0,
+            "phpRequests": 1,
+            "serverCpuMs": 8268.6,
+            "variantsCreated": 24,
+            "variantBytes": 1733248
+          },
+          {
+            "ttfbMs": 8271.1,
+            "domContentLoadedMs": 8281.1,
+            "loadMs": 8281.4,
+            "lcpMs": 8316,
+            "wallMs": 8801,
+            "imageRequests": 7,
+            "imageBytes": 507084,
+            "brokenImages": 0,
+            "phpRequests": 1,
+            "serverCpuMs": 8160.1,
+            "variantsCreated": 24,
+            "variantBytes": 1733248
+          }
+        ],
+        "ext": [
+          {
+            "ttfbMs": 354.6,
+            "domContentLoadedMs": 367,
+            "loadMs": 367.1,
+            "lcpMs": 1032,
+            "wallMs": 1893,
+            "imageRequests": 7,
+            "imageBytes": 235684,
+            "brokenImages": 0,
+            "phpRequests": 8,
+            "serverCpuMs": 4589.6,
+            "variantsCreated": 21,
+            "variantBytes": 901128
+          },
+          {
+            "ttfbMs": 145.9,
+            "domContentLoadedMs": 154.5,
+            "loadMs": 154.8,
+            "lcpMs": 800,
+            "wallMs": 1633,
+            "imageRequests": 7,
+            "imageBytes": 235684,
+            "brokenImages": 0,
+            "phpRequests": 8,
+            "serverCpuMs": 4050,
+            "variantsCreated": 21,
+            "variantBytes": 901128
+          },
+          {
+            "ttfbMs": 124.9,
+            "domContentLoadedMs": 134.5,
+            "loadMs": 134.9,
+            "lcpMs": 724,
+            "wallMs": 1695,
+            "imageRequests": 7,
+            "imageBytes": 235684,
+            "brokenImages": 0,
+            "phpRequests": 8,
+            "serverCpuMs": 4227.5,
+            "variantsCreated": 21,
+            "variantBytes": 901128
+          }
+        ]
+      }
+    }
+  ]
+}

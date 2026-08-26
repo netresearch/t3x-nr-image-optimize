@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="820" height="408" viewBox="0 0 820 408" role="img" aria-labelledby="title desc" font-family="-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13">
+<title id="title">Page fully loaded (window load event)</title>
+<desc id="desc">Client view: HTML plus every eager image delivered</desc>
+<rect width="820" height="408" rx="8" fill="#fcfcfb"/>
+<text x="16" y="24" font-size="16" font-weight="600" fill="#0b0b0b">Page fully loaded (window load event)</text>
+<text x="16" y="44" fill="#52514e">Client view: HTML plus every eager image delivered</text>
+<text x="16" y="62" fill="#52514e" font-size="11">Median of 3 visits · 24 images per page (3000×2000 JPEG → 800×600) · TYPO3 14.3.6 · PHP 8.4.24 · Apache + PHP-FPM in Docker</text>
+<rect x="16" y="74" width="12" height="12" rx="3" fill="#2a78d6"/>
+<text x="33" y="84" fill="#52514e">TYPO3 core f:image</text>
+<rect x="168.8" y="74" width="12" height="12" rx="3" fill="#eb6834"/>
+<text x="185.8" y="84" fill="#52514e">nr_image_optimize nrio:sourceSet</text>
+<line x1="266" y1="92" x2="266" y2="368" stroke="#e5e4e0" stroke-width="1"/>
+<text x="266" y="384" text-anchor="middle" fill="#52514e" font-size="11">0 ms</text>
+<line x1="380.5" y1="92" x2="380.5" y2="368" stroke="#e5e4e0" stroke-width="1"/>
+<text x="380.5" y="384" text-anchor="middle" fill="#52514e" font-size="11">2.50 s</text>
+<line x1="495" y1="92" x2="495" y2="368" stroke="#e5e4e0" stroke-width="1"/>
+<text x="495" y="384" text-anchor="middle" fill="#52514e" font-size="11">5.00 s</text>
+<line x1="609.5" y1="92" x2="609.5" y2="368" stroke="#e5e4e0" stroke-width="1"/>
+<text x="609.5" y="384" text-anchor="middle" fill="#52514e" font-size="11">7.50 s</text>
+<line x1="724" y1="92" x2="724" y2="368" stroke="#e5e4e0" stroke-width="1"/>
+<text x="724" y="384" text-anchor="middle" fill="#52514e" font-size="11">10.0 s</text>
+<text x="254" y="126" text-anchor="end" fill="#0b0b0b">Page render only</text>
+<path d="M266,109 h377.01936000000006 a4,4 0 0 1 4,4 v4 a4,4 0 0 1 -4,4 h-377.01936000000006 z" fill="#2a78d6"/>
+<text x="653.01936" y="119" fill="#52514e" font-size="11">8.32 s</text>
+<path d="M266,123 h4.0562200000000015 a4,4 0 0 1 4,4 v4 a4,4 0 0 1 -4,4 h-4.0562200000000015 z" fill="#eb6834"/>
+<text x="280.05622" y="133" fill="#52514e" font-size="11">176 ms</text>
+<text x="254" y="170" text-anchor="end" fill="#0b0b0b">Everything cold</text>
+<path d="M266,153 h362.18931999999995 a4,4 0 0 1 4,4 v4 a4,4 0 0 1 -4,4 h-362.18931999999995 z" fill="#2a78d6"/>
+<text x="638.18932" y="163" fill="#52514e" font-size="11">8.00 s</text>
+<path d="M266,167 h137.18308 a4,4 0 0 1 4,4 v4 a4,4 0 0 1 -4,4 h-137.18308 z" fill="#eb6834"/>
+<text x="413.18308" y="177" fill="#52514e" font-size="11">3.08 s</text>
+<text x="254" y="214" text-anchor="end" fill="#0b0b0b">Page cache cold, variants exist</text>
+<path d="M266,197 h7.47748 a4,4 0 0 1 4,4 v4 a4,4 0 0 1 -4,4 h-7.47748 z" fill="#2a78d6"/>
+<text x="283.47748" y="207" fill="#52514e" font-size="11">251 ms</text>
+<path d="M266,211 h4.64246 a4,4 0 0 1 4,4 v4 a4,4 0 0 1 -4,4 h-4.64246 z" fill="#eb6834"/>
+<text x="280.64246" y="221" fill="#52514e" font-size="11">189 ms</text>
+<text x="254" y="258" text-anchor="end" fill="#0b0b0b">Everything warm</text>
+<path d="M266,241 h0.4654999999999996 a4,4 0 0 1 4,4 v4 a4,4 0 0 1 -4,4 h-0.4654999999999996 z" fill="#2a78d6"/>
+<text x="276.4655" y="251" fill="#52514e" font-size="11">98 ms</text>
+<path d="M266,255 h1.2303600000000001 a4,4 0 0 1 4,4 v4 a4,4 0 0 1 -4,4 h-1.2303600000000001 z" fill="#eb6834"/>
+<text x="277.23036" y="265" fill="#52514e" font-size="11">114 ms</text>
+<text x="254" y="302" text-anchor="end" fill="#0b0b0b">Page cache warm, variants purged</text>
+<path d="M266,285 h34.06896 a4,4 0 0 1 4,4 v4 a4,4 0 0 1 -4,4 h-34.06896 z" fill="#2a78d6"/>
+<text x="310.06896" y="295" fill="#52514e" font-size="11">831 ms</text>
+<path d="M266,299 h122.16984000000001 a4,4 0 0 1 4,4 v4 a4,4 0 0 1 -4,4 h-122.16984000000001 z" fill="#eb6834"/>
+<text x="398.16984" y="309" fill="#52514e" font-size="11">2.75 s</text>
+<text x="254" y="346" text-anchor="end" fill="#0b0b0b">Everything cold, lazy loading</text>
+<path d="M266,329 h375.28812 a4,4 0 0 1 4,4 v4 a4,4 0 0 1 -4,4 h-375.28812 z" fill="#2a78d6"/>
+<text x="651.2881199999999" y="339" fill="#52514e" font-size="11">8.28 s</text>
+<path d="M266,343 h3.0898400000000006 a4,4 0 0 1 4,4 v4 a4,4 0 0 1 -4,4 h-3.0898400000000006 z" fill="#eb6834"/>
+<text x="279.08984" y="353" fill="#52514e" font-size="11">155 ms</text>
+</svg>

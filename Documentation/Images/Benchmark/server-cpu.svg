@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="820" height="408" viewBox="0 0 820 408" role="img" aria-labelledby="title desc" font-family="-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13">
+<title id="title">Server CPU time per visit</title>
+<desc id="desc">Server view: PHP-FPM container including ImageMagick child processes</desc>
+<rect width="820" height="408" rx="8" fill="#fcfcfb"/>
+<text x="16" y="24" font-size="16" font-weight="600" fill="#0b0b0b">Server CPU time per visit</text>
+<text x="16" y="44" fill="#52514e">Server view: PHP-FPM container including ImageMagick child processes</text>
+<text x="16" y="62" fill="#52514e" font-size="11">Median of 3 visits · 24 images per page (3000×2000 JPEG → 800×600) · TYPO3 14.3.6 · PHP 8.4.24 · Apache + PHP-FPM in Docker</text>
+<rect x="16" y="74" width="12" height="12" rx="3" fill="#2a78d6"/>
+<text x="33" y="84" fill="#52514e">TYPO3 core f:image</text>
+<rect x="168.8" y="74" width="12" height="12" rx="3" fill="#eb6834"/>
+<text x="185.8" y="84" fill="#52514e">nr_image_optimize nrio:sourceSet</text>
+<line x1="266" y1="92" x2="266" y2="368" stroke="#e5e4e0" stroke-width="1"/>
+<text x="266" y="384" text-anchor="middle" fill="#52514e" font-size="11">0 ms</text>
+<line x1="380.5" y1="92" x2="380.5" y2="368" stroke="#e5e4e0" stroke-width="1"/>
+<text x="380.5" y="384" text-anchor="middle" fill="#52514e" font-size="11">5.00 s</text>
+<line x1="495" y1="92" x2="495" y2="368" stroke="#e5e4e0" stroke-width="1"/>
+<text x="495" y="384" text-anchor="middle" fill="#52514e" font-size="11">10.0 s</text>
+<line x1="609.5" y1="92" x2="609.5" y2="368" stroke="#e5e4e0" stroke-width="1"/>
+<text x="609.5" y="384" text-anchor="middle" fill="#52514e" font-size="11">15.0 s</text>
+<line x1="724" y1="92" x2="724" y2="368" stroke="#e5e4e0" stroke-width="1"/>
+<text x="724" y="384" text-anchor="middle" fill="#52514e" font-size="11">20.0 s</text>
+<text x="254" y="126" text-anchor="end" fill="#0b0b0b">Page render only</text>
+<path d="M266,109 h177.07717000000002 a4,4 0 0 1 4,4 v4 a4,4 0 0 1 -4,4 h-177.07717000000002 z" fill="#2a78d6"/>
+<text x="453.07717" y="119" fill="#52514e" font-size="11">7.91 s</text>
+<path d="M266,123 h0 a4,4 0 0 1 4,4 v4 a4,4 0 0 1 -4,4 h-0 z" fill="#eb6834"/>
+<text x="276" y="133" fill="#52514e" font-size="11">120 ms</text>
+<text x="254" y="170" text-anchor="end" fill="#0b0b0b">Everything cold</text>
+<path d="M266,153 h175.41234 a4,4 0 0 1 4,4 v4 a4,4 0 0 1 -4,4 h-175.41234 z" fill="#2a78d6"/>
+<text x="451.41234" y="163" fill="#52514e" font-size="11">7.83 s</text>
+<path d="M266,167 h329.55682 a4,4 0 0 1 4,4 v4 a4,4 0 0 1 -4,4 h-329.55682 z" fill="#eb6834"/>
+<text x="605.55682" y="177" fill="#52514e" font-size="11">14.6 s</text>
+<text x="254" y="214" text-anchor="end" fill="#0b0b0b">Page cache cold, variants exist</text>
+<path d="M266,197 h0 a4,4 0 0 1 4,4 v4 a4,4 0 0 1 -4,4 h-0 z" fill="#2a78d6"/>
+<text x="276" y="207" fill="#52514e" font-size="11">149 ms</text>
+<path d="M266,211 h0 a4,4 0 0 1 4,4 v4 a4,4 0 0 1 -4,4 h-0 z" fill="#eb6834"/>
+<text x="276" y="221" fill="#52514e" font-size="11">103 ms</text>
+<text x="254" y="258" text-anchor="end" fill="#0b0b0b">Everything warm</text>
+<path d="M266,241 h0 a4,4 0 0 1 4,4 v4 a4,4 0 0 1 -4,4 h-0 z" fill="#2a78d6"/>
+<text x="276" y="251" fill="#52514e" font-size="11">31 ms</text>
+<path d="M266,255 h0 a4,4 0 0 1 4,4 v4 a4,4 0 0 1 -4,4 h-0 z" fill="#eb6834"/>
+<text x="276" y="265" fill="#52514e" font-size="11">34 ms</text>
+<text x="254" y="302" text-anchor="end" fill="#0b0b0b">Page cache warm, variants purged</text>
+<path d="M266,285 h17.3428 a4,4 0 0 1 4,4 v4 a4,4 0 0 1 -4,4 h-17.3428 z" fill="#2a78d6"/>
+<text x="293.3428" y="295" fill="#52514e" font-size="11">932 ms</text>
+<path d="M266,299 h321.11129999999997 a4,4 0 0 1 4,4 v4 a4,4 0 0 1 -4,4 h-321.11129999999997 z" fill="#eb6834"/>
+<text x="597.1113" y="309" fill="#52514e" font-size="11">14.2 s</text>
+<text x="254" y="346" text-anchor="end" fill="#0b0b0b">Everything cold, lazy loading</text>
+<path d="M266,329 h182.86629 a4,4 0 0 1 4,4 v4 a4,4 0 0 1 -4,4 h-182.86629 z" fill="#2a78d6"/>
+<text x="458.86629" y="339" fill="#52514e" font-size="11">8.16 s</text>
+<path d="M266,343 h92.80975000000001 a4,4 0 0 1 4,4 v4 a4,4 0 0 1 -4,4 h-92.80975000000001 z" fill="#eb6834"/>
+<text x="368.80975" y="353" fill="#52514e" font-size="11">4.23 s</text>
+</svg>

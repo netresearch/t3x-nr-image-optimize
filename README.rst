@@ -31,6 +31,28 @@ for TYPO3 on three layers:
     FAL index to optimize or report optimization potential on
     the entire installation.
 
+Why it is fast
+==============
+
+TYPO3 core's ``f:image`` processes every image *while the page
+renders*, so a cold page cache makes the visitor wait for all of
+them -- hidden sliders and below-the-fold content included -- before
+the first byte of HTML arrives. This extension only emits
+``/processed/...`` URLs while rendering; each variant is produced in
+its own request, when a browser actually asks for it, in parallel
+across PHP-FPM workers, and served as a static file from then on.
+
+Measured with the benchmark that ships in ``Tests/E2E``
+(24 photos of 3000×2000 px, TYPO3 14.3, medians of three visits):
+first byte of HTML on a cold cache in **0.14 s instead of 7.9 s**,
+complete page in **3.1 s instead of 8.0 s**, and with lazy loading
+only the 7 images the viewport needed were processed instead of all
+24. Charts, raw data and the honest caveats (per image the extension
+encodes three formats, so a fully viewed cold page costs more CPU)
+are in the `Performance model
+<https://docs.typo3.org/p/netresearch/nr-image-optimize/main/en-us/Introduction/Index.html#introduction-performance>`_
+chapter; ``make benchmark`` re-measures them.
+
 Features
 ========
 
@@ -42,9 +64,10 @@ Features
     index and compresses eligible images. ``nr:image:analyze``
     reports optimization potential without modifying files
     (heuristic, no binaries invoked).
--   **Lazy frontend processing.** Variants are created only when
-    a visitor first requests them through the ``/processed/``
-    URL.
+-   **No image processing during page render.** Rendering only
+    emits ``/processed/`` URLs; variants are created in their own
+    requests when first fetched by a browser, and served as static
+    files from then on.
 -   **Modern format support.** Automatic WebP and AVIF
     conversion with fallback to original formats.
 -   **Responsive images.** Built-in ``SourceSetViewHelper``
