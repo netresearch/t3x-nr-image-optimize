@@ -34,15 +34,17 @@ Four pages render the same 24 photos as 800×600 crops:
 | `/bench/ext-eager`  | `<nrio:sourceSet width="800" height="600">` |
 | `/bench/core-lazy`  | as above, `loading="lazy"`           |
 | `/bench/ext-lazy`   | as above, `lazyload="1"`             |
+| `/bench/ext-eager-jpeg` | hand-written `/processed/` URLs with `skipWebP=1&skipAvif=1` — one JPEG per image, like core |
 
-Six scenarios, each visited with both pipelines in a fresh browser context:
+Seven scenarios, each visited with both pipelines in a fresh browser context:
 
 1. **Page render only** — caches and variants cold, image requests aborted by the browser. Isolates the HTML response.
 2. **Everything cold** — first visitor after a deployment.
-3. **Page cache cold, variants exist** — editor change or deployment, variants still on disk.
-4. **Everything warm** — steady state.
-5. **Page cache warm, variants purged** — variant files deleted while the page cache still serves the old HTML.
-6. **Everything cold, lazy loading** — like 2 with native lazy loading and a 1280×720 viewport.
+3. **Everything cold, JPEG only** — like 2, but the extension skips WebP/AVIF, so both pipelines write one JPEG per image (the like-for-like CPU comparison).
+4. **Page cache cold, variants exist** — editor change or deployment, variants still on disk.
+5. **Everything warm** — steady state.
+6. **Page cache warm, variants purged** — variant files deleted while the page cache still serves the old HTML.
+7. **Everything cold, lazy loading** — like 2 with native lazy loading and a 1280×720 viewport.
 
 Client side (Navigation/Resource Timing in Chromium): TTFB, DOMContentLoaded,
 load, LCP, image requests and bytes, broken (4xx/5xx) images. Server side

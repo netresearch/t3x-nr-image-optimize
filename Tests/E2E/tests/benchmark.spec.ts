@@ -28,13 +28,14 @@ interface Scenario {
   label: string;
   description: string;
   reset: { caches?: boolean; variants?: boolean };
-  page: 'eager' | 'lazy';
+  page: 'eager' | 'lazy' | 'eagerSingleFormat';
   blockImages?: boolean;
 }
 
+// Core has one format only, so its "single format" page is the eager page.
 const PAGES: Record<Pipeline, Record<Scenario['page'], string>> = {
-  core: { eager: '/bench/core-eager', lazy: '/bench/core-lazy' },
-  ext: { eager: '/bench/ext-eager', lazy: '/bench/ext-lazy' },
+  core: { eager: '/bench/core-eager', lazy: '/bench/core-lazy', eagerSingleFormat: '/bench/core-eager' },
+  ext: { eager: '/bench/ext-eager', lazy: '/bench/ext-lazy', eagerSingleFormat: '/bench/ext-eager-jpeg' },
 };
 
 // Order matters: each scenario leaves the state the next one starts from.
@@ -53,6 +54,13 @@ const SCENARIOS: Scenario[] = [
     description: 'Page cache empty, no variant exists yet: the first visitor after a deployment.',
     reset: { caches: true, variants: true },
     page: 'eager',
+  },
+  {
+    id: 'cold-single-format',
+    label: 'Everything cold, JPEG only',
+    description: 'As "everything cold", but the extension URLs carry skipWebP=1&skipAvif=1, so both pipelines write one JPEG per image.',
+    reset: { caches: true, variants: true },
+    page: 'eagerSingleFormat',
   },
   {
     id: 'page-cache-cold',

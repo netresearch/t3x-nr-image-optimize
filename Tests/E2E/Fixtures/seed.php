@@ -88,6 +88,7 @@ $pages = [
     11 => ['ext-eager', 'ExtEager'],
     12 => ['core-lazy', 'CoreLazy'],
     13 => ['ext-lazy', 'ExtLazy'],
+    14 => ['ext-eager-jpeg', 'ExtEagerJpeg'],
 ];
 
 $statement = $pdo->prepare(
