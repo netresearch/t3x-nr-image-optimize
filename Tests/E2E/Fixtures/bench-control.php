@@ -73,8 +73,14 @@ function removeDirectoryContents(string $directory): void
         RecursiveIteratorIterator::CHILD_FIRST,
     );
 
+    // Paths come from the directory iterator over the two hard-coded variant
+    // directories above, never from the request.
     foreach ($iterator as $entry) {
-        $entry->isDir() ? rmdir($entry->getPathname()) : unlink($entry->getPathname());
+        if ($entry->isDir()) {
+            rmdir($entry->getPathname());
+        } else {
+            unlink($entry->getPathname()); // nosemgrep: php.lang.security.unlink-use.unlink-use
+        }
     }
 }
 
@@ -91,7 +97,7 @@ function cpuMicroseconds(): ?int
 
 function databaseConnection(string $instanceRoot): PDO
 {
-    $settings   = require $instanceRoot . '/config/system/settings.php';
+    $settings   = require_once $instanceRoot . '/config/system/settings.php';
     $connection = $settings['DB']['Connections']['Default'];
 
     return new PDO(

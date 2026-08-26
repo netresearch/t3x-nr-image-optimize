@@ -96,8 +96,7 @@ export async function visit(
   await page.addInitScript(() => {
     (window as unknown as { __lcp: number | null }).__lcp = null;
     new PerformanceObserver((list) => {
-      const entries = list.getEntries();
-      const last = entries[entries.length - 1];
+      const last = list.getEntries().at(-1);
       if (last) {
         (window as unknown as { __lcp: number | null }).__lcp = last.startTime;
       }

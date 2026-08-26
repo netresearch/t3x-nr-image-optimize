@@ -66,7 +66,10 @@ const GAP = 2;
 export function formatValue(value: number, unit: ChartSpec['unit']): string {
   switch (unit) {
     case 'ms':
-      return value >= 1000 ? `${(value / 1000).toFixed(value >= 10000 ? 1 : 2)} s` : `${Math.round(value)} ms`;
+      if (value < 1000) {
+        return `${Math.round(value)} ms`;
+      }
+      return `${(value / 1000).toFixed(value >= 10000 ? 1 : 2)} s`;
     case 'bytes':
       return value >= 1048576 ? `${(value / 1048576).toFixed(1)} MB` : `${Math.round(value / 1024)} kB`;
     default:
@@ -75,7 +78,7 @@ export function formatValue(value: number, unit: ChartSpec['unit']): string {
 }
 
 function escape(text: string): string {
-  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
 }
 
 /** Round the axis maximum up to 1, 2, 2.5 or 5 times a power of ten. */
@@ -99,22 +102,23 @@ export function renderBarChart(spec: ChartSpec): string {
   const x0 = MARGIN.left + LABEL_WIDTH;
   const scale = (value: number) => (value / max) * plotWidth;
 
-  const parts: string[] = [];
-  parts.push(
+  const parts: string[] = [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${height}" viewBox="0 0 ${WIDTH} ${height}" role="img" aria-labelledby="title desc" font-family="-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13">`,
-  );
-  parts.push(`<title id="title">${escape(spec.title)}</title>`);
-  parts.push(`<desc id="desc">${escape(spec.subtitle)}</desc>`);
-  parts.push(`<rect width="${WIDTH}" height="${height}" rx="8" fill="${SURFACE}"/>`);
-  parts.push(`<text x="${MARGIN.left}" y="24" font-size="16" font-weight="600" fill="${INK}">${escape(spec.title)}</text>`);
-  parts.push(`<text x="${MARGIN.left}" y="44" fill="${INK_SECONDARY}">${escape(spec.subtitle)}</text>`);
-  parts.push(`<text x="${MARGIN.left}" y="62" fill="${INK_SECONDARY}" font-size="11">${escape(spec.runs)}</text>`);
+    `<title id="title">${escape(spec.title)}</title>`,
+    `<desc id="desc">${escape(spec.subtitle)}</desc>`,
+    `<rect width="${WIDTH}" height="${height}" rx="8" fill="${SURFACE}"/>`,
+    `<text x="${MARGIN.left}" y="24" font-size="16" font-weight="600" fill="${INK}">${escape(spec.title)}</text>`,
+    `<text x="${MARGIN.left}" y="44" fill="${INK_SECONDARY}">${escape(spec.subtitle)}</text>`,
+    `<text x="${MARGIN.left}" y="62" fill="${INK_SECONDARY}" font-size="11">${escape(spec.runs)}</text>`,
+  ];
 
   // Legend on its own row below the subtitles.
   let legendX = MARGIN.left;
   for (const series of SERIES) {
-    parts.push(`<rect x="${legendX}" y="74" width="12" height="12" rx="3" fill="${series.colour}"/>`);
-    parts.push(`<text x="${legendX + 17}" y="84" fill="${INK_SECONDARY}">${escape(series.label)}</text>`);
+    parts.push(
+      `<rect x="${legendX}" y="74" width="12" height="12" rx="3" fill="${series.colour}"/>`,
+      `<text x="${legendX + 17}" y="84" fill="${INK_SECONDARY}">${escape(series.label)}</text>`,
+    );
     legendX += series.label.length * 6.6 + 34;
   }
 
@@ -123,8 +127,8 @@ export function renderBarChart(spec: ChartSpec): string {
   for (let i = 0; i <= ticks; i += 1) {
     const value = (max / ticks) * i;
     const x = x0 + scale(value);
-    parts.push(`<line x1="${x}" y1="${MARGIN.top - 8}" x2="${x}" y2="${height - MARGIN.bottom + 4}" stroke="${GRID}" stroke-width="1"/>`);
     parts.push(
+      `<line x1="${x}" y1="${MARGIN.top - 8}" x2="${x}" y2="${height - MARGIN.bottom + 4}" stroke="${GRID}" stroke-width="1"/>`,
       `<text x="${x}" y="${height - MARGIN.bottom + 20}" text-anchor="middle" fill="${INK_SECONDARY}" font-size="11">${formatValue(value, spec.unit)}</text>`,
     );
   }

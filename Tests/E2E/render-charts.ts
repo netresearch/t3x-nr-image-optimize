@@ -11,9 +11,18 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { writeCharts, type BenchmarkResults } from './lib/charts.ts';
 
-// Paths are relative to the working directory (run from the repository root).
-const resultsFile = path.resolve(process.argv[2] ?? '.Build/benchmark/results.json');
-const outDir = path.resolve(process.argv[3] ?? path.dirname(resultsFile));
+// Paths are relative to the working directory (run from the repository root)
+// and must stay inside it: this script reads one file and writes SVGs.
+function insideWorkingDirectory(candidate: string): string {
+  const resolved = path.resolve(candidate);
+  if (resolved !== process.cwd() && !resolved.startsWith(process.cwd() + path.sep)) {
+    throw new Error(`refusing to use ${candidate}: outside the working directory ${process.cwd()}`);
+  }
+  return resolved;
+}
+
+const resultsFile = insideWorkingDirectory(process.argv[2] ?? '.Build/benchmark/results.json');
+const outDir = insideWorkingDirectory(process.argv[3] ?? path.dirname(resultsFile));
 
 const results = JSON.parse(fs.readFileSync(resultsFile, 'utf8')) as BenchmarkResults;
 for (const file of writeCharts(results, outDir)) {
