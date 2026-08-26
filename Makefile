@@ -1,4 +1,4 @@
-.PHONY: help cgl cgl-fix phpstan rector fractor lint test test-unit test-functional test-acceptance test-fuzz mutation mutation-full ci all
+.PHONY: help cgl cgl-fix phpstan rector fractor lint test test-unit test-functional test-acceptance test-fuzz test-e2e benchmark mutation mutation-full ci all
 
 RUNTESTS = Build/Scripts/runTests.sh
 
@@ -36,6 +36,12 @@ test-acceptance: ## Run acceptance tests
 
 test-fuzz: ## Run fuzz tests
 	$(RUNTESTS) -s fuzz
+
+test-e2e: ## Run the Playwright e2e/benchmark suite (provisions TYPO3 in Docker; E2E_TYPO3_VERSION=13|14)
+	$(RUNTESTS) -s e2e
+
+benchmark: test-e2e ## Run the benchmark and refresh the charts in Documentation/Images/Benchmark
+	cp .Build/benchmark/results.json .Build/benchmark/*.svg Documentation/Images/Benchmark/
 
 mutation: ## Run mutation tests (unit tests only)
 	$(RUNTESTS) -s mutation

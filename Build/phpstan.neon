@@ -23,6 +23,9 @@ parameters:
     excludePaths:
         - %currentWorkingDirectory%/.Build/*
         - %currentWorkingDirectory%/ext_emconf.php
+        # Procedural scripts that run inside the throw-away e2e TYPO3 instance
+        # (seed + control endpoint), not extension code — see Tests/E2E/README.md.
+        - %currentWorkingDirectory%/Tests/E2E/Fixtures/*.php
 
     tmpDir: %currentWorkingDirectory%/.Build/var/phpstan
 

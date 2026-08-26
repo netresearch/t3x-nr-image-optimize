@@ -1,0 +1,13 @@
+{
+  "name": "nr-image-optimize-e2e",
+  "version": "1.0.0",
+  "private": true,
+  "description": "E2E performance benchmark for nr_image_optimize (Playwright)",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.61.1",
+    "@types/node": "24.10.0"
+  }
+}

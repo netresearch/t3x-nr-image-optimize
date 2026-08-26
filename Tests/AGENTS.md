@@ -16,10 +16,12 @@ TYPO3 extension test suite. **Use the `typo3-testing` skill** for comprehensive 
 | Acceptance | `Tests/Acceptance/` | `composer ci:test:php:acceptance` |
 | Architecture | `Tests/Architecture/` | runs inside PHPStan via `phpat` (`composer ci:test:php:phpstan`) |
 | Fuzz | `Tests/Fuzz/` | `composer ci:test:php:fuzz` |
+| E2E / benchmark | `Tests/E2E/` (Playwright) | `make test-e2e` / `make benchmark` — provisions TYPO3 in Docker via `Build/Scripts/runTests.sh -s e2e` |
 
 ### Key fixtures
 - `Tests/Functional/ProcessorSymlinkedFileadminTest.php` — reproduces the Chemnitz EFS-symlink production layout (`public/{fileadmin,processed,uploads}` all symlinked to external mounts). Extend this when touching `Processor` allowed-roots logic.
 - `Tests/Functional/Fixtures/` — DB + filesystem fixtures for functional tests.
+- `Tests/Functional/Benchmark/RenderCostTest.php` — guards the performance-model claim (render writes no variant; core's `ImageService` processes everything). `Tests/E2E/` holds the full scenario benchmark behind `Documentation/Images/Benchmark/`.
 <!-- AGENTS-GENERATED:END filemap -->
 
 <!-- AGENTS-GENERATED:START setup -->
