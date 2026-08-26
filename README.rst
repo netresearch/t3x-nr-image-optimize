@@ -191,6 +191,25 @@ Images accessed via the ``/processed/`` path are automatically
 optimized by the frontend middleware; uploaded images are
 compressed by the event listener.
 
+The following settings, configured via Extension Configuration
+(*Admin Tools > Settings > Extension Configuration >
+nr_image_optimize*) or ``config/system/additional.php``, tweak
+this behavior:
+
+* ``qualityWebp`` (default ``75``) / ``qualityAvif``
+  (default ``60``) -- output quality for the generated WebP/AVIF
+  sidecar variants.
+* ``additionalTrustedStorageSymlinks`` -- comma-separated
+  directory names to trust when found as a symlink inside a
+  Local FAL storage's base path (for example a relocated
+  ``_processed_``).
+* ``additionalTrustedRoots`` -- comma-separated absolute
+  filesystem paths to add to the processor's allow-list.
+
+See `Documentation/Configuration
+<https://docs.typo3.org/p/netresearch/nr-image-optimize/main/en-us/Configuration/Index.html>`_
+for details, defaults, and security notes on each setting.
+
 ViewHelper usage
 ----------------
 

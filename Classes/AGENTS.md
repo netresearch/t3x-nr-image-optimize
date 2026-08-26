@@ -20,7 +20,7 @@ PHP source of the `nr_image_optimize` extension. Namespace `Netresearch\NrImageO
 | `Classes/Command/AnalyzeImagesCommand.php`, `OptimizeImagesCommand.php` | Symfony console commands (auto-discovered via `Configuration/Services.yaml`). |
 | `Classes/Service/ImageManagerFactory.php` | Auto-selects Imagick, falls back to GD. `final readonly class`. |
 | `Classes/Service/ImageManagerAdapter.php` | Thin wrapper over Intervention `ImageManager` with a dynamic `read()`/`decode()` dispatch (v3 vs v4 compat). |
-| `Classes/Service/ImageOptimizer.php` | External binary invocation (optipng/jpegoptim/cwebp/avifenc). Uses `@` on `filesize`/`unlink`/`getimagesize` by design — see `Build/phpstan.neon` path scope. |
+| `Classes/Service/ImageOptimizer.php` | External binary invocation (optipng/gifsicle/jpegoptim). Uses `@` on `filesize`/`unlink`/`getimagesize` by design — see `Build/phpstan.neon` path scope. |
 | `Classes/Service/SystemRequirementsService.php` | Backend-module health check: binary availability, PHP extensions, composer-lock version detection. |
 | `Classes/Event/ImageProcessedEvent.php`, `VariantServedEvent.php` | Immutable DTOs, `final readonly class`, constructor-only setters, named-argument callsites. |
 | `Classes/EventListener/OptimizeOnUploadListener.php` | Auto-optimize on FAL upload; re-entrancy-guarded by `$storage.uid + file.identifier`. |
@@ -42,7 +42,7 @@ PHP source of the `nr_image_optimize` extension. Namespace `Netresearch\NrImageO
 - Install: `composer install` (uses `.Build/vendor/` per `composer.json` config).
 - PHP: >=8.2; TYPO3: `^13.4 || ^14.0` on `main`, `^12.4` on `TYPO3_12` branch.
 - PHP extension: Intervention Image uses Imagick if available, else GD — both supported via `Classes/Service/ImageManagerFactory`.
-- External binaries (optional, for `ImageOptimizer`): `optipng`, `jpegoptim`, `cwebp`, `avifenc`. Missing binaries degrade gracefully.
+- External binaries (optional, for `ImageOptimizer`): `optipng`, `gifsicle`, `jpegoptim`. Missing binaries degrade gracefully.
 - `make` targets invoke `Build/Scripts/runTests.sh`, which runs each task inside a Docker (or Podman) PHP image — that's the CI-parity path. Use it when host PHP/Imagick differs from the matrix. Plain `composer` works too if your host has compatible PHP + extensions.
 <!-- AGENTS-GENERATED:END setup -->
 
@@ -121,7 +121,7 @@ This extension has **no** `Classes/Domain/` (no Extbase models), **no** `Configu
 ## Security & safety (specific to this extension)
 - **Path validation**: `Processor::getAllowedRoots()` is symlink-aware (`realpath()` all storage roots) — any code touching file paths in the request path must go through the allowed-roots check. See the symlink regression tests in `Tests/Functional/ProcessorSymlinkedFileadminTest.php` before changing.
 - **FAL only**: use `StorageRepository` / `ResourceStorage::getFile()` — no direct `file_get_contents($requestPath)`.
-- **External binaries**: `ImageOptimizer` invokes optipng/jpegoptim/cwebp/avifenc via `proc_open` with argument arrays (not shell strings) — keep it that way. Never concatenate user input into a command string.
+- **External binaries**: `ImageOptimizer` invokes optipng/gifsicle/jpegoptim via `proc_open` with argument arrays (not shell strings) — keep it that way. Never concatenate user input into a command string.
 - **nosemgrep tags**: the three `@unlink()` finally-block cleanups in `Classes/Service/ImageOptimizer.php` carry `// nosemgrep: php.lang.security.unlink-use.unlink-use` — only suppress with this exact pattern after verifying the path originates from `getForLocalProcessing(true)`.
 - **Backend access**: `MaintenanceController` relies on TYPO3 backend-user session; no additional check needed for routed actions. For ad-hoc access, use `$GLOBALS['BE_USER']->check()`.
 - **Path traversal**: combine the regex negative lookahead `(?:(?!\.\.).)` with a `realpath()` check against the cached public path — not one or the other.
