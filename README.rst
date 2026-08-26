@@ -191,7 +191,7 @@ Images accessed via the ``/processed/`` path are automatically
 optimized by the frontend middleware; uploaded images are
 compressed by the event listener.
 
-Four settings, configured via Extension Configuration
+The following settings, configured via Extension Configuration
 (*Admin Tools > Settings > Extension Configuration >
 nr_image_optimize*) or ``config/system/additional.php``, tweak
 this behavior:

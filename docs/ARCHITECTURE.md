@@ -16,7 +16,7 @@ The extension serves processed image variants (WebP/AVIF fallbacks, responsive `
 | ImageManagerFactory | `Classes/Service/ImageManagerFactory.php` | Builds Intervention `ImageManager` (Imagick if available, else GD); wired as factory in `Services.yaml` |
 | ImageManagerAdapter | `Classes/Service/ImageManagerAdapter.php` | Wraps `ImageManager`; `SplFileInfo`-based decode (non-ASCII-path safe); implements `ImageReaderInterface` |
 | ImageReaderInterface | `Classes/Service/ImageReaderInterface.php` | DI contract; `Services.yaml` aliases it to `ImageManagerAdapter` |
-| ImageOptimizer | `Classes/Service/ImageOptimizer.php` | Invokes external binaries (optipng/jpegoptim/cwebp/avifenc) via `proc_open` argument arrays |
+| ImageOptimizer | `Classes/Service/ImageOptimizer.php` | Invokes external binaries (optipng/gifsicle/jpegoptim) via `proc_open` argument arrays |
 | SystemRequirementsService | `Classes/Service/SystemRequirementsService.php` | Backend health check: binaries, PHP extensions, library versions |
 | OptimizeOnUploadListener | `Classes/EventListener/OptimizeOnUploadListener.php` | Listens to FAL `AfterFileAddedEvent` / `AfterFileReplacedEvent`; re-entrancy-guarded |
 | Events | `Classes/Event/ImageProcessedEvent.php`, `Classes/Event/VariantServedEvent.php` | Immutable PSR-14 DTOs, dispatched with guarded `try/catch` |
