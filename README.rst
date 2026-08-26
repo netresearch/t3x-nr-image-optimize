@@ -42,14 +42,21 @@ the first byte of HTML arrives. This extension only emits
 its own request, when a browser actually asks for it, in parallel
 across PHP-FPM workers, and served as a static file from then on.
 
+..  figure:: Documentation/Images/Benchmark/ttfb.svg
+    :alt: Bar chart: time to first byte of the HTML document per scenario, TYPO3 core f:image versus nrio:sourceSet
+
+..  figure:: Documentation/Images/Benchmark/load.svg
+    :alt: Bar chart: time until the page is fully loaded per scenario, TYPO3 core f:image versus nrio:sourceSet
+
 Measured with the benchmark that ships in ``Tests/E2E``
 (24 photos of 3000×2000 px, TYPO3 14.3, medians of three visits):
-first byte of HTML on a cold cache in **0.14 s instead of 7.9 s**,
-complete page in **3.1 s instead of 8.0 s**, and with lazy loading
+first byte of HTML on a cold cache in **0.12 s instead of 8.4 s**,
+complete page in **3.0 s instead of 8.4 s**, and with lazy loading
 only the 7 images the viewport needed were processed instead of all
-24. Charts, raw data and the honest caveats (per image the extension
-encodes three formats, so a fully viewed cold page costs more CPU)
-are in the `Performance model
+24. Charts, raw data and the caveats (by default the extension encodes
+three formats per image, so a fully viewed cold page costs more CPU --
+13.5 s against 8.3 s; for the same single format it costs less, 6.9 s
+against 9.2 s) are in the `Performance model
 <https://docs.typo3.org/p/netresearch/nr-image-optimize/main/en-us/Introduction/Index.html#introduction-performance>`_
 chapter; ``make benchmark`` re-measures them.
 

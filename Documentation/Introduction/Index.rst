@@ -87,7 +87,7 @@ will not.
     :zoom: lightbox
 
     Client view -- the first byte of HTML. With a cold cache the
-    visitor waits 7.9 s for core, 0.14 s for the extension.
+    visitor waits 8.4 s for core, 0.12 s for the extension.
 
 ..  figure:: /Images/Benchmark/load.svg
     :alt: Bar chart: time until the page is fully loaded per scenario, core versus extension
@@ -96,8 +96,8 @@ will not.
 
     Client view -- the complete page. The 24 variant requests run in
     parallel across PHP-FPM workers instead of serially inside one
-    render: 8.0 s become 3.1 s, and the largest contentful paint
-    moves from 8.0 s to 0.8 s.
+    render: 8.4 s become 3.0 s, and the largest contentful paint
+    moves from 8.4 s to 0.7 s.
 
 ..  figure:: /Images/Benchmark/server-cpu.svg
     :alt: Bar chart: server CPU time per visit per scenario, core versus extension
@@ -105,13 +105,16 @@ will not.
     :zoom: lightbox
 
     Server view -- CPU time of the PHP-FPM container, ImageMagick
-    included. Read this one honestly: on a fully viewed cold page the
-    extension spends *more* CPU (14.6 s vs 7.8 s), because it writes
-    three files per image -- JPEG, WebP and AVIF -- and AVIF encoding
-    is expensive. That work is off the visitor's critical path and
-    can be reduced with ``skipAvif`` / ``skipWebP``; it also only
-    happens for images that are requested (lazy loading: 4.2 s vs
-    8.2 s for the seven images the viewport needed).
+    included. Read this one carefully: on a fully viewed cold page
+    the extension spends *more* CPU (13.5 s vs 8.3 s), because the
+    first request for a variant writes three files -- JPEG, WebP and
+    AVIF -- and AVIF encoding is expensive. The "JPEG only" row
+    isolates that: with ``skipWebP=1&skipAvif=1`` the same 24 images
+    cost 6.9 s against core's 9.2 s, so the pipeline itself is the
+    cheaper one and the extra formats are what the surplus buys. That
+    work is off the visitor's critical path, and it only happens for
+    images that are requested (lazy loading: 4.1 s vs 8.2 s for the
+    seven images the viewport needed).
 
 ..  figure:: /Images/Benchmark/variants-written.svg
     :alt: Bar chart: variant files written per visit per scenario, core versus extension
@@ -138,7 +141,7 @@ will not.
 In short:
 
 -   **First visitor after a deployment or cache flush:** HTML in
-    0.14 s instead of 7.9 s; complete page in 3.1 s instead of 8.0 s.
+    0.12 s instead of 8.4 s; complete page in 3.0 s instead of 8.4 s.
 -   **Lazy loading and hidden content** actually save work: only
     images the browser fetches are ever processed.
 -   **Render time is independent of image count and size.** A page
@@ -149,8 +152,10 @@ In short:
     someone flushes the page cache.
 -   **Steady state is identical:** a page-cache hit plus static files
     in both cases.
--   **Per image, the extension does more work** (three formats) and
-    delivers fewer bytes (AVIF/WebP where the browser accepts them).
+-   **Per image, the extension does more work by default** -- three
+    formats, 13.5 s against 8.3 s of CPU for 24 images -- and less for
+    the same single format (6.9 s against 9.2 s); it delivers fewer
+    bytes where the browser accepts AVIF or WebP.
 
 ..  _introduction-performance-reproduce:
 
@@ -161,7 +166,7 @@ The benchmark is part of the test suite, so the claims above are
 re-measured rather than remembered:
 
 -   ``make benchmark`` provisions TYPO3, the extension, Apache and
-    PHP-FPM in Docker, drives Chromium through the six scenarios
+    PHP-FPM in Docker, drives Chromium through the seven scenarios
     with both pipelines and rewrites the charts in
     :file:`Documentation/Images/Benchmark/` together with the raw
     ``results.json`` (every iteration, not just the medians). Only
