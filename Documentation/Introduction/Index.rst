@@ -43,10 +43,14 @@ before it can send its response.
 
 The ``SourceSetViewHelper`` instead only builds a
 ``/processed/...`` URL string while the page renders -- no image is
-read, decoded, or written at that point. Processing happens later,
-in a *separate* HTTP request, only when ``ProcessingMiddleware``
-intercepts a request for that URL -- which only happens for images
-the visitor's browser actually fetches.
+decoded, resized, or written at that point. (When neither ``width``
+nor ``height`` is given, it reads the source file's header once via
+``getimagesize()`` to fill in the dimensions; that read is cached
+per source file for the rest of the request and never decodes pixel
+data.) Processing happens later, in a *separate* HTTP request, only
+when ``ProcessingMiddleware`` intercepts a request for that URL --
+which only happens for images the visitor's browser actually
+fetches.
 
 ..  note::
 
