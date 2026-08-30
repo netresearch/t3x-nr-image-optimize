@@ -201,17 +201,28 @@ final class ProcessorFuzzTest extends TestCase
 
         // Edge cases that DO match the regex -- verify all parsed components
         $matchingCases = [
+            // No q component in the mode string, so the parser falls back to
+            // Processor::DEFAULT_QUALITY. That default became 75 in 8b25eaf
+            // (2026-07-20); this expectation still said 100, written in March.
             '/processed/' . str_repeat('a', 1000) . '.w100.jpg' => [
-                'targetWidth' => 100, 'targetHeight' => null, 'targetQuality' => 100, 'processingMode' => 0, 'extension' => 'jpg',
+                'targetWidth' => 100, 'targetHeight' => null, 'targetQuality' => 75, 'processingMode' => 0, 'extension' => 'jpg',
             ],
+            // w0/h0 mean "auto", not "clamp to 1px"; q0 still clamps, to
+            // MIN_QUALITY = 1.
             '/processed/image.w0h0q0m0.jpg' => [
-                'targetWidth' => 1, 'targetHeight' => 1, 'targetQuality' => 1, 'processingMode' => 0, 'extension' => 'jpg',
+                'targetWidth' => null, 'targetHeight' => null, 'targetQuality' => 1, 'processingMode' => 0, 'extension' => 'jpg',
             ],
             '/processed/image.w100h200.WEBP' => [
-                'targetWidth' => 100, 'targetHeight' => 200, 'targetQuality' => 100, 'processingMode' => 0, 'extension' => 'webp',
+                'targetWidth' => 100, 'targetHeight' => 200, 'targetQuality' => 75, 'processingMode' => 0, 'extension' => 'webp',
             ],
             '/processed/image.w100h200.JpEg' => [
-                'targetWidth' => 100, 'targetHeight' => 200, 'targetQuality' => 100, 'processingMode' => 0, 'extension' => 'jpg',
+                'targetWidth' => 100, 'targetHeight' => 200, 'targetQuality' => 75, 'processingMode' => 0, 'extension' => 'jpg',
+            ],
+            // An explicit quality that is NOT the default, so this case can tell
+            // "q was parsed" from "q was missing and the default applied" — the
+            // q75 case below cannot, now that the default is 75 as well.
+            '/processed/image.w50h80q90m1.png' => [
+                'targetWidth' => 50, 'targetHeight' => 80, 'targetQuality' => 90, 'processingMode' => 1, 'extension' => 'png',
             ],
             '/processed/image.w50h80q75m1.png' => [
                 'targetWidth' => 50, 'targetHeight' => 80, 'targetQuality' => 75, 'processingMode' => 1, 'extension' => 'png',

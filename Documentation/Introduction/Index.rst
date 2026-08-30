@@ -28,6 +28,55 @@ installation:
     ``nr:image:analyze`` console commands scan existing FAL
     storages. See :ref:`Usage <usage>`.
 
+..  _introduction-performance:
+
+Performance model
+==================
+
+TYPO3's standard image pipeline (``f:image`` / ``ImageService``)
+processes every referenced image *synchronously*, during the same
+PHP request that renders the page -- including images that never
+end up in the visible viewport (sliders, tabs, below-the-fold
+content). On a cold cache (no ``_processed_`` variant yet), that
+request blocks on decode + resize + encode for every single image
+before it can send its response.
+
+The ``SourceSetViewHelper`` instead only builds a
+``/processed/...`` URL string while the page renders -- no image is
+decoded, resized, or written at that point. (When neither ``width``
+nor ``height`` is given, it reads the source file's header once via
+``getimagesize()`` to fill in the dimensions; that read is cached
+per source file for the rest of the request and never decodes pixel
+data.) Processing happens later, in a *separate* HTTP request, only
+when ``ProcessingMiddleware`` intercepts a request for that URL --
+which only happens for images the visitor's browser actually
+fetches.
+
+..  note::
+
+    We measured this against a real TYPO3 functional-test instance,
+    comparing ``SourceSetViewHelper::getResourcePath()`` (this
+    extension's render-time cost) against TYPO3 core's
+    ``GraphicalFunctions::imageMagickConvert()`` (the engine
+    ``f:image``/``ImageService`` delegates into), forcing a fresh
+    conversion on every call to rule out cache effects. On a cold
+    render, the per-image gap was on the order of **1,000x to
+    50,000x**, scaling with source image size -- larger photos cost
+    more to decode/resize, while URL-building stays flat regardless
+    of size.
+
+    This is a *cold-render, per-image* comparison, not a universal
+    guarantee: once a variant exists on disk, both approaches are
+    cheap (a database lookup vs. a static file read), and the exact
+    numbers will vary with server hardware, image processor
+    (ImageMagick/GraphicsMagick/GD/Imagick), and source image size.
+
+The more durable benefit isn't raw speed, though: it's *total work
+avoided*. A page with 50 images where only 12 are ever scrolled
+into view (or use ``loading="lazy"`` and never trigger) has TYPO3
+core process all 50 at render time -- this extension processes only
+the 12 that were actually requested.
+
 ..  _introduction-features:
 
 Features
