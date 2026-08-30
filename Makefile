@@ -6,7 +6,7 @@ help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
 cgl: ## Check code style (dry-run)
-	$(RUNTESTS) -s cgl
+	$(RUNTESTS) -s cgl -n
 
 cgl-fix: ## Fix code style
 	$(RUNTESTS) -s cgl:fix
@@ -15,10 +15,10 @@ phpstan: ## Run PHPStan static analysis
 	$(RUNTESTS) -s phpstan
 
 rector: ## Run Rector dry-run
-	$(RUNTESTS) -s rector
+	$(RUNTESTS) -s rector -n
 
 fractor: ## Run Fractor dry-run
-	$(RUNTESTS) -s fractor
+	$(RUNTESTS) -s fractor -n
 
 lint: ## Run PHP linter
 	$(RUNTESTS) -s lint

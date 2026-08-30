@@ -65,7 +65,7 @@ This repo uses **`guides.xml`** (modern) not `Settings.cfg` (legacy). Don't rege
 ## Commands (rendering docs)
 | Task | Command |
 |------|---------|
-| Render locally | `docker run --rm -v $(pwd):/project ghcr.io/typo3-documentation/render-guides:latest` |
+| Render locally | `docker run --rm -v $(pwd):/project ghcr.io/typo3-documentation/render-guides:latest --config=Documentation` |
 | Preview | Open `Documentation-GENERATED-temp/Index.html` |
 | Clean | `rm -rf Documentation-GENERATED-temp/` |
 <!-- AGENTS-GENERATED:END commands -->
