@@ -12,6 +12,7 @@ declare(strict_types=1);
 namespace Netresearch\NrImageOptimize\ViewHelpers;
 
 use function array_filter;
+use function array_key_exists;
 use function array_map;
 use function array_unique;
 use function explode;
@@ -21,6 +22,7 @@ use function htmlspecialchars;
 use function http_build_query;
 use function implode;
 use function is_array;
+use function json_decode;
 use function round;
 use function sort;
 use function sprintf;
@@ -31,6 +33,7 @@ use function trigger_error;
 use function trim;
 
 use TYPO3\CMS\Core\Core\Environment;
+use TYPO3\CMS\Core\Resource\FileReference;
 use TYPO3\CMS\Core\Utility\PathUtility;
 use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper;
 
@@ -128,6 +131,8 @@ final class SourceSetViewHelper extends AbstractViewHelper
         $this->registerArgument('widthVariants', 'string|array', 'Width variants for responsive srcset (comma-separated string or array).', false);
         $this->registerArgument('sizes', 'string', 'Sizes attribute for responsive images.', false, self::DEFAULT_SIZES);
         $this->registerArgument('fetchpriority', 'string', "Resource fetch priority for the image: 'high', 'low', or 'auto'.", false, '');
+        $this->registerArgument('image', FileReference::class, 'Optional FAL FileReference used to derive a crop-aware height (overrides `height`).', false);
+        $this->registerArgument('cropVariant', 'string', 'FAL crop variant to read from `image` when deriving height.', false, 'default');
     }
 
     /**
@@ -138,7 +143,7 @@ final class SourceSetViewHelper extends AbstractViewHelper
     public function render(): string
     {
         $width  = $this->getArgWidth();
-        $height = $this->getArgHeight();
+        $height = $this->resolveEffectiveHeight($width);
 
         if ($this->isPassthroughUrl($this->getArgPath())) {
             return $this->renderPassthroughImage($this->getArgPath(), $width, $height);
@@ -573,6 +578,111 @@ final class SourceSetViewHelper extends AbstractViewHelper
         $height = $this->arguments['height'] ?? 0;
 
         return (int) floor(is_numeric($height) ? (float) $height : 0);
+    }
+
+    /**
+     * Resolve the effective height for the given target width.
+     *
+     * When the `image` argument carries a FAL FileReference, the height is derived
+     * from that image's crop-variant aspect ratio instead of the raw `height`
+     * argument, so callers no longer need a separate crop-aware ViewHelper to
+     * pre-compute it. Falls back to `getArgHeight()` when no image is given or
+     * no usable ratio can be determined.
+     *
+     * @param int $width Target width in pixels
+     *
+     * @return int Effective height in pixels
+     */
+    private function resolveEffectiveHeight(int $width): int
+    {
+        $height = $this->getArgHeight();
+        $image  = $this->arguments['image'] ?? null;
+
+        if (!$image instanceof FileReference || $width <= 0) {
+            return $height;
+        }
+
+        $ratio = $this->cropAspectRatio($image, $this->getArgCropVariant());
+
+        if ($ratio === null) {
+            return $height;
+        }
+
+        $computedHeight = (int) round($width * $ratio);
+
+        return $computedHeight > 0 ? $computedHeight : $height;
+    }
+
+    /**
+     * Derive the height-to-width ratio for a FAL image, honoring its crop variant.
+     *
+     * Falls back to the image's original aspect ratio when the crop variant is
+     * missing, malformed, or does not carry a usable crop area — mirroring the
+     * behaviour previously duplicated in consuming site packages.
+     *
+     * @param FileReference $image       FAL file reference to read `width`/`height`/`crop` from
+     * @param string        $cropVariant Crop variant key to read from the `crop` property
+     *
+     * @return float|null Height-to-width ratio, or null if the image has no usable dimensions
+     */
+    private function cropAspectRatio(FileReference $image, string $cropVariant): ?float
+    {
+        $rawWidth  = $image->getProperty('width');
+        $rawHeight = $image->getProperty('height');
+
+        $originalWidth  = is_numeric($rawWidth) ? (int) $rawWidth : 0;
+        $originalHeight = is_numeric($rawHeight) ? (int) $rawHeight : 0;
+
+        if ($originalWidth <= 0 || $originalHeight <= 0) {
+            return null;
+        }
+
+        $originalRatio = $originalHeight / $originalWidth;
+        $rawCrop       = $image->getProperty('crop');
+        $cropJson      = is_string($rawCrop) ? $rawCrop : '';
+
+        if ($cropJson === '') {
+            return $originalRatio;
+        }
+
+        $data = json_decode($cropJson, true);
+
+        if (!is_array($data)) {
+            return $originalRatio;
+        }
+
+        $variantData = $data[$cropVariant] ?? null;
+        $area        = (is_array($variantData) && array_key_exists('cropArea', $variantData))
+            ? $variantData['cropArea']
+            : ($data['cropArea'] ?? null);
+
+        if (!is_array($area) || !array_key_exists('width', $area) || !array_key_exists('height', $area)) {
+            return $originalRatio;
+        }
+
+        $rawCropWidth  = $area['width'];
+        $rawCropHeight = $area['height'];
+
+        $cropWidthRatio  = is_numeric($rawCropWidth) ? (float) $rawCropWidth : 0.0;
+        $cropHeightRatio = is_numeric($rawCropHeight) ? (float) $rawCropHeight : 0.0;
+
+        if ($cropWidthRatio <= 0.0 || $cropHeightRatio <= 0.0) {
+            return $originalRatio;
+        }
+
+        return ($originalHeight * $cropHeightRatio) / ($originalWidth * $cropWidthRatio);
+    }
+
+    /**
+     * Resolve the crop variant argument used to read crop data from `image`.
+     *
+     * @return string Crop variant key (defaults to "default")
+     */
+    private function getArgCropVariant(): string
+    {
+        $cropVariant = $this->arguments['cropVariant'] ?? 'default';
+
+        return is_string($cropVariant) && $cropVariant !== '' ? $cropVariant : 'default';
     }
 
     /**
