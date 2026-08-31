@@ -403,9 +403,7 @@ class SourceSetViewHelper extends AbstractViewHelper
         if ($width === 0 && $height === 0) {
             // Use static cache to avoid repeated getimagesize() disk I/O
             // for the same source image across multiple variant URLs.
-            if (!isset(self::$imageSizeCache[$path])) {
-                self::$imageSizeCache[$path] = @getimagesize(Environment::getPublicPath() . $path);
-            }
+            self::$imageSizeCache[$path] ??= @getimagesize(Environment::getPublicPath() . $path);
 
             $info = self::$imageSizeCache[$path];
 

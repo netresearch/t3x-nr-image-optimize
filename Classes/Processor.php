@@ -651,9 +651,7 @@ class Processor
 
             for ($i = 0; $i < $count; ++$i) {
                 // First occurrence wins (matches original behavior of array_search)
-                if (!isset($values[$matches[1][$i]])) {
-                    $values[$matches[1][$i]] = (int) $matches[2][$i];
-                }
+                $values[$matches[1][$i]] ??= (int) $matches[2][$i];
             }
         }
 
@@ -1283,13 +1281,9 @@ class Processor
 
         $aspectRatio = $imageWidth / $imageHeight;
 
-        if ($targetHeight === null) {
-            $targetHeight = (int) round($targetWidth / $aspectRatio, 0);
-        }
+        $targetHeight ??= (int) round($targetWidth / $aspectRatio, 0);
 
-        if ($targetWidth === null) {
-            $targetWidth = (int) round($targetHeight * $aspectRatio, 0);
-        }
+        $targetWidth ??= (int) round($targetHeight * $aspectRatio, 0);
 
         return [$targetWidth, $targetHeight];
     }
