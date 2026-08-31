@@ -50,10 +50,10 @@
 
             var extCell = document.createElement('td');
             extCell.className = 'ps-3';
-            var code = document.createElement('code');
-            code.className = 'bg-body-tertiary px-2 py-1 rounded';
-            code.textContent = '.' + ext;
-            extCell.appendChild(code);
+            var badge = document.createElement('span');
+            badge.className = 'badge badge-secondary';
+            badge.textContent = '.' + ext;
+            extCell.appendChild(badge);
 
             var countCell = document.createElement('td');
             countCell.className = 'text-end';
