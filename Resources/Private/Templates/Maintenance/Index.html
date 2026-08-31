@@ -173,6 +173,37 @@
                 </div>
             </div>
 
+            <!-- Invalidate by Path -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h2 class="card-title mb-0 h5">
+                        <core:icon identifier="actions-refresh" size="small"/>
+                        <strong><f:translate key="invalidatePath.title" extensionName="NrImageOptimize" /></strong>
+                    </h2>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small mb-3"><f:translate key="invalidatePath.description" extensionName="NrImageOptimize" /></p>
+
+                    <f:variable name="invalidateConfirmTemplate"><f:translate key="invalidatePath.confirm" extensionName="NrImageOptimize" /></f:variable>
+                    <f:variable name="invalidateSuccessTemplate"><f:translate key="invalidatePath.result.success" extensionName="NrImageOptimize" /></f:variable>
+                    <f:variable name="invalidateErrorText"><f:translate key="invalidatePath.result.error" extensionName="NrImageOptimize" /></f:variable>
+
+                    <f:form id="invalidate-path-form" action="invalidatePath"
+                            additionalAttributes="{data-confirm-template: invalidateConfirmTemplate, data-success-template: invalidateSuccessTemplate, data-error-text: invalidateErrorText}">
+                        <div class="input-group">
+                            <input type="text" name="path" id="invalidate-path-input" class="form-control"
+                                   placeholder="{f:translate(key: 'invalidatePath.placeholder', extensionName: 'NrImageOptimize')}" required="required">
+                            <button type="submit" class="btn btn-warning" id="invalidate-path-submit">
+                                <span class="spinner-border spinner-border-sm d-none" id="invalidate-path-spinner" aria-hidden="true"></span>
+                                <core:icon identifier="actions-refresh" size="small"/>
+                                <f:translate key="invalidatePath.button" extensionName="NrImageOptimize" />
+                            </button>
+                        </div>
+                    </f:form>
+                    <div id="invalidate-path-result" class="mt-2 small"></div>
+                </div>
+            </div>
+
             <!-- Clear Action -->
             <div class="card border-warning">
                 <div class="card-header bg-warning bg-opacity-10">

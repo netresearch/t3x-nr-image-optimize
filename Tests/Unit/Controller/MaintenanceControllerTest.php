@@ -673,4 +673,170 @@ final class MaintenanceControllerTest extends TestCase
         self::assertSame(1, $result['count']);
         self::assertSame(100, $result['size']);
     }
+
+    // -------------------------------------------------------------------------
+    // normalizeInvalidationPattern
+    // -------------------------------------------------------------------------
+
+    #[Test]
+    public function normalizeInvalidationPatternStripsPlainExtension(): void
+    {
+        self::assertSame(
+            'fileadmin/images/logo',
+            $this->callMethod('normalizeInvalidationPattern', 'fileadmin/images/logo.png'),
+        );
+    }
+
+    #[Test]
+    public function normalizeInvalidationPatternStripsWildcardExtension(): void
+    {
+        self::assertSame(
+            'fileadmin/images/logo',
+            $this->callMethod('normalizeInvalidationPattern', 'fileadmin/images/logo.*'),
+        );
+    }
+
+    #[Test]
+    public function normalizeInvalidationPatternExpandsTrailingSlashToWildcard(): void
+    {
+        self::assertSame(
+            'fileadmin/images/*',
+            $this->callMethod('normalizeInvalidationPattern', 'fileadmin/images/'),
+        );
+    }
+
+    #[Test]
+    public function normalizeInvalidationPatternKeepsWildcardInMiddleOfPathAndStripsTrailingExtension(): void
+    {
+        self::assertSame(
+            'fileadmin/*/logo',
+            $this->callMethod('normalizeInvalidationPattern', 'fileadmin/*/logo.png'),
+        );
+    }
+
+    #[Test]
+    public function normalizeInvalidationPatternTrimsLeadingSlashAndWhitespace(): void
+    {
+        self::assertSame(
+            'fileadmin/images/logo',
+            $this->callMethod('normalizeInvalidationPattern', '  /fileadmin/images/logo.png  '),
+        );
+    }
+
+    // -------------------------------------------------------------------------
+    // stripVariantSuffix
+    // -------------------------------------------------------------------------
+
+    #[Test]
+    public function stripVariantSuffixRemovesModeAndExtension(): void
+    {
+        self::assertSame(
+            'fileadmin/images/logo',
+            $this->callMethod('stripVariantSuffix', 'fileadmin/images/logo.w576h324m1q75.webp'),
+        );
+    }
+
+    #[Test]
+    public function stripVariantSuffixLeavesNonVariantPathUnchanged(): void
+    {
+        self::assertSame(
+            'fileadmin/images/logo.png',
+            $this->callMethod('stripVariantSuffix', 'fileadmin/images/logo.png'),
+        );
+    }
+
+    // -------------------------------------------------------------------------
+    // invalidateProcessedVariants
+    // -------------------------------------------------------------------------
+
+    #[Test]
+    public function invalidateProcessedVariantsDeletesOnlyVariantsOfExactOriginal(): void
+    {
+        $testDir = $this->tempDir . '/invalidate-exact';
+        mkdir($testDir . '/fileadmin/images', 0o777, true);
+
+        file_put_contents($testDir . '/fileadmin/images/logo.w300h200m1q80.webp', 'x');
+        file_put_contents($testDir . '/fileadmin/images/logo.w600h400m1q80.avif', 'x');
+        file_put_contents($testDir . '/fileadmin/images/other.w300h200m1q80.webp', 'x');
+
+        $deletedCount = $this->callMethod('invalidateProcessedVariants', $testDir, 'fileadmin/images/logo.png');
+
+        self::assertSame(2, $deletedCount);
+        self::assertFileDoesNotExist($testDir . '/fileadmin/images/logo.w300h200m1q80.webp');
+        self::assertFileDoesNotExist($testDir . '/fileadmin/images/logo.w600h400m1q80.avif');
+        self::assertFileExists($testDir . '/fileadmin/images/other.w300h200m1q80.webp');
+    }
+
+    #[Test]
+    public function invalidateProcessedVariantsDeletesEverythingUnderDirectoryPrefix(): void
+    {
+        $testDir = $this->tempDir . '/invalidate-prefix';
+        mkdir($testDir . '/fileadmin/images', 0o777, true);
+        mkdir($testDir . '/fileadmin/other', 0o777, true);
+
+        file_put_contents($testDir . '/fileadmin/images/logo.w300h200m1q80.webp', 'x');
+        file_put_contents($testDir . '/fileadmin/images/banner.w600h400m1q80.avif', 'x');
+        file_put_contents($testDir . '/fileadmin/other/pic.w300h200m1q80.webp', 'x');
+
+        $deletedCount = $this->callMethod('invalidateProcessedVariants', $testDir, 'fileadmin/images/');
+
+        self::assertSame(2, $deletedCount);
+        self::assertFileDoesNotExist($testDir . '/fileadmin/images/logo.w300h200m1q80.webp');
+        self::assertFileDoesNotExist($testDir . '/fileadmin/images/banner.w600h400m1q80.avif');
+        self::assertFileExists($testDir . '/fileadmin/other/pic.w300h200m1q80.webp');
+    }
+
+    #[Test]
+    public function invalidateProcessedVariantsSupportsWildcardPattern(): void
+    {
+        $testDir = $this->tempDir . '/invalidate-wildcard';
+        mkdir($testDir . '/fileadmin/images', 0o777, true);
+
+        file_put_contents($testDir . '/fileadmin/images/logo.w300h200m1q80.webp', 'x');
+        file_put_contents($testDir . '/fileadmin/images/banner.w300h200m1q80.webp', 'x');
+        file_put_contents($testDir . '/fileadmin/images/keep.w300h200m1q80.webp', 'x');
+
+        $deletedCount = $this->callMethod('invalidateProcessedVariants', $testDir, 'fileadmin/images/{logo,banner}*');
+
+        // Brace expansion is not supported -- this documents plain glob semantics
+        // (only * and ? and [] are special), so nothing should match here.
+        self::assertSame(0, $deletedCount);
+        self::assertFileExists($testDir . '/fileadmin/images/keep.w300h200m1q80.webp');
+
+        $deletedCount = $this->callMethod('invalidateProcessedVariants', $testDir, 'fileadmin/images/l*');
+
+        self::assertSame(1, $deletedCount);
+        self::assertFileDoesNotExist($testDir . '/fileadmin/images/logo.w300h200m1q80.webp');
+        self::assertFileExists($testDir . '/fileadmin/images/banner.w300h200m1q80.webp');
+        self::assertFileExists($testDir . '/fileadmin/images/keep.w300h200m1q80.webp');
+    }
+
+    #[Test]
+    public function invalidateProcessedVariantsReturnsZeroForNonMatchingPattern(): void
+    {
+        $testDir = $this->tempDir . '/invalidate-nomatch';
+        mkdir($testDir . '/fileadmin/images', 0o777, true);
+
+        file_put_contents($testDir . '/fileadmin/images/logo.w300h200m1q80.webp', 'x');
+
+        $deletedCount = $this->callMethod('invalidateProcessedVariants', $testDir, 'fileadmin/images/does-not-exist.png');
+
+        self::assertSame(0, $deletedCount);
+        self::assertFileExists($testDir . '/fileadmin/images/logo.w300h200m1q80.webp');
+    }
+
+    #[Test]
+    public function invalidateProcessedVariantsReturnsZeroForNonExistentDirectory(): void
+    {
+        self::assertSame(0, $this->callMethod('invalidateProcessedVariants', '/non/existent/path', 'fileadmin/images/logo.png'));
+    }
+
+    #[Test]
+    public function invalidateProcessedVariantsReturnsZeroForEmptyPattern(): void
+    {
+        $testDir = $this->tempDir . '/invalidate-empty';
+        mkdir($testDir, 0o777, true);
+
+        self::assertSame(0, $this->callMethod('invalidateProcessedVariants', $testDir, '   '));
+    }
 }

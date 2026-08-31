@@ -127,6 +127,34 @@
                 <source>Clear All Processed Images</source>
                 <note from="developer">Label of the destructive submit button that triggers deletion of the whole /processed directory.</note>
             </trans-unit>
+            <trans-unit id="invalidatePath.title" resname="invalidatePath.title">
+                <source>Invalidate by Path</source>
+                <note from="developer">Card header for the targeted-deletion feature: delete only the processed variants derived from a given original file, directory, or glob pattern -- similar to a CDN cache invalidation.</note>
+            </trans-unit>
+            <trans-unit id="invalidatePath.description" resname="invalidatePath.description">
+                <source>Enter an original file path, a directory (ending in "/"), or a glob pattern (using * and ?). All processed variants of matching originals will be deleted.</source>
+                <note from="developer">Help text explaining the accepted input formats for the path-invalidation field above the input.</note>
+            </trans-unit>
+            <trans-unit id="invalidatePath.placeholder" resname="invalidatePath.placeholder">
+                <source>e.g. fileadmin/images/logo.png or fileadmin/images/*</source>
+                <note from="developer">Placeholder text inside the path/pattern input field. Keep the example paths, they illustrate both an exact file and a wildcard.</note>
+            </trans-unit>
+            <trans-unit id="invalidatePath.button" resname="invalidatePath.button">
+                <source>Invalidate</source>
+                <note from="developer">Label of the submit button that triggers targeted deletion of processed variants matching the entered path/pattern.</note>
+            </trans-unit>
+            <trans-unit id="invalidatePath.confirm" resname="invalidatePath.confirm">
+                <source>Delete all processed variants matching "{0}"? This action cannot be undone.</source>
+                <note from="developer">Confirmation dialog shown before invalidating. "{0}" is replaced client-side with the exact text the user typed into the path/pattern field.</note>
+            </trans-unit>
+            <trans-unit id="invalidatePath.result.success" resname="invalidatePath.result.success">
+                <source>{0} file(s) deleted.</source>
+                <note from="developer">Result message shown after a successful invalidation. "{0}" is replaced client-side with the number of deleted files (can be 0 if the pattern matched nothing).</note>
+            </trans-unit>
+            <trans-unit id="invalidatePath.result.error" resname="invalidatePath.result.error">
+                <source>Deletion failed. Please try again.</source>
+                <note from="developer">Result message shown when the asynchronous invalidation request fails (network error or non-2xx response).</note>
+            </trans-unit>
             <trans-unit id="sysreq.component" resname="sysreq.component">
                 <source>Component</source>
                 <note from="developer">Table column header on the system requirements page: name of the checked component (PHP version, extension, library ...). Short label.</note>
