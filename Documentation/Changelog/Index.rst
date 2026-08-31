@@ -6,6 +6,19 @@
 Changelog
 =========
 
+..  _changelog-2-5-0:
+
+2.5.0
+=====
+
+-   Added: ``image`` and ``cropVariant`` arguments on ``SourceSetViewHelper``
+    -- when a FAL ``FileReference`` is passed via ``image``, the ViewHelper
+    derives the effective height from that image's crop-variant area
+    (falling back to its original aspect ratio when the variant has no crop
+    data), instead of requiring callers to pre-compute a crop-aware height
+    themselves via a separate, site-specific ViewHelper. ``height`` remains
+    authoritative when ``image`` is omitted.
+
 ..  _changelog-2-4-2:
 
 2.4.2
