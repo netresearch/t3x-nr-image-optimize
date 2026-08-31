@@ -107,6 +107,14 @@
                 <source>File Path</source>
                 <note from="developer">Table column header for the relative path of a processed file (relative to /processed).</note>
             </trans-unit>
+            <trans-unit id="stats.loading" resname="stats.loading">
+                <source>Loading…</source>
+                <note from="developer">Placeholder shown in the statistics cards/tables while they are being fetched asynchronously from the server.</note>
+            </trans-unit>
+            <trans-unit id="stats.loadError" resname="stats.loadError">
+                <source>Could not load statistics. Please reload the page.</source>
+                <note from="developer">Error message shown in place of the statistics when the asynchronous fetch fails (network error or non-2xx response).</note>
+            </trans-unit>
             <trans-unit id="flash.clear.notice.title" resname="flash.clear.notice.title">
                 <source>Notice:</source>
                 <note from="developer">Lead-in (bold prefix) of a warning callout that explains the consequences of clearing. Keep the trailing colon.</note>

@@ -28,6 +28,7 @@ return [
         'controllerActions' => [
             MaintenanceController::class => [
                 'index',
+                'statistics',
                 'systemRequirements',
                 'clearProcessedImages',
             ],

@@ -20,6 +20,7 @@ use FilesystemIterator;
 
 use function floor;
 use function is_dir;
+use function json_encode;
 use function log;
 use function max;
 use function min;
@@ -88,25 +89,41 @@ final class MaintenanceController extends ActionController implements LoggerAwar
     }
 
     /**
-     * Display the maintenance overview with directory statistics for processed images.
+     * Display the maintenance overview. Directory statistics are not computed
+     * here -- on large "processed" trees the filesystem walk is too slow to
+     * block page rendering -- the view loads them asynchronously via
+     * {@see self::statisticsAction()}.
      */
     public function indexAction(): ResponseInterface
+    {
+        $moduleTemplate = $this->moduleTemplateFactory->create($this->request);
+        $moduleTemplate->assign('processedPath', Environment::getPublicPath() . '/processed');
+
+        return $moduleTemplate->renderResponse('Maintenance/Index');
+    }
+
+    /**
+     * Compute directory statistics for processed images and return them as JSON.
+     *
+     * Fetched asynchronously by the maintenance overview so opening the module
+     * is never blocked by the filesystem walk over "processed".
+     */
+    public function statisticsAction(): ResponseInterface
     {
         $processedPath = Environment::getPublicPath() . '/processed';
         $stats         = $this->getDirectoryStats($processedPath);
 
-        $moduleTemplate = $this->moduleTemplateFactory->create($this->request);
-        $moduleTemplate->assign('processedPath', $processedPath);
-        $moduleTemplate->assign('fileCount', $stats['count']);
-        $moduleTemplate->assign('directoryCount', $stats['directories']);
-        $moduleTemplate->assign('totalSizeBytes', $stats['size']);
-        $moduleTemplate->assign('totalSizeHuman', $this->formatBytes($stats['size']));
-        $moduleTemplate->assign('largestFiles', $stats['largestFiles']);
-        $moduleTemplate->assign('fileTypes', $stats['fileTypes']);
-        $moduleTemplate->assign('oldestFile', $stats['oldestFile']);
-        $moduleTemplate->assign('newestFile', $stats['newestFile']);
-
-        return $moduleTemplate->renderResponse('Maintenance/Index');
+        return $this->jsonResponse(json_encode([
+            'processedPath'  => $processedPath,
+            'fileCount'      => $stats['count'],
+            'directoryCount' => $stats['directories'],
+            'totalSizeBytes' => $stats['size'],
+            'totalSizeHuman' => $this->formatBytes($stats['size']),
+            'largestFiles'   => $stats['largestFiles'],
+            'fileTypes'      => $stats['fileTypes'],
+            'oldestFile'     => $stats['oldestFile'],
+            'newestFile'     => $stats['newestFile'],
+        ], JSON_THROW_ON_ERROR));
     }
 
     /**
@@ -226,13 +243,13 @@ final class MaintenanceController extends ActionController implements LoggerAwar
             ];
         }
 
-        $count       = 0;
-        $size        = 0;
-        $directories = 0;
-        $files       = [];
-        $fileTypes   = [];
-        $oldestFile  = null;
-        $newestFile  = null;
+        $count        = 0;
+        $size         = 0;
+        $directories  = 0;
+        $largestFiles = [];
+        $fileTypes    = [];
+        $oldestFile   = null;
+        $newestFile   = null;
 
         $iterator = new RecursiveIteratorIterator(
             new RecursiveDirectoryIterator($path, RecursiveDirectoryIterator::SKIP_DOTS),
@@ -261,17 +278,21 @@ final class MaintenanceController extends ActionController implements LoggerAwar
             ++$fileTypes[$extension]['count'];
             $fileTypes[$extension]['size'] += $fileSize;
 
-            $files[] = [
+            $largestFiles = $this->updateLargestFiles($largestFiles, [
                 'name' => $file->getFilename(),
                 'path' => str_replace($path . '/', '', $file->getPathname()),
                 'size' => $fileSize,
-            ];
+            ]);
 
             $oldestFile = $this->updateTimestampRecord($oldestFile, $file->getFilename(), $mtime, true);
             $newestFile = $this->updateTimestampRecord($newestFile, $file->getFilename(), $mtime, false);
         }
 
-        $largestFiles = $this->buildLargestFiles($files);
+        foreach ($largestFiles as &$largestFile) {
+            $largestFile['sizeHuman'] = $this->formatBytes($largestFile['size']);
+        }
+
+        unset($largestFile);
 
         uasort($fileTypes, static fn (array $a, array $b): int => $b['size'] <=> $a['size']);
 
@@ -319,24 +340,30 @@ final class MaintenanceController extends ActionController implements LoggerAwar
     }
 
     /**
-     * Sort files by size descending and return the top entries with human-readable sizes.
+     * Insert a candidate file into a size-bounded top-files list, keeping it
+     * sorted descending by size and capped at {@see self::LARGEST_FILES_LIMIT}.
      *
-     * @param list<array{name: string, path: string, size: int}> $files All collected file entries
+     * Avoids materializing every scanned file just to sort them once at the
+     * end -- a candidate that cannot possibly make the cut (smaller than the
+     * current minimum once the list is full) is rejected without sorting.
      *
-     * @return list<array{name: string, path: string, size: int, sizeHuman: string}> Top largest files
+     * @param list<array{name: string, path: string, size: int}> $largestFiles Current bounded top-files list
+     * @param array{name: string, path: string, size: int}       $candidate    File to consider for inclusion
+     *
+     * @return list<array{name: string, path: string, size: int}> Updated bounded top-files list
      */
-    private function buildLargestFiles(array $files): array
+    private function updateLargestFiles(array $largestFiles, array $candidate): array
     {
-        usort($files, static fn (array $a, array $b): int => $b['size'] <=> $a['size']);
-        $largestFiles = array_slice($files, 0, self::LARGEST_FILES_LIMIT);
-
-        foreach ($largestFiles as &$file) {
-            $file['sizeHuman'] = $this->formatBytes($file['size']);
+        if (count($largestFiles) >= self::LARGEST_FILES_LIMIT
+            && $candidate['size'] <= $largestFiles[count($largestFiles) - 1]['size']
+        ) {
+            return $largestFiles;
         }
 
-        unset($file);
+        $largestFiles[] = $candidate;
+        usort($largestFiles, static fn (array $a, array $b): int => $b['size'] <=> $a['size']);
 
-        return $largestFiles;
+        return array_slice($largestFiles, 0, self::LARGEST_FILES_LIMIT);
     }
 
     /**
