@@ -57,15 +57,17 @@ parameters:
           reportUnmatched: false
         # ergebnis.noNullableReturnTypeDeclaration — `?X` return types model
         # "find-or-null" lookup semantics (cache miss, file-not-found,
-        # binary-not-available, version-not-detected). Throwing exceptions
-        # for each not-found case would invert the control flow for purely
-        # optional queries. Path-scoped. Tests/* is included because test
-        # doubles and helper methods mirror the prod return shapes.
+        # binary-not-available, version-not-detected, no usable crop ratio).
+        # Throwing exceptions for each not-found case would invert the
+        # control flow for purely optional queries. Path-scoped. Tests/* is
+        # included because test doubles and helper methods mirror the prod
+        # return shapes.
         - identifier: ergebnis.noNullableReturnTypeDeclaration
           paths:
               - %currentWorkingDirectory%/Classes/Processor.php
               - %currentWorkingDirectory%/Classes/Service/ImageOptimizer.php
               - %currentWorkingDirectory%/Classes/Service/SystemRequirementsService.php
+              - %currentWorkingDirectory%/Classes/ViewHelpers/SourceSetViewHelper.php
               - %currentWorkingDirectory%/Tests/*
           reportUnmatched: false
         # ergebnis.noParameterWithNullDefaultValue — `?X $x = null` is the
