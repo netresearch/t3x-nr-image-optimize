@@ -2376,7 +2376,7 @@ final class ProcessorTest extends TestCase
         $stream      = $this->createMock(StreamInterface::class);
 
         $responseFactory = $this->createMock(ResponseFactoryInterface::class);
-        $responseFactory->method('createResponse')->with(503)->willReturn($response503);
+        $responseFactory->method('createResponse')->willReturnMap([[503, $response503]]);
 
         $streamFactory = $this->createMock(StreamFactoryInterface::class);
         $streamFactory->method('createStream')->willReturn($stream);
@@ -2403,7 +2403,7 @@ final class ProcessorTest extends TestCase
         $stream      = $this->createMock(StreamInterface::class);
 
         $responseFactory = $this->createMock(ResponseFactoryInterface::class);
-        $responseFactory->method('createResponse')->with(503)->willReturn($response503);
+        $responseFactory->method('createResponse')->willReturnMap([[503, $response503]]);
 
         $streamFactory = $this->createMock(StreamFactoryInterface::class);
         $streamFactory->method('createStream')->willReturn($stream);
@@ -2460,7 +2460,7 @@ final class ProcessorTest extends TestCase
         $dir = '/dev/null/impossible-dir-' . uniqid('', true);
 
         $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Directory "/dev/null/impossible-dir-');
+        $this->expectExceptionMessageIsOrContains('Directory "/dev/null/impossible-dir-');
 
         $this->callMethod($this->processor, 'ensureDirectoryExists', $dir);
     }
@@ -2506,7 +2506,7 @@ final class ProcessorTest extends TestCase
         $response404 = $this->createMock(ResponseInterface::class);
 
         $responseFactory = $this->createMock(ResponseFactoryInterface::class);
-        $responseFactory->method('createResponse')->with(404)->willReturn($response404);
+        $responseFactory->method('createResponse')->willReturnMap([[404, $response404]]);
 
         $processor = $this->createProcessor(responseFactory: $responseFactory);
 
@@ -2762,7 +2762,7 @@ final class ProcessorTest extends TestCase
 
         $response400     = $this->createMock(ResponseInterface::class);
         $responseFactory = $this->createMock(ResponseFactoryInterface::class);
-        $responseFactory->method('createResponse')->with(400)->willReturn($response400);
+        $responseFactory->method('createResponse')->willReturnMap([[400, $response400]]);
 
         $processor = $this->createProcessor(responseFactory: $responseFactory);
 
@@ -2794,7 +2794,7 @@ final class ProcessorTest extends TestCase
 
         $response503     = $this->createMock(ResponseInterface::class);
         $responseFactory = $this->createMock(ResponseFactoryInterface::class);
-        $responseFactory->method('createResponse')->with(503)->willReturn($response503);
+        $responseFactory->method('createResponse')->willReturnMap([[503, $response503]]);
 
         $lockFactory = $this->createMock(LockFactory::class);
         $lockFactory->method('createLocker')
@@ -2834,7 +2834,7 @@ final class ProcessorTest extends TestCase
         $stream503   = $this->createMock(StreamInterface::class);
 
         $responseFactory = $this->createMock(ResponseFactoryInterface::class);
-        $responseFactory->method('createResponse')->with(503)->willReturn($response503);
+        $responseFactory->method('createResponse')->willReturnMap([[503, $response503]]);
         $response503->method('withBody')->willReturn($response503);
 
         $streamFactory = $this->createMock(StreamFactoryInterface::class);
@@ -2876,7 +2876,7 @@ final class ProcessorTest extends TestCase
 
         $response500     = $this->createMock(ResponseInterface::class);
         $responseFactory = $this->createMock(ResponseFactoryInterface::class);
-        $responseFactory->method('createResponse')->with(500)->willReturn($response500);
+        $responseFactory->method('createResponse')->willReturnMap([[500, $response500]]);
 
         $locker = $this->createMock(LockingStrategyInterface::class);
         $locker->method('acquire')->willReturn(true);
@@ -2925,7 +2925,7 @@ final class ProcessorTest extends TestCase
         $response200->method('withBody')->willReturn($response200);
 
         $responseFactory = $this->createMock(ResponseFactoryInterface::class);
-        $responseFactory->method('createResponse')->with(200)->willReturn($response200);
+        $responseFactory->method('createResponse')->willReturnMap([[200, $response200]]);
 
         $locker = $this->createMock(LockingStrategyInterface::class);
         $locker->method('acquire')->willReturn(true);
@@ -3437,7 +3437,7 @@ final class ProcessorTest extends TestCase
         $response200->method('withBody')->willReturn($response200);
 
         $responseFactory = $this->createMock(ResponseFactoryInterface::class);
-        $responseFactory->method('createResponse')->with(200)->willReturn($response200);
+        $responseFactory->method('createResponse')->willReturnMap([[200, $response200]]);
 
         // Simulate another process creating the file during lock wait
         $locker = $this->createMock(LockingStrategyInterface::class);
@@ -3512,7 +3512,7 @@ final class ProcessorTest extends TestCase
 
         $response400     = $this->createMock(ResponseInterface::class);
         $responseFactory = $this->createMock(ResponseFactoryInterface::class);
-        $responseFactory->method('createResponse')->with(400)->willReturn($response400);
+        $responseFactory->method('createResponse')->willReturnMap([[400, $response400]]);
 
         $processor = $this->createProcessor(responseFactory: $responseFactory);
 
@@ -3796,7 +3796,7 @@ final class ProcessorTest extends TestCase
         $response200->method('getStatusCode')->willReturn(200);
 
         $responseFactory = $this->createMock(ResponseFactoryInterface::class);
-        $responseFactory->method('createResponse')->with(200)->willReturn($response200);
+        $responseFactory->method('createResponse')->willReturnMap([[200, $response200]]);
 
         $locker = $this->createMock(LockingStrategyInterface::class);
         $locker->method('acquire')->willReturnCallback(
@@ -3863,7 +3863,7 @@ final class ProcessorTest extends TestCase
         $response->method('getStatusCode')->willReturn(200);
 
         $responseFactory = $this->createMock(ResponseFactoryInterface::class);
-        $responseFactory->method('createResponse')->with(200)->willReturn($response);
+        $responseFactory->method('createResponse')->willReturnMap([[200, $response]]);
 
         $stream = $this->createMock(StreamInterface::class);
         $stream->method('getSize')->willReturn(6);
@@ -3911,7 +3911,7 @@ final class ProcessorTest extends TestCase
         $response->method('getStatusCode')->willReturn(200);
 
         $responseFactory = $this->createMock(ResponseFactoryInterface::class);
-        $responseFactory->method('createResponse')->with(200)->willReturn($response);
+        $responseFactory->method('createResponse')->willReturnMap([[200, $response]]);
 
         $stream        = $this->createMock(StreamInterface::class);
         $streamFactory = $this->createMock(StreamFactoryInterface::class);
@@ -3955,7 +3955,7 @@ final class ProcessorTest extends TestCase
 
         $response503     = $this->createMock(ResponseInterface::class);
         $responseFactory = $this->createMock(ResponseFactoryInterface::class);
-        $responseFactory->method('createResponse')->with(503)->willReturn($response503);
+        $responseFactory->method('createResponse')->willReturnMap([[503, $response503]]);
 
         $lockException = new LockCreateException('Lock backend unavailable');
         $lockFactory   = $this->createMock(LockFactory::class);
@@ -3997,7 +3997,7 @@ final class ProcessorTest extends TestCase
 
         $response500     = $this->createMock(ResponseInterface::class);
         $responseFactory = $this->createMock(ResponseFactoryInterface::class);
-        $responseFactory->method('createResponse')->with(500)->willReturn($response500);
+        $responseFactory->method('createResponse')->willReturnMap([[500, $response500]]);
 
         $locker = $this->createMock(LockingStrategyInterface::class);
         $locker->method('acquire')->willReturn(true);
@@ -4071,7 +4071,7 @@ final class ProcessorTest extends TestCase
         $response503->method('withBody')->willReturn($response503);
 
         $responseFactory = $this->createMock(ResponseFactoryInterface::class);
-        $responseFactory->method('createResponse')->with(503)->willReturn($response503);
+        $responseFactory->method('createResponse')->willReturnMap([[503, $response503]]);
 
         $stream        = $this->createMock(StreamInterface::class);
         $streamFactory = $this->createMock(StreamFactoryInterface::class);
@@ -4167,7 +4167,7 @@ final class ProcessorTest extends TestCase
 
         $response500     = $this->createMock(ResponseInterface::class);
         $responseFactory = $this->createMock(ResponseFactoryInterface::class);
-        $responseFactory->method('createResponse')->with(500)->willReturn($response500);
+        $responseFactory->method('createResponse')->willReturnMap([[500, $response500]]);
 
         $logger = $this->createMock(LoggerInterface::class);
         $logger->expects(self::once())
@@ -4265,7 +4265,7 @@ final class ProcessorTest extends TestCase
         $stream       = $this->createMock(StreamInterface::class);
 
         $responseFactory = $this->createMock(ResponseFactoryInterface::class);
-        $responseFactory->method('createResponse')->with(200)->willReturn($avifResponse);
+        $responseFactory->method('createResponse')->willReturnMap([[200, $avifResponse]]);
         $avifResponse->method('withHeader')->willReturn($avifResponse);
         $avifResponse->method('withBody')->willReturn($avifResponse);
 
@@ -4295,7 +4295,7 @@ final class ProcessorTest extends TestCase
         $stream       = $this->createMock(StreamInterface::class);
 
         $responseFactory = $this->createMock(ResponseFactoryInterface::class);
-        $responseFactory->method('createResponse')->with(200)->willReturn($webpResponse);
+        $responseFactory->method('createResponse')->willReturnMap([[200, $webpResponse]]);
         $webpResponse->method('withHeader')->willReturn($webpResponse);
         $webpResponse->method('withBody')->willReturn($webpResponse);
 
@@ -4325,7 +4325,7 @@ final class ProcessorTest extends TestCase
         $stream          = $this->createMock(StreamInterface::class);
 
         $responseFactory = $this->createMock(ResponseFactoryInterface::class);
-        $responseFactory->method('createResponse')->with(200)->willReturn($primaryResponse);
+        $responseFactory->method('createResponse')->willReturnMap([[200, $primaryResponse]]);
         $primaryResponse->method('withHeader')->willReturn($primaryResponse);
         $primaryResponse->method('withBody')->willReturn($primaryResponse);
 
@@ -4426,7 +4426,7 @@ final class ProcessorTest extends TestCase
         $response503->method('withBody')->willReturn($response503);
 
         $responseFactory = $this->createMock(ResponseFactoryInterface::class);
-        $responseFactory->method('createResponse')->with(503)->willReturn($response503);
+        $responseFactory->method('createResponse')->willReturnMap([[503, $response503]]);
 
         $stream        = $this->createMock(StreamInterface::class);
         $streamFactory = $this->createMock(StreamFactoryInterface::class);
@@ -4469,7 +4469,7 @@ final class ProcessorTest extends TestCase
         $response->method('withBody')->willReturn($response);
 
         $responseFactory = $this->createMock(ResponseFactoryInterface::class);
-        $responseFactory->method('createResponse')->with(200)->willReturn($response);
+        $responseFactory->method('createResponse')->willReturnMap([[200, $response]]);
 
         $streamFactory = $this->createMock(StreamFactoryInterface::class);
         $streamFactory->expects(self::once())
@@ -4501,7 +4501,7 @@ final class ProcessorTest extends TestCase
         $response->method('withBody')->willReturn($response);
 
         $responseFactory = $this->createMock(ResponseFactoryInterface::class);
-        $responseFactory->method('createResponse')->with(200)->willReturn($response);
+        $responseFactory->method('createResponse')->willReturnMap([[200, $response]]);
 
         $streamFactory = $this->createMock(StreamFactoryInterface::class);
         $streamFactory->expects(self::once())
@@ -4576,7 +4576,7 @@ final class ProcessorTest extends TestCase
         $response->method('withBody')->willReturn($response);
 
         $responseFactory = $this->createMock(ResponseFactoryInterface::class);
-        $responseFactory->method('createResponse')->with(200)->willReturn($response);
+        $responseFactory->method('createResponse')->willReturnMap([[200, $response]]);
 
         $streamFactory = $this->createMock(StreamFactoryInterface::class);
         // The stream factory must receive the primary path (not the .avif path)
@@ -4611,7 +4611,7 @@ final class ProcessorTest extends TestCase
         $response->method('withBody')->willReturn($response);
 
         $responseFactory = $this->createMock(ResponseFactoryInterface::class);
-        $responseFactory->method('createResponse')->with(200)->willReturn($response);
+        $responseFactory->method('createResponse')->willReturnMap([[200, $response]]);
 
         $streamFactory = $this->createMock(StreamFactoryInterface::class);
         // Must receive the primary path (not .webp)
@@ -5148,7 +5148,7 @@ final class ProcessorTest extends TestCase
         $response->method('withBody')->willReturn($response);
 
         $responseFactory = $this->createMock(ResponseFactoryInterface::class);
-        $responseFactory->method('createResponse')->with(200)->willReturn($response);
+        $responseFactory->method('createResponse')->willReturnMap([[200, $response]]);
 
         $streamFactory = $this->createMock(StreamFactoryInterface::class);
         // Must serve the primary file, not the .avif variant
@@ -5183,7 +5183,7 @@ final class ProcessorTest extends TestCase
         $response->method('withBody')->willReturn($response);
 
         $responseFactory = $this->createMock(ResponseFactoryInterface::class);
-        $responseFactory->method('createResponse')->with(200)->willReturn($response);
+        $responseFactory->method('createResponse')->willReturnMap([[200, $response]]);
 
         $streamFactory = $this->createMock(StreamFactoryInterface::class);
         // Must serve the primary file, not the .webp variant
@@ -5228,7 +5228,7 @@ final class ProcessorTest extends TestCase
         $response->method('withBody')->willReturn($response);
 
         $responseFactory = $this->createMock(ResponseFactoryInterface::class);
-        $responseFactory->method('createResponse')->with(200)->willReturn($response);
+        $responseFactory->method('createResponse')->willReturnMap([[200, $response]]);
 
         $streamFactory = $this->createMock(StreamFactoryInterface::class);
         $streamFactory->method('createStreamFromFile')->willReturn($this->createMock(StreamInterface::class));

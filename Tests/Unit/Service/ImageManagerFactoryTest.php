@@ -60,7 +60,7 @@ final class ImageManagerFactoryTest extends TestCase
         }
 
         $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('No supported image driver available');
+        $this->expectExceptionMessageIsOrContains('No supported image driver available');
 
         $this->factory->create();
     }
