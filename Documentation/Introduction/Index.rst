@@ -97,7 +97,11 @@ will not.
     Client view -- the complete page. The 24 variant requests run in
     parallel across PHP-FPM workers instead of serially inside one
     render: 8.4 s become 3.0 s, and the largest contentful paint
-    moves from 8.4 s to 0.7 s.
+    moves from 8.4 s to 0.7 s. The "variants purged" row looks like a
+    regression at first glance (2.9 s for the extension against 0.8 s
+    for core) -- it is not: that page is rendered eager, so all 24
+    images are requested again regardless, and core's number is fast
+    because it serves 404s instead of doing the work (see below).
 
 ..  figure:: /Images/Benchmark/server-cpu.svg
     :alt: Bar chart: server CPU time per visit per scenario, core versus extension
@@ -114,7 +118,11 @@ will not.
     cheaper one and the extra formats are what the surplus buys. That
     work is off the visitor's critical path, and it only happens for
     images that are requested (lazy loading: 4.1 s vs 8.2 s for the
-    seven images the viewport needed).
+    seven images the viewport needed). The same logic explains
+    "variants purged": that page is eager, so all 24 images are
+    requested again, and the extension pays close to the full
+    cold-cache cost a second time (14.2 s) -- core's 1.1 s is not a
+    faster regeneration, it is 24 cheap 404s instead of one.
 
 ..  figure:: /Images/Benchmark/variants-written.svg
     :alt: Bar chart: variant files written per visit per scenario, core versus extension
@@ -123,8 +131,10 @@ will not.
 
     Server view -- files written. Rendering alone writes 24 files
     with core and none with the extension. With lazy loading the
-    extension processes the 7 images the browser fetched; core
-    processes all 24 regardless.
+    extension writes 21 files -- three formats (JPEG, WebP, AVIF)
+    for each of the 7 images the browser actually fetched -- while
+    core still writes 24, one per referenced image, regardless of
+    what the viewport needs.
 
 ..  figure:: /Images/Benchmark/php-requests.svg
     :alt: Bar chart: requests handled by PHP per visit per scenario, core versus extension
