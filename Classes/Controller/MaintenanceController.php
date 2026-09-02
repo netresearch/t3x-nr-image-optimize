@@ -19,13 +19,18 @@ use function date;
 use FilesystemIterator;
 
 use function floor;
+use function fnmatch;
 use function is_dir;
 use function json_encode;
 use function log;
+use function ltrim;
 use function max;
 use function min;
 
 use Netresearch\NrImageOptimize\Service\SystemRequirementsService;
+
+use function preg_replace;
+
 use Psr\Http\Message\ResponseInterface;
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerAwareTrait;
@@ -42,10 +47,14 @@ use function round;
 use RuntimeException;
 use SplFileInfo;
 
+use function str_ends_with;
 use function str_replace;
 use function strtolower;
 
 use Throwable;
+
+use function trim;
+
 use TYPO3\CMS\Backend\Template\ModuleTemplateFactory;
 use TYPO3\CMS\Core\Authentication\AbstractUserAuthentication;
 use TYPO3\CMS\Core\Core\Environment;
@@ -129,6 +138,21 @@ final class MaintenanceController extends ActionController implements LoggerAwar
             'oldestFile'     => $stats['oldestFile'],
             'newestFile'     => $stats['newestFile'],
         ], JSON_THROW_ON_ERROR | JSON_INVALID_UTF8_SUBSTITUTE));
+    }
+
+    /**
+     * Delete all processed variants derived from an original file path, or a
+     * directory prefix / glob pattern of original paths -- similar to a CDN
+     * cache invalidation. Returns the number of deleted files as JSON.
+     */
+    public function invalidatePathAction(string $path = ''): ResponseInterface
+    {
+        $processedPath = Environment::getPublicPath() . self::PROCESSED_DIRECTORY_SUFFIX;
+        $deletedCount  = $this->invalidateProcessedVariants($processedPath, $path);
+
+        return $this->jsonResponse(json_encode([
+            'deletedCount' => $deletedCount,
+        ], JSON_THROW_ON_ERROR));
     }
 
     /**
@@ -369,6 +393,102 @@ final class MaintenanceController extends ActionController implements LoggerAwar
         usort($largestFiles, static fn (array $a, array $b): int => $b['size'] <=> $a['size']);
 
         return array_slice($largestFiles, 0, self::LARGEST_FILES_LIMIT);
+    }
+
+    /**
+     * Delete every processed variant whose original-file identifier matches
+     * the given path or pattern, similar to a CDN cache invalidation.
+     *
+     * Only files already enumerated inside "processed" are ever deleted --
+     * the pattern is compared as a plain string against each file's relative
+     * path, never resolved into a filesystem path itself, so a malicious
+     * pattern cannot escape the "processed" directory.
+     *
+     * @param string $processedPath Absolute path to the "processed" directory
+     * @param string $pathPattern   Original file path, directory prefix, or glob pattern
+     *
+     * @return int Number of deleted files
+     */
+    private function invalidateProcessedVariants(string $processedPath, string $pathPattern): int
+    {
+        if (trim($pathPattern) === '' || !is_dir($processedPath)) {
+            return 0;
+        }
+
+        // "processed" is commonly a symlink to a shared volume; require the
+        // resolved target to actually be a directory named "processed"
+        // before enumerating and deleting inside it -- same guard as
+        // clearProcessedImagesAction().
+        $resolved = realpath($processedPath);
+
+        if ($resolved === false || basename($resolved) !== 'processed') {
+            throw new RuntimeException('Security check failed: unexpected processed path target');
+        }
+
+        $pattern      = $this->normalizeInvalidationPattern($pathPattern);
+        $deletedCount = 0;
+
+        $iterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($processedPath, RecursiveDirectoryIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::SELF_FIRST,
+        );
+
+        /** @var SplFileInfo $file */
+        foreach ($iterator as $file) {
+            if (!$file->isFile()) {
+                continue;
+            }
+
+            $relativePath = str_replace($processedPath . '/', '', $file->getPathname());
+            $identifier   = $this->stripVariantSuffix($relativePath);
+
+            if (fnmatch($pattern, $identifier) && GeneralUtility::rmdir($file->getPathname())) {
+                ++$deletedCount;
+            }
+        }
+
+        return $deletedCount;
+    }
+
+    /**
+     * Normalize a user-supplied original-file path/pattern into a glob
+     * pattern comparable against {@see self::stripVariantSuffix()} output.
+     *
+     * Processed-variant filenames never carry the original file's own
+     * extension (see {@see \Netresearch\NrImageOptimize\Processor::gatherInformationBasedOnUrl()}),
+     * so a plain trailing extension (or a literal ".*") is stripped to reach
+     * the same extension-less identifier space. A trailing "/" is expanded
+     * into a wildcard so it matches every file underneath that directory.
+     *
+     * @param string $input Original file path, directory prefix, or glob pattern
+     *
+     * @return string Normalized glob pattern
+     */
+    private function normalizeInvalidationPattern(string $input): string
+    {
+        $pattern = ltrim(trim($input), '/');
+        $pattern = preg_replace('#\.(?:\*|[a-zA-Z0-9]{1,5})$#', '', $pattern) ?? $pattern;
+
+        if (str_ends_with($pattern, '/')) {
+            $pattern .= '*';
+        }
+
+        return $pattern;
+    }
+
+    /**
+     * Strip the ".<mode>.<ext>" variant suffix from a processed file's path,
+     * recovering the extension-less identifier shared by every variant of
+     * the same original file. Paths that don't carry the suffix (unexpected
+     * files) are returned unchanged.
+     *
+     * @param string $relativePath Path relative to the "processed" directory
+     *
+     * @return string Extension-less original-file identifier
+     */
+    private function stripVariantSuffix(string $relativePath): string
+    {
+        return preg_replace('#\.[0-9whqm]*[whqm][0-9whqm]*\.[a-zA-Z0-9]{1,4}$#', '', $relativePath) ?? $relativePath;
     }
 
     /**

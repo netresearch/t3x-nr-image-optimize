@@ -31,6 +31,7 @@ return [
                 'statistics',
                 'systemRequirements',
                 'clearProcessedImages',
+                'invalidatePath',
             ],
         ],
     ],
