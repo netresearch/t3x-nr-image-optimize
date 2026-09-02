@@ -69,7 +69,8 @@ Tests/
 │   ├── Middleware/
 │   └── ViewHelpers/
 ├── Architecture/            (phpat rules, runs inside PHPStan)
-└── Fuzz/
+├── Fuzz/
+└── E2E/                     (Playwright; full scenario benchmark, see Tests/E2E/README.md)
 ```
 <!-- AGENTS-GENERATED:END structure -->
 

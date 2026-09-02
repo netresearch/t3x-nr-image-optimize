@@ -26,7 +26,7 @@ Results: `.Build/benchmark/results.json` (medians plus every iteration).
 
 ## What is measured
 
-Four pages render the same 24 photos as 800×600 crops:
+Five pages render the same 24 photos as 800×600 crops:
 
 | Page                | Template                            |
 |---------------------|-------------------------------------|

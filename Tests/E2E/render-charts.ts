@@ -4,8 +4,9 @@
  *
  *   node Tests/E2E/render-charts.ts [.Build/benchmark/results.json] [outDir]
  *
- * Needs Node >= 22.6 (type stripping); the Playwright image and any current
- * Node do. `make benchmark` runs the same code at the end of the suite.
+ * Needs Node >= 22.18 (type stripping enabled by default without
+ * --experimental-strip-types); the Playwright image and any current Node do.
+ * `make benchmark` runs the same code at the end of the suite.
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
