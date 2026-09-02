@@ -752,7 +752,7 @@ final class MaintenanceControllerTest extends TestCase
     #[Test]
     public function invalidateProcessedVariantsDeletesOnlyVariantsOfExactOriginal(): void
     {
-        $testDir = $this->tempDir . '/invalidate-exact';
+        $testDir = $this->tempDir . '/invalidate-exact/processed';
         mkdir($testDir . '/fileadmin/images', 0o777, true);
 
         file_put_contents($testDir . '/fileadmin/images/logo.w300h200m1q80.webp', 'x');
@@ -770,7 +770,7 @@ final class MaintenanceControllerTest extends TestCase
     #[Test]
     public function invalidateProcessedVariantsDeletesEverythingUnderDirectoryPrefix(): void
     {
-        $testDir = $this->tempDir . '/invalidate-prefix';
+        $testDir = $this->tempDir . '/invalidate-prefix/processed';
         mkdir($testDir . '/fileadmin/images', 0o777, true);
         mkdir($testDir . '/fileadmin/other', 0o777, true);
 
@@ -789,7 +789,7 @@ final class MaintenanceControllerTest extends TestCase
     #[Test]
     public function invalidateProcessedVariantsSupportsWildcardPattern(): void
     {
-        $testDir = $this->tempDir . '/invalidate-wildcard';
+        $testDir = $this->tempDir . '/invalidate-wildcard/processed';
         mkdir($testDir . '/fileadmin/images', 0o777, true);
 
         file_put_contents($testDir . '/fileadmin/images/logo.w300h200m1q80.webp', 'x');
@@ -814,7 +814,7 @@ final class MaintenanceControllerTest extends TestCase
     #[Test]
     public function invalidateProcessedVariantsReturnsZeroForNonMatchingPattern(): void
     {
-        $testDir = $this->tempDir . '/invalidate-nomatch';
+        $testDir = $this->tempDir . '/invalidate-nomatch/processed';
         mkdir($testDir . '/fileadmin/images', 0o777, true);
 
         file_put_contents($testDir . '/fileadmin/images/logo.w300h200m1q80.webp', 'x');
