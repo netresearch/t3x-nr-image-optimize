@@ -45,3 +45,8 @@ coverage/
 
 # Superpowers skill working files (transient, never committed — see AGENTS.md)
 /docs/superpowers/
+
+# Playwright (Tests/E2E)
+Tests/E2E/node_modules/
+Tests/E2E/test-results/
+Tests/E2E/playwright-report/

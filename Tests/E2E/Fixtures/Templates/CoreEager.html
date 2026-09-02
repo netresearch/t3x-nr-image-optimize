@@ -1,0 +1,4 @@
+<f:comment>Benchmark page: TYPO3 core f:image, every image eager. Same 24 photos, same 800x600 crop as the extension pages.</f:comment>
+<f:for each="{images -> f:split(separator: ',')}" as="i">
+<div class="photo"><f:image src="fileadmin/benchmark/photo-{i}.jpg" width="800c" height="600c" alt="Photo {i}" /></div>
+</f:for>

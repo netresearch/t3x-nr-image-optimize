@@ -21,10 +21,12 @@ Image Optimization for TYPO3
 ----
 
 The :composer:`netresearch/nr-image-optimize` extension provides
-on-demand image optimization for TYPO3. Images are processed
-lazily via middleware when first requested, with support for
-modern formats (WebP, AVIF), responsive ``srcset`` generation,
-and automatic format negotiation.
+on-demand image optimization for TYPO3. Page rendering only emits
+image URLs; each variant is processed by a middleware when a browser
+first requests it -- so a cold page cache no longer waits for image
+processing (see :ref:`introduction-performance`) -- with support for
+modern formats (WebP, AVIF), responsive ``srcset`` generation, and
+automatic format negotiation.
 
 ..  card-grid::
     :columns: 1

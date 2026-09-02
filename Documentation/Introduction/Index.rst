@@ -43,6 +43,153 @@ All three layers share a common
 :php:class:`~Netresearch\\NrImageOptimize\\Service\\ImageOptimizer`
 service for tool resolution and process orchestration.
 
+..  _introduction-performance:
+
+Performance model
+=================
+
+Every image on a page costs the server twice: once when the page is
+rendered, and once when a browser fetches the image. What sets this
+extension apart from TYPO3 core's ``f:image`` / ``ImageService``
+pipeline is *when* the expensive part -- decoding, resizing,
+encoding -- happens.
+
+**TYPO3 core** processes every referenced image *while the page
+renders*, inside the request that produces the HTML. On a cold page
+cache the visitor waits for all of it before the first byte of HTML
+arrives, images below the fold and in hidden sliders included, and
+one PHP process does the work for all of them, one after another.
+
+**This extension** only builds a ``/processed/...`` URL string while
+the page renders. Nothing is decoded or written at that point. The
+work happens later, in a *separate request per image*, when -- and
+only if -- the browser asks for that image. Those requests are
+spread across all PHP-FPM workers, and once a variant exists the web
+server serves it as a static file without touching TYPO3 at all.
+
+..  _introduction-performance-measured:
+
+What that is worth
+------------------
+
+The numbers below come from the benchmark that ships with this
+extension (``make benchmark``, see :ref:`introduction-performance-reproduce`).
+Both pipelines render the same 24 photos (3000×2000 JPEG) as 800×600
+crops on otherwise identical pages; every scenario is a state a real
+site is in at some point. Medians of three visits, TYPO3 14.3.6,
+PHP 8.4, ImageMagick 7, Apache + PHP-FPM in Docker on a developer
+laptop -- absolute values will differ on your hardware, the ratios
+will not.
+
+..  figure:: /Images/Benchmark/ttfb.svg
+    :alt: Bar chart: time to first byte of the HTML document per scenario, core versus extension
+    :class: with-border with-shadow
+    :zoom: lightbox
+
+    Client view -- the first byte of HTML. With a cold cache the
+    visitor waits 8.4 s for core, 0.12 s for the extension.
+
+..  figure:: /Images/Benchmark/load.svg
+    :alt: Bar chart: time until the page is fully loaded per scenario, core versus extension
+    :class: with-border with-shadow
+    :zoom: lightbox
+
+    Client view -- the complete page. The 24 variant requests run in
+    parallel across PHP-FPM workers instead of serially inside one
+    render: 8.4 s become 3.0 s, and the largest contentful paint
+    moves from 8.4 s to 0.7 s. The "variants purged" row looks like a
+    regression at first glance (2.9 s for the extension against 0.8 s
+    for core) -- it is not: that page is rendered eager, so all 24
+    images are requested again regardless, and core's number is fast
+    because it serves 404s instead of doing the work (see below).
+
+..  figure:: /Images/Benchmark/server-cpu.svg
+    :alt: Bar chart: server CPU time per visit per scenario, core versus extension
+    :class: with-border with-shadow
+    :zoom: lightbox
+
+    Server view -- CPU time of the PHP-FPM container, ImageMagick
+    included. Read this one carefully: on a fully viewed cold page
+    the extension spends *more* CPU (13.5 s vs 8.3 s), because the
+    first request for a variant writes three files -- JPEG, WebP and
+    AVIF -- and AVIF encoding is expensive. The "JPEG only" row
+    isolates that: with ``skipWebP=1&skipAvif=1`` the same 24 images
+    cost 6.9 s against core's 9.2 s, so the pipeline itself is the
+    cheaper one and the extra formats are what the surplus buys. That
+    work is off the visitor's critical path, and it only happens for
+    images that are requested (lazy loading: 4.1 s vs 8.2 s for the
+    seven images the viewport needed). The same logic explains
+    "variants purged": that page is eager, so all 24 images are
+    requested again, and the extension pays close to the full
+    cold-cache cost a second time (14.2 s) -- core's 1.1 s is not a
+    faster regeneration, it is 24 cheap 404s instead of one.
+
+..  figure:: /Images/Benchmark/variants-written.svg
+    :alt: Bar chart: variant files written per visit per scenario, core versus extension
+    :class: with-border with-shadow
+    :zoom: lightbox
+
+    Server view -- files written. Rendering alone writes 24 files
+    with core and none with the extension. With lazy loading the
+    extension writes 21 files -- three formats (JPEG, WebP, AVIF)
+    for each of the 7 images the browser actually fetched -- while
+    core still writes 24, one per referenced image, regardless of
+    what the viewport needs.
+
+..  figure:: /Images/Benchmark/php-requests.svg
+    :alt: Bar chart: requests handled by PHP per visit per scenario, core versus extension
+    :class: with-border with-shadow
+    :zoom: lightbox
+
+    Server view -- requests that reached TYPO3. Steady state is one
+    PHP request for either pipeline; everything else is static
+    files. Note the "variants purged" row: when variant files are
+    deleted under a warm page cache, core's HTML points at files
+    nothing regenerates -- 24 broken images, each a PHP request for
+    an error page -- while the middleware simply regenerates them.
+
+In short:
+
+-   **First visitor after a deployment or cache flush:** HTML in
+    0.12 s instead of 8.4 s; complete page in 3.0 s instead of 8.4 s.
+-   **Lazy loading and hidden content** actually save work: only
+    images the browser fetches are ever processed.
+-   **Render time is independent of image count and size.** A page
+    with 200 images renders as fast as one with two; image-heavy
+    pages no longer risk ``max_execution_time`` during render.
+-   **Purged or lost variants are not an outage.** They are
+    regenerated on the next request instead of serving 404s until
+    someone flushes the page cache.
+-   **Steady state is identical:** a page-cache hit plus static files
+    in both cases.
+-   **Per image, the extension does more work by default** -- three
+    formats, 13.5 s against 8.3 s of CPU for 24 images -- and less for
+    the same single format (6.9 s against 9.2 s); it delivers fewer
+    bytes where the browser accepts AVIF or WebP.
+
+..  _introduction-performance-reproduce:
+
+Reproduce it
+------------
+
+The benchmark is part of the test suite, so the claims above are
+re-measured rather than remembered:
+
+-   ``make benchmark`` provisions TYPO3, the extension, Apache and
+    PHP-FPM in Docker, drives Chromium through the seven scenarios
+    with both pipelines and rewrites the charts in
+    :file:`Documentation/Images/Benchmark/` together with the raw
+    ``results.json`` (every iteration, not just the medians). Only
+    Docker is required; see :file:`Tests/E2E/README.md`.
+-   The suite *asserts* the architectural claims -- zero variants
+    written during render, lower cold-cache TTFB, no broken images
+    after a purge, fewer images processed under lazy loading -- and
+    fails when they stop holding. Absolute timings are reported,
+    never asserted.
+-   :file:`Tests/Functional/Benchmark/RenderCostTest.php` guards the
+    core claim (render writes nothing; core's ``ImageService``
+    processes everything) in every CI run, without a browser.
+
 ..  _introduction-features:
 
 Features
@@ -55,9 +202,10 @@ Features
 -   **Bulk CLI commands.** Streaming iteration over ``sys_file``
     keeps memory usage flat on large installations. Progress bar
     with cumulative savings.
--   **On-demand variant generation.** Variants are produced only
-    when a visitor first requests them through the ``/processed/``
-    URL.
+-   **No image processing during page render.** Rendering only
+    emits ``/processed/`` URLs; each variant is produced in its own
+    request, when a browser first asks for it, and served as a static
+    file from then on (see :ref:`introduction-performance`).
 -   **Next-gen format support.** Automatic WebP and AVIF sidecar
     generation with Accept-header-driven content negotiation and
     ``skipWebP`` / ``skipAvif`` opt-outs.

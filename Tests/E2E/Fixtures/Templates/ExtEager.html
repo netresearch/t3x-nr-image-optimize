@@ -1,0 +1,5 @@
+{namespace nrio=Netresearch\NrImageOptimize\ViewHelpers}
+<f:comment>Benchmark page: nrio:sourceSet, every image eager. Same 24 photos, same 800x600 crop (mode cover) as the core pages.</f:comment>
+<f:for each="{images -> f:split(separator: ',')}" as="i">
+<div class="photo"><nrio:sourceSet path="/fileadmin/benchmark/photo-{i}.jpg" width="800" height="600" alt="Photo {i}" /></div>
+</f:for>

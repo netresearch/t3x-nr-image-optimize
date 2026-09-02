@@ -1,0 +1,4 @@
+<f:comment>Benchmark page: the extension's /processed/ URLs with skipWebP/skipAvif, i.e. one JPEG per image like core — the like-for-like CPU comparison. Hand-written URLs in the exact form nrio:sourceSet emits (w800h600, mode 0 = cover, default quality 75), because the ViewHelper does not expose the skip flags.</f:comment>
+<f:for each="{images -> f:split(separator: ',')}" as="i">
+<div class="photo"><img src="/processed/fileadmin/benchmark/photo-{i}.w800h600m0q75.jpg?skipWebP=1&amp;skipAvif=1" width="800" height="600" alt="Photo {i}" /></div>
+</f:for>
