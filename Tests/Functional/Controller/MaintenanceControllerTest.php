@@ -19,6 +19,7 @@ use Netresearch\NrImageOptimize\Controller\MaintenanceController;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use Psr\Http\Message\ResponseInterface;
+use RuntimeException;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Core\SystemEnvironmentBuilder;
 use TYPO3\CMS\Core\Http\NormalizedParams;
@@ -180,6 +181,31 @@ final class MaintenanceControllerTest extends FunctionalTestCase
         self::assertFileDoesNotExist($subDir . '/logo.w300h200m1q80.webp');
         self::assertFileDoesNotExist($subDir . '/logo.w600h400m1q80.avif');
         self::assertFileExists($subDir . '/other.w300h200m1q80.webp');
+    }
+
+    #[Test]
+    public function invalidatePathActionRejectsUnexpectedSymlinkTarget(): void
+    {
+        $publicPath    = Environment::getPublicPath();
+        $processedPath = $publicPath . '/processed';
+        $foreignTarget = $publicPath . '/not-processed';
+
+        GeneralUtility::rmdir($processedPath, true);
+        mkdir($foreignTarget, 0o775, true);
+        file_put_contents($foreignTarget . '/keep.txt', 'keep');
+        symlink($foreignTarget, $processedPath);
+
+        // Same guard as clearProcessedImagesAction(): a "processed" symlink
+        // pointing outside must reject enumeration/deletion, not silently
+        // walk and delete inside the foreign target.
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessageMatches('/Security check failed: unexpected processed path target/');
+
+        try {
+            $this->dispatchAction('invalidatePath', ['path' => 'fileadmin/images/logo.png']);
+        } finally {
+            self::assertFileExists($foreignTarget . '/keep.txt');
+        }
     }
 
     #[Test]

@@ -411,8 +411,18 @@ final class MaintenanceController extends ActionController implements LoggerAwar
      */
     private function invalidateProcessedVariants(string $processedPath, string $pathPattern): int
     {
-        if (!is_dir($processedPath) || trim($pathPattern) === '') {
+        if (trim($pathPattern) === '' || !is_dir($processedPath)) {
             return 0;
+        }
+
+        // "processed" is commonly a symlink to a shared volume; require the
+        // resolved target to actually be a directory named "processed"
+        // before enumerating and deleting inside it -- same guard as
+        // clearProcessedImagesAction().
+        $resolved = realpath($processedPath);
+
+        if ($resolved === false || basename($resolved) !== 'processed') {
+            throw new RuntimeException('Security check failed: unexpected processed path target');
         }
 
         $pattern      = $this->normalizeInvalidationPattern($pathPattern);
@@ -432,8 +442,7 @@ final class MaintenanceController extends ActionController implements LoggerAwar
             $relativePath = str_replace($processedPath . '/', '', $file->getPathname());
             $identifier   = $this->stripVariantSuffix($relativePath);
 
-            if (fnmatch($pattern, $identifier)) {
-                GeneralUtility::rmdir($file->getPathname());
+            if (fnmatch($pattern, $identifier) && GeneralUtility::rmdir($file->getPathname())) {
                 ++$deletedCount;
             }
         }
