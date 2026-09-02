@@ -132,7 +132,7 @@
                 <note from="developer">Card header for the targeted-deletion feature: delete only the processed variants derived from a given original file, directory, or glob pattern -- similar to a CDN cache invalidation.</note>
             </trans-unit>
             <trans-unit id="invalidatePath.description" resname="invalidatePath.description">
-                <source>Enter an original file path, a directory (ending in "/"), or a glob pattern (using * and ?). All processed variants of matching originals will be deleted.</source>
+                <source>Enter a path, directory, or glob (* or ?). Matching variants are deleted.</source>
                 <note from="developer">Help text explaining the accepted input formats for the path-invalidation field above the input.</note>
             </trans-unit>
             <trans-unit id="invalidatePath.placeholder" resname="invalidatePath.placeholder">
