@@ -191,6 +191,7 @@
                     <f:form id="invalidate-path-form" action="invalidatePath"
                             additionalAttributes="{data-confirm-template: invalidateConfirmTemplate, data-success-template: invalidateSuccessTemplate, data-error-text: invalidateErrorText}">
                         <div class="input-group">
+                            <label for="invalidate-path-input" class="visually-hidden"><f:translate key="invalidatePath.label" extensionName="NrImageOptimize" /></label>
                             <input type="text" name="path" id="invalidate-path-input" class="form-control"
                                    placeholder="{f:translate(key: 'invalidatePath.placeholder', extensionName: 'NrImageOptimize')}" required="required">
                             <button type="submit" class="btn btn-warning" id="invalidate-path-submit">

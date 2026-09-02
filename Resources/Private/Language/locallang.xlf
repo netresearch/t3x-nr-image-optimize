@@ -139,6 +139,10 @@
                 <source>e.g. fileadmin/images/logo.png or fileadmin/images/*</source>
                 <note from="developer">Placeholder text inside the path/pattern input field. Keep the example paths, they illustrate both an exact file and a wildcard.</note>
             </trans-unit>
+            <trans-unit id="invalidatePath.label" resname="invalidatePath.label">
+                <source>Original file path, directory, or glob pattern</source>
+                <note from="developer">Visually hidden &lt;label&gt; for the path/pattern input field, associated via "for" -- the visible description above already covers this, so the label itself is screen-reader only.</note>
+            </trans-unit>
             <trans-unit id="invalidatePath.button" resname="invalidatePath.button">
                 <source>Invalidate</source>
                 <note from="developer">Label of the submit button that triggers targeted deletion of processed variants matching the entered path/pattern.</note>
