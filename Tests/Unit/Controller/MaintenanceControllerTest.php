@@ -582,57 +582,77 @@ final class MaintenanceControllerTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
-    // buildLargestFiles
+    // updateLargestFiles
     // -------------------------------------------------------------------------
 
     #[Test]
-    public function buildLargestFilesSortsAndLimitsFiles(): void
+    public function updateLargestFilesKeepsTopFilesSortedDescendingBySize(): void
     {
-        $files = [];
+        $top = [];
 
         for ($i = 1; $i <= 7; ++$i) {
-            $files[] = [
+            /** @var list<array<string, mixed>> $top */
+            $top = $this->callMethod('updateLargestFiles', $top, [
                 'name' => 'file' . $i . '.jpg',
                 'path' => 'file' . $i . '.jpg',
                 'size' => $i * 100,
-            ];
+            ]);
         }
 
-        /** @var list<array<string, mixed>> $result */
-        $result = $this->callMethod('buildLargestFiles', $files);
-
-        self::assertCount(5, $result);
-        self::assertSame(700, $result[0]['size']);
-        self::assertSame(600, $result[1]['size']);
-
-        foreach ($result as $file) {
-            self::assertArrayHasKey('sizeHuman', $file);
-        }
+        self::assertCount(5, $top);
+        self::assertSame(700, $top[0]['size']);
+        self::assertSame(600, $top[1]['size']);
+        self::assertSame(300, $top[4]['size']);
     }
 
     #[Test]
-    public function buildLargestFilesHandlesEmptyArray(): void
+    public function updateLargestFilesHandlesEmptyStart(): void
     {
         /** @var list<array<string, mixed>> $result */
-        $result = $this->callMethod('buildLargestFiles', []);
+        $result = $this->callMethod('updateLargestFiles', [], [
+            'name' => 'a.jpg',
+            'path' => 'a.jpg',
+            'size' => 100,
+        ]);
 
-        self::assertSame([], $result);
+        self::assertSame([['name' => 'a.jpg', 'path' => 'a.jpg', 'size' => 100]], $result);
     }
 
     #[Test]
-    public function buildLargestFilesHandlesFewerThanFiveFiles(): void
+    public function updateLargestFilesKeepsFewerThanLimitEntries(): void
     {
-        $files = [
-            ['name' => 'a.jpg', 'path' => 'a.jpg', 'size' => 200],
-            ['name' => 'b.jpg', 'path' => 'b.jpg', 'size' => 100],
-        ];
+        $top = [];
+        $top = $this->callMethod('updateLargestFiles', $top, ['name' => 'a.jpg', 'path' => 'a.jpg', 'size' => 200]);
+        /** @var list<array<string, mixed>> $top */
+        $top = $this->callMethod('updateLargestFiles', $top, ['name' => 'b.jpg', 'path' => 'b.jpg', 'size' => 100]);
+
+        self::assertCount(2, $top);
+        self::assertSame(200, $top[0]['size']);
+        self::assertSame(100, $top[1]['size']);
+    }
+
+    #[Test]
+    public function updateLargestFilesIgnoresCandidateSmallerThanCurrentMinimumWhenFull(): void
+    {
+        $top = [];
+
+        for ($i = 5; $i >= 1; --$i) {
+            /** @var list<array<string, mixed>> $top */
+            $top = $this->callMethod('updateLargestFiles', $top, [
+                'name' => 'file' . $i . '.jpg',
+                'path' => 'file' . $i . '.jpg',
+                'size' => $i * 100,
+            ]);
+        }
 
         /** @var list<array<string, mixed>> $result */
-        $result = $this->callMethod('buildLargestFiles', $files);
+        $result = $this->callMethod('updateLargestFiles', $top, [
+            'name' => 'tiny.jpg',
+            'path' => 'tiny.jpg',
+            'size' => 50,
+        ]);
 
-        self::assertCount(2, $result);
-        self::assertSame(200, $result[0]['size']);
-        self::assertSame(100, $result[1]['size']);
+        self::assertSame($top, $result);
     }
 
     #[Test]

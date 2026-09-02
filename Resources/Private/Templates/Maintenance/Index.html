@@ -29,6 +29,22 @@
         </f:for>
     </f:flashMessages>
 
+    <f:variable name="loadingText"><f:translate key="stats.loading" extensionName="NrImageOptimize" /></f:variable>
+    <f:variable name="loadErrorText"><f:translate key="stats.loadError" extensionName="NrImageOptimize" /></f:variable>
+    <f:variable name="noFilesText"><f:translate key="stats.noFiles" extensionName="NrImageOptimize" /></f:variable>
+    <f:variable name="noFilesAvailableText"><f:translate key="stats.noFilesAvailable" extensionName="NrImageOptimize" /></f:variable>
+    <f:variable name="oldestLabel"><f:translate key="stats.oldest" extensionName="NrImageOptimize" /></f:variable>
+    <f:variable name="newestLabel"><f:translate key="stats.newest" extensionName="NrImageOptimize" /></f:variable>
+
+    <div id="maintenance-stats"
+         data-statistics-url="{f:uri.action(action: 'statistics', controller: 'Maintenance')}"
+         data-loading-text="{loadingText}"
+         data-load-error-text="{loadErrorText}"
+         data-no-files-text="{noFilesText}"
+         data-no-files-available-text="{noFilesAvailableText}"
+         data-oldest-label="{oldestLabel}"
+         data-newest-label="{newestLabel}">
+
     <!-- Summary Cards -->
     <div class="row g-3 mb-4">
         <div class="col-md-4">
@@ -37,7 +53,7 @@
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
                             <p class="text-muted mb-1 small"><f:translate key="stats.totalFiles" extensionName="NrImageOptimize" /></p>
-                            <h3 class="mb-0">{fileCount}</h3>
+                            <h3 class="mb-0" id="stat-file-count">{loadingText}</h3>
                         </div>
                         <div class="bg-primary bg-opacity-10 p-2 rounded">
                             <core:icon identifier="apps-filetree-folder-media" size="default"/>
@@ -52,7 +68,7 @@
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
                             <p class="text-muted mb-1 small"><f:translate key="stats.totalSize" extensionName="NrImageOptimize" /></p>
-                            <h3 class="mb-0">{totalSizeHuman}</h3>
+                            <h3 class="mb-0" id="stat-total-size">{loadingText}</h3>
                         </div>
                         <div class="bg-info bg-opacity-10 p-2 rounded">
                             <core:icon identifier="actions-database" size="default"/>
@@ -67,7 +83,7 @@
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
                             <p class="text-muted mb-1 small"><f:translate key="stats.directories" extensionName="NrImageOptimize" /></p>
-                            <h3 class="mb-0">{directoryCount}</h3>
+                            <h3 class="mb-0" id="stat-directory-count">{loadingText}</h3>
                         </div>
                         <div class="bg-success bg-opacity-10 p-2 rounded">
                             <core:icon identifier="apps-filetree-folder-default" size="default"/>
@@ -83,7 +99,7 @@
         <div class="col-lg-6">
             <!-- Storage Path -->
             <div class="card mb-4">
-                <div class="card-header bg-body-tertiary">
+                <div class="card-header">
                     <h2 class="card-title mb-0 h5">
                         <strong><f:translate key="stats.storageInfo" extensionName="NrImageOptimize" /></strong>
                     </h2>
@@ -97,32 +113,13 @@
                         </div>
                     </div>
 
-                    <f:if condition="{oldestFile}">
-                        <f:then>
-                            <div class="mb-2">
-                                <label class="form-label text-muted small mb-1"><f:translate key="stats.oldest" extensionName="NrImageOptimize" /></label>
-                                <p class="mb-0 small text-break"><strong>{oldestFile.name}</strong></p>
-                                <p class="text-muted small mb-0">{oldestFile.date}</p>
-                            </div>
-                            <div>
-                                <label class="form-label text-muted small mb-1"><f:translate key="stats.newest" extensionName="NrImageOptimize" /></label>
-                                <p class="mb-0 small text-break"><strong>{newestFile.name}</strong></p>
-                                <p class="text-muted small mb-0">{newestFile.date}</p>
-                            </div>
-                        </f:then>
-                        <f:else>
-                            <div class="text-center text-muted py-3">
-                                <core:icon identifier="actions-document-info" size="default"/>
-                                <p class="mb-0 mt-2"><f:translate key="stats.noFiles" extensionName="NrImageOptimize" /></p>
-                            </div>
-                        </f:else>
-                    </f:if>
+                    <div id="stat-storage-info" class="text-center text-muted py-3">{loadingText}</div>
                 </div>
             </div>
 
             <!-- File Types -->
             <div class="card">
-                <div class="card-header bg-body-tertiary">
+                <div class="card-header">
                     <h2 class="card-title mb-0 h5">
                         <strong><f:translate key="stats.typesDistribution" extensionName="NrImageOptimize" /></strong>
                     </h2>
@@ -137,25 +134,10 @@
                                     <th class="text-end pe-3"><f:translate key="stats.sizeColumn" extensionName="NrImageOptimize" /></th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                <f:if condition="{fileTypes}">
-                                    <f:then>
-                                        <f:for each="{fileTypes}" key="ext" as="typeData">
-                                            <tr>
-                                                <td class="ps-3">
-                                                    <code class="bg-body-tertiary px-2 py-1 rounded">.{ext}</code>
-                                                </td>
-                                                <td class="text-end">{typeData.count}</td>
-                                                <td class="text-end pe-3"><strong>{typeData.sizeHuman}</strong></td>
-                                            </tr>
-                                        </f:for>
-                                    </f:then>
-                                    <f:else>
-                                        <tr>
-                                            <td colspan="3" class="text-center text-muted py-3"><f:translate key="stats.noFilesAvailable" extensionName="NrImageOptimize" /></td>
-                                        </tr>
-                                    </f:else>
-                                </f:if>
+                            <tbody id="stat-file-types-body">
+                                <tr>
+                                    <td colspan="3" class="text-center text-muted py-3">{loadingText}</td>
+                                </tr>
                             </tbody>
                         </table>
                     </div>
@@ -167,7 +149,7 @@
         <div class="col-lg-6">
             <!-- Largest Files -->
             <div class="card mb-4">
-                <div class="card-header bg-body-tertiary">
+                <div class="card-header">
                     <h2 class="card-title mb-0 h5">
                         <strong><f:translate key="stats.largest" extensionName="NrImageOptimize" /></strong>
                     </h2>
@@ -181,24 +163,10 @@
                                     <th class="text-end pe-3"><f:translate key="stats.sizeColumn" extensionName="NrImageOptimize" /></th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                <f:if condition="{largestFiles}">
-                                    <f:then>
-                                        <f:for each="{largestFiles}" as="file">
-                                            <tr>
-                                                <td class="ps-3">
-                                                    <span class="text-break small">{file.path}</span>
-                                                </td>
-                                                <td class="text-end pe-3 text-nowrap"><strong>{file.sizeHuman}</strong></td>
-                                            </tr>
-                                        </f:for>
-                                    </f:then>
-                                    <f:else>
-                                        <tr>
-                                            <td colspan="2" class="text-center text-muted py-3"><f:translate key="stats.noFilesAvailable" extensionName="NrImageOptimize" /></td>
-                                        </tr>
-                                    </f:else>
-                                </f:if>
+                            <tbody id="stat-largest-files-body">
+                                <tr>
+                                    <td colspan="2" class="text-center text-muted py-3">{loadingText}</td>
+                                </tr>
                             </tbody>
                         </table>
                     </div>
@@ -239,6 +207,7 @@
                 </div>
             </div>
         </div>
+    </div>
     </div>
 </f:section>
 

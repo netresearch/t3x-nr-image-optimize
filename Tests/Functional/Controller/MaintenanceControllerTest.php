@@ -118,6 +118,40 @@ final class MaintenanceControllerTest extends FunctionalTestCase
     }
 
     #[Test]
+    public function statisticsActionReturnsJsonWithDirectoryStats(): void
+    {
+        $processedPath = Environment::getPublicPath() . '/processed';
+
+        // "processed" is a shared fixture path across test methods in this
+        // class; reset it so leftovers from other tests can't inflate the
+        // counts asserted below.
+        GeneralUtility::rmdir($processedPath, true);
+
+        $subDir = $processedPath . '/fileadmin';
+        mkdir($subDir, 0o775, true);
+
+        file_put_contents($subDir . '/file1.jpg', 'fake-jpg-data-1');
+        file_put_contents($subDir . '/file2.png', 'fake-png-data-2');
+
+        $response = $this->dispatchAction('statistics');
+
+        self::assertSame(200, $response->getStatusCode());
+        self::assertStringContainsString('application/json', $response->getHeaderLine('Content-Type'));
+
+        /** @var array<string, mixed> $data */
+        $data = json_decode((string) $response->getBody(), true, 512, JSON_THROW_ON_ERROR);
+
+        self::assertSame(2, $data['fileCount']);
+        self::assertSame(1, $data['directoryCount']);
+        self::assertCount(2, $data['largestFiles']);
+        self::assertArrayHasKey('jpg', $data['fileTypes']);
+        self::assertArrayHasKey('png', $data['fileTypes']);
+        self::assertContains($data['oldestFile']['name'], ['file1.jpg', 'file2.png']);
+        self::assertContains($data['newestFile']['name'], ['file1.jpg', 'file2.png']);
+        self::assertSame($processedPath, $data['processedPath']);
+    }
+
+    #[Test]
     public function clearProcessedImagesActionEmptiesDirectoryKeepingItInPlace(): void
     {
         $processedPath = Environment::getPublicPath() . '/processed';

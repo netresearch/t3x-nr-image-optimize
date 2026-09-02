@@ -21,7 +21,7 @@
 
     <f:for each="{requirements}" as="category">
         <div class="card mb-4">
-            <div class="card-header bg-body-tertiary">
+            <div class="card-header">
                 <h2 class="card-title mb-0 h5">
                     <strong><f:translate key="{category.labelKey}" extensionName="NrImageOptimize" /></strong>
                 </h2>
@@ -54,7 +54,7 @@
                                     <td>
                                         <f:if condition="{item.status} == 'success'">
                                             <f:then>
-                                                <span class="badge rounded-pill text-bg-success d-inline-flex align-items-center gap-1">
+                                                <span class="badge rounded-pill badge-success d-inline-flex align-items-center gap-1">
                                                     <core:icon identifier="actions-check" size="small"/>
                                                     <f:translate key="sysreq.status.available" extensionName="NrImageOptimize" />
                                                 </span>
@@ -62,13 +62,13 @@
                                             <f:else>
                                                 <f:if condition="{item.status} == 'warning'">
                                                     <f:then>
-                                                        <span class="badge rounded-pill bg-warning text-dark d-inline-flex align-items-center gap-1">
+                                                        <span class="badge rounded-pill badge-warning d-inline-flex align-items-center gap-1">
                                                             <core:icon identifier="actions-exclamation" size="small"/>
                                                             <f:translate key="sysreq.status.limited" extensionName="NrImageOptimize" />
                                                         </span>
                                                     </f:then>
                                                     <f:else>
-                                                        <span class="badge rounded-pill bg-danger d-inline-flex align-items-center gap-1">
+                                                        <span class="badge rounded-pill badge-danger d-inline-flex align-items-center gap-1">
                                                             <core:icon identifier="actions-close" size="small"/>
                                                             <f:translate key="sysreq.status.missing" extensionName="NrImageOptimize" />
                                                         </span>
@@ -80,11 +80,11 @@
                                     <td>
                                         <f:if condition="{item.currentKey}">
                                             <f:then>
-                                                <code class="bg-body-tertiary px-2 py-1 rounded small"><f:translate key="{item.currentKey}" extensionName="NrImageOptimize" /></code>
+                                                <span class="badge badge-secondary"><f:translate key="{item.currentKey}" extensionName="NrImageOptimize" /></span>
                                             </f:then>
                                             <f:else>
                                                 <f:if condition="{item.current}">
-                                                    <code class="bg-body-tertiary px-2 py-1 rounded small">{item.current}</code>
+                                                    <span class="badge badge-secondary">{item.current}</span>
                                                 </f:if>
                                             </f:else>
                                         </f:if>
