@@ -176,6 +176,9 @@ export function median(values: number[]): number {
 
 /** Median of every numeric metric across iterations; null when no iteration had a value. */
 export function aggregate(runs: VisitMetrics[]): VisitMetrics {
+  if (runs.length === 0) {
+    throw new Error('aggregate() received no runs — check BENCHMARK_ITERATIONS');
+  }
   const keys = Object.keys(runs[0]) as (keyof VisitMetrics)[];
   const result = {} as Record<keyof VisitMetrics, number | null>;
   for (const key of keys) {

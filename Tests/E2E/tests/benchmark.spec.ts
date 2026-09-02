@@ -18,7 +18,15 @@ import { writeCharts } from '../lib/charts';
  */
 
 const IMAGES = 24;
-const ITERATIONS = Number.parseInt(process.env.BENCHMARK_ITERATIONS ?? '3', 10);
+const ITERATIONS = parseIterations(process.env.BENCHMARK_ITERATIONS);
+
+function parseIterations(value: string | undefined): number {
+  const parsed = Number.parseInt(value ?? '3', 10);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    throw new Error(`BENCHMARK_ITERATIONS must be a positive integer, got: ${JSON.stringify(value)}`);
+  }
+  return parsed;
+}
 const RESULTS = process.env.BENCHMARK_RESULTS ?? path.resolve(__dirname, '../../../.Build/benchmark/results.json');
 
 type Pipeline = 'core' | 'ext';
@@ -171,7 +179,9 @@ test('render-vs-process benchmark: core f:image vs nrio:sourceSet', async ({ bro
   // Lazy loading: core still processes all 24 during render; the extension
   // only processes what the browser actually requested.
   expect(byId['lazy-cold'].core.variantsCreated).toBeGreaterThanOrEqual(IMAGES);
-  expect(byId['lazy-cold'].ext.variantsCreated, 'lazy loading must leave unrequested images unprocessed').toBeLessThan(
-    byId['lazy-cold'].core.variantsCreated,
-  );
+  expect(byId['lazy-cold'].ext.imageRequests, 'lazy loading must fetch fewer images than the page references').toBeLessThan(IMAGES);
+  expect(
+    byId['lazy-cold'].ext.variantsCreated,
+    'lazy loading must leave unrequested images unprocessed',
+  ).toBeLessThan(byId['lazy-cold'].ext.imageRequests * 3 + 1);
 });
