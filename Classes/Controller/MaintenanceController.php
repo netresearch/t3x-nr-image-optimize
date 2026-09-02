@@ -76,6 +76,11 @@ final class MaintenanceController extends ActionController implements LoggerAwar
     private const DATE_FORMAT = 'Y-m-d H:i:s';
 
     /**
+     * Public-path suffix of the directory holding processed image variants.
+     */
+    private const PROCESSED_DIRECTORY_SUFFIX = '/processed';
+
+    /**
      * @param ModuleTemplateFactory     $moduleTemplateFactory     Factory for backend module templates
      * @param SystemRequirementsService $systemRequirementsService Service to check system requirements
      * @param LanguageServiceFactory    $languageServiceFactory    Factory for localized language services
@@ -97,7 +102,7 @@ final class MaintenanceController extends ActionController implements LoggerAwar
     public function indexAction(): ResponseInterface
     {
         $moduleTemplate = $this->moduleTemplateFactory->create($this->request);
-        $moduleTemplate->assign('processedPath', Environment::getPublicPath() . '/processed');
+        $moduleTemplate->assign('processedPath', Environment::getPublicPath() . self::PROCESSED_DIRECTORY_SUFFIX);
 
         return $moduleTemplate->renderResponse('Maintenance/Index');
     }
@@ -110,7 +115,7 @@ final class MaintenanceController extends ActionController implements LoggerAwar
      */
     public function statisticsAction(): ResponseInterface
     {
-        $processedPath = Environment::getPublicPath() . '/processed';
+        $processedPath = Environment::getPublicPath() . self::PROCESSED_DIRECTORY_SUFFIX;
         $stats         = $this->getDirectoryStats($processedPath);
 
         return $this->jsonResponse(json_encode([
@@ -151,7 +156,7 @@ final class MaintenanceController extends ActionController implements LoggerAwar
      */
     public function clearProcessedImagesAction(): ResponseInterface
     {
-        $processedPath = Environment::getPublicPath() . '/processed';
+        $processedPath = Environment::getPublicPath() . self::PROCESSED_DIRECTORY_SUFFIX;
 
         try {
             if (is_dir($processedPath)) {
