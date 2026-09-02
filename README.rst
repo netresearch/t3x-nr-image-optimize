@@ -55,8 +55,9 @@ complete page in **3.0 s instead of 8.4 s**, and with lazy loading
 only the 7 images the viewport needed were processed instead of all
 24. The "Page cache warm, variants purged" row in the load chart
 looks like a regression (2.9 s for the extension against 0.8 s for
-core) -- it is not: core is serving 24 cheap 404s for images nothing
-regenerates, while the extension actually re-encodes them. Charts,
+core) -- it is not: core is serving 24 cheap 404s for images whose
+variants are not regenerated, while the extension actually re-encodes
+them. Charts,
 raw data and the remaining caveats (by default the extension encodes
 three formats per image, so a fully viewed cold page costs more CPU --
 13.5 s against 8.3 s; for the same single format it costs less, 6.9 s
