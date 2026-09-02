@@ -123,7 +123,7 @@ final class MaintenanceController extends ActionController implements LoggerAwar
             'fileTypes'      => $stats['fileTypes'],
             'oldestFile'     => $stats['oldestFile'],
             'newestFile'     => $stats['newestFile'],
-        ], JSON_THROW_ON_ERROR));
+        ], JSON_THROW_ON_ERROR | JSON_INVALID_UTF8_SUBSTITUTE));
     }
 
     /**
