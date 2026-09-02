@@ -147,7 +147,7 @@ final class MaintenanceController extends ActionController implements LoggerAwar
      */
     public function invalidatePathAction(string $path = ''): ResponseInterface
     {
-        $processedPath = Environment::getPublicPath() . '/processed';
+        $processedPath = Environment::getPublicPath() . self::PROCESSED_DIRECTORY_SUFFIX;
         $deletedCount  = $this->invalidateProcessedVariants($processedPath, $path);
 
         return $this->jsonResponse(json_encode([
