@@ -2460,7 +2460,7 @@ final class ProcessorTest extends TestCase
         $dir = '/dev/null/impossible-dir-' . uniqid('', true);
 
         $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessageIsOrContains('Directory "/dev/null/impossible-dir-');
+        $this->expectExceptionMessageMatches('/' . preg_quote('Directory "/dev/null/impossible-dir-', '/') . '/');
 
         $this->callMethod($this->processor, 'ensureDirectoryExists', $dir);
     }
