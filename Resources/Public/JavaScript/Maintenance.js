@@ -35,9 +35,9 @@
             return;
         }
 
-        var confirmTemplate = form.getAttribute('data-confirm-template') || '';
-        var successTemplate = form.getAttribute('data-success-template') || '';
-        var errorText = form.getAttribute('data-error-text') || '';
+        var confirmTemplate = form.dataset.confirmTemplate || '';
+        var successTemplate = form.dataset.successTemplate || '';
+        var errorText = form.dataset.errorText || '';
         var path = input.value;
 
         if (confirmTemplate !== '' && !window.confirm(confirmTemplate.replace('{0}', path))) {
