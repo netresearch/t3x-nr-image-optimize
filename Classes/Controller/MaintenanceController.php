@@ -262,14 +262,14 @@ final class MaintenanceController extends ActionController
             $size += $fileSize;
             $mtime = $file->getMTime();
 
-            $extension = strtolower((string) $file->getExtension());
+            $extension = strtolower($file->getExtension());
             $fileTypes[$extension] ??= ['count' => 0, 'size' => 0];
             ++$fileTypes[$extension]['count'];
             $fileTypes[$extension]['size'] += $fileSize;
 
             $largestFiles = $this->updateLargestFiles($largestFiles, [
                 'name' => $file->getFilename(),
-                'path' => str_replace($path . '/', '', (string) $file->getPathname()),
+                'path' => str_replace($path . '/', '', $file->getPathname()),
                 'size' => $fileSize,
             ]);
 
