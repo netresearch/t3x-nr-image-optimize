@@ -18,6 +18,64 @@
         }
     });
 
+    document.addEventListener('submit', function (event) {
+        var form = event.target;
+        if (!(form instanceof HTMLFormElement) || form.id !== 'invalidate-path-form') {
+            return;
+        }
+
+        event.preventDefault();
+
+        var input = document.getElementById('invalidate-path-input');
+        var button = document.getElementById('invalidate-path-submit');
+        var spinner = document.getElementById('invalidate-path-spinner');
+        var resultEl = document.getElementById('invalidate-path-result');
+
+        if (input === null || button === null || resultEl === null) {
+            return;
+        }
+
+        var confirmTemplate = form.dataset.confirmTemplate || '';
+        var successTemplate = form.dataset.successTemplate || '';
+        var errorText = form.dataset.errorText || '';
+        var path = input.value;
+
+        if (confirmTemplate !== '' && !window.confirm(confirmTemplate.replace('{0}', path))) {
+            return;
+        }
+
+        button.disabled = true;
+        if (spinner !== null) {
+            spinner.classList.remove('d-none');
+        }
+        resultEl.className = 'mt-2 small';
+        resultEl.textContent = '';
+
+        fetch(form.action, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { Accept: 'application/json' },
+            body: new FormData(form),
+        }).then(function (response) {
+            if (!response.ok) {
+                throw new Error('HTTP ' + response.status);
+            }
+            return response.json();
+        }).then(function (data) {
+            resultEl.className = 'mt-2 small text-success';
+            resultEl.textContent = successTemplate.replace('{0}', String(data.deletedCount));
+            loadStatistics();
+        }).catch(function () {
+            resultEl.className = 'mt-2 small text-danger';
+            resultEl.textContent = errorText;
+        }).finally(function () {
+            button.disabled = false;
+            if (spinner !== null) {
+                spinner.classList.add('d-none');
+            }
+        });
+    });
+
     function setText(id, text) {
         var el = document.getElementById(id);
         if (el !== null) {
