@@ -211,7 +211,7 @@ final class MaintenanceControllerTest extends FunctionalTestCase
                 // both fixture paths here so they don't leak into sibling
                 // tests. Nested finally: the outer one runs before the
                 // expected exception propagates past this test method.
-                unlink($processedPath);
+                unlink($processedPath); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created symlink
                 GeneralUtility::rmdir($foreignTarget, true);
             }
         }
