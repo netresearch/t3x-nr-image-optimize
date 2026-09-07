@@ -126,22 +126,28 @@ final class MaintenanceControllerTest extends FunctionalTestCase
         file_put_contents($subDir . '/file1.jpg', 'fake-jpg-data-1');
         file_put_contents($subDir . '/file2.png', 'fake-png-data-2');
 
-        $response = $this->dispatchAction('statistics');
+        try {
+            $response = $this->dispatchAction('statistics');
 
-        self::assertSame(200, $response->getStatusCode());
-        self::assertStringContainsString('application/json', $response->getHeaderLine('Content-Type'));
+            self::assertSame(200, $response->getStatusCode());
+            self::assertStringContainsString('application/json', $response->getHeaderLine('Content-Type'));
 
-        /** @var array<string, mixed> $data */
-        $data = json_decode((string) $response->getBody(), true, 512, JSON_THROW_ON_ERROR);
+            /** @var array<string, mixed> $data */
+            $data = json_decode((string) $response->getBody(), true, 512, JSON_THROW_ON_ERROR);
 
-        self::assertSame(2, $data['fileCount']);
-        self::assertSame(1, $data['directoryCount']);
-        self::assertCount(2, $data['largestFiles']);
-        self::assertArrayHasKey('jpg', $data['fileTypes']);
-        self::assertArrayHasKey('png', $data['fileTypes']);
-        self::assertContains($data['oldestFile']['name'], ['file1.jpg', 'file2.png']);
-        self::assertContains($data['newestFile']['name'], ['file1.jpg', 'file2.png']);
-        self::assertSame($processedPath, $data['processedPath']);
+            self::assertSame(2, $data['fileCount']);
+            self::assertSame(1, $data['directoryCount']);
+            self::assertCount(2, $data['largestFiles']);
+            self::assertArrayHasKey('jpg', $data['fileTypes']);
+            self::assertArrayHasKey('png', $data['fileTypes']);
+            self::assertContains($data['oldestFile']['name'], ['file1.jpg', 'file2.png']);
+            self::assertContains($data['newestFile']['name'], ['file1.jpg', 'file2.png']);
+            self::assertSame($processedPath, $data['processedPath']);
+        } finally {
+            // Leaving "fileadmin" in place would collide with the next test's
+            // own unconditional mkdir() on the same shared "processed" fixture.
+            GeneralUtility::rmdir($processedPath, true);
+        }
     }
 
     #[Test]
