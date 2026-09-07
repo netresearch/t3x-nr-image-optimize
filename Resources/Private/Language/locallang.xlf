@@ -93,6 +93,30 @@
             <trans-unit id="flash.clear.clearAll" resname="flash.clear.clearAll">
                 <source>Clear All Processed Images</source>
             </trans-unit>
+            <trans-unit id="invalidatePath.title" resname="invalidatePath.title">
+                <source>Invalidate by Path</source>
+            </trans-unit>
+            <trans-unit id="invalidatePath.description" resname="invalidatePath.description">
+                <source>Enter a path, directory, or glob (* or ?). Matching variants are deleted.</source>
+            </trans-unit>
+            <trans-unit id="invalidatePath.placeholder" resname="invalidatePath.placeholder">
+                <source>e.g. fileadmin/images/logo.png or fileadmin/images/*</source>
+            </trans-unit>
+            <trans-unit id="invalidatePath.label" resname="invalidatePath.label">
+                <source>Original file path, directory, or glob pattern</source>
+            </trans-unit>
+            <trans-unit id="invalidatePath.button" resname="invalidatePath.button">
+                <source>Invalidate</source>
+            </trans-unit>
+            <trans-unit id="invalidatePath.confirm" resname="invalidatePath.confirm">
+                <source>Delete all processed variants matching "{0}"? This action cannot be undone.</source>
+            </trans-unit>
+            <trans-unit id="invalidatePath.result.success" resname="invalidatePath.result.success">
+                <source>{0} file(s) deleted.</source>
+            </trans-unit>
+            <trans-unit id="invalidatePath.result.error" resname="invalidatePath.result.error">
+                <source>Deletion failed. Please try again.</source>
+            </trans-unit>
             <trans-unit id="sysreq.component" resname="sysreq.component">
                 <source>Component</source>
             </trans-unit>
