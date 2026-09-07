@@ -78,6 +78,12 @@
             <trans-unit id="stats.filePath" resname="stats.filePath">
                 <source>File Path</source>
             </trans-unit>
+            <trans-unit id="stats.loading" resname="stats.loading">
+                <source>Loading…</source>
+            </trans-unit>
+            <trans-unit id="stats.loadError" resname="stats.loadError">
+                <source>Could not load statistics. Please reload the page.</source>
+            </trans-unit>
             <trans-unit id="flash.clear.notice.title" resname="flash.clear.notice.title">
                 <source>Notice:</source>
             </trans-unit>
