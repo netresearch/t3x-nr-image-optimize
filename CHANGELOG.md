@@ -1,3 +1,70 @@
+# 1.5.0
+
+## FEATURE
+
+- **Invalidate processed variants by original path.** New targeted-deletion
+  mode in the maintenance backend module, similar to a CDN cache
+  invalidation: delete only the processed variants derived from a given
+  original file path, a directory prefix (trailing `/`), or a glob pattern
+  (`*`/`?`), instead of clearing the whole "processed" directory. Runs
+  asynchronously with a confirmation dialog and refreshes the statistics
+  cards afterward. Port of the main-branch feature (PR #182).
+  See [#189](https://github.com/netresearch/t3x-nr-image-optimize/pull/189).
+
+## BUGFIX
+
+- **Maintenance module no longer risks exhausting memory on large
+  "processed" trees.** Opening the module recomputed directory statistics
+  synchronously by materializing every file into an array just to sort it
+  once for the top-5 largest files -- on large instances (measured ~500k
+  files) this could exhaust a typical 256M PHP `memory_limit` with a fatal
+  error, on top of blocking page rendering. Statistics are now maintained
+  as a size-bounded top-5 list during a single directory walk and fetched
+  asynchronously by the module page instead of blocking `indexAction()`.
+  Port of the main-branch fix (PR #181).
+  See [#187](https://github.com/netresearch/t3x-nr-image-optimize/pull/187).
+- **Maintenance module respects TYPO3's backend dark mode.** Card headers,
+  extension tags, and status badges used raw Bootstrap `bg-*`/`text-bg-*`
+  utility classes that TYPO3's dark-mode gate (`[data-color-scheme=dark]`)
+  never resets, rendering a solid near-white background regardless of the
+  active color scheme. Replaced with TYPO3's own `badge-*` modifiers and
+  plain `card-header`, matching TYPO3 core's own backend templates.
+  See [#187](https://github.com/netresearch/t3x-nr-image-optimize/pull/187).
+- **Statistics JSON response no longer fails outright on a non-UTF-8 file
+  name in "processed".** `JSON_INVALID_UTF8_SUBSTITUTE` keeps the response
+  coming back for every other directory entry instead of throwing under
+  `JSON_THROW_ON_ERROR`.
+  See [#187](https://github.com/netresearch/t3x-nr-image-optimize/pull/187).
+
+## DOCUMENTATION
+
+- **Performance model.** New "Performance model" section in the
+  Introduction contrasting this extension's render-vs-process
+  decoupling with TYPO3 core's `f:image`/`ImageService`, which processes
+  every referenced image synchronously during page render. Backed by a
+  real measurement showing a 1,000x-50,000x per-image gap on cold render.
+  See [#173](https://github.com/netresearch/t3x-nr-image-optimize/pull/173).
+
+## CI
+
+- **Rector.** Replaced a temporary `rector/rector` cap (below 2.6.4, which
+  broke `ssch/typo3-rector` 3.15.0's container calls) with a
+  `ssch/typo3-rector: ^3.15.1` floor once 3.15.1 shipped the fix, so
+  `rector/rector` itself returns to the meta-package's unconstrained `^2.0`.
+  See [#178](https://github.com/netresearch/t3x-nr-image-optimize/pull/178).
+- **Aligned patch-coverage target with `main` (80%, was 100%).** The
+  stricter 100% target predated this port and wasn't a deliberate policy
+  for this branch; it flagged a single template-assign line in
+  `indexAction()` that isn't practically coverable via the existing
+  functional-test dispatch helper without a full backend module-routing
+  setup.
+  See [#187](https://github.com/netresearch/t3x-nr-image-optimize/pull/187).
+
+## Contributors
+
+- Axel Seemann
+- Sebastian Mendel
+
 # 1.4.1
 
 ## DOCUMENTATION

@@ -36,6 +36,17 @@ Verify all technical prerequisites and tool availability:
 -   CLI tools (``magick``, ``convert``, ``identify``, ``gm``
     -- optional).
 
+..  _maintenance-invalidate-path:
+
+Invalidate by path
+==================
+
+Delete only the processed variants derived from a given original
+file path, a directory prefix (trailing ``/``), or a glob pattern
+(``*``/``?``) -- similar to a CDN cache invalidation, instead of
+clearing the whole "processed" directory. Confirms before deleting
+and reports the number of files removed.
+
 ..  _maintenance-clear:
 
 Clear processed images

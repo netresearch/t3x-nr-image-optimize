@@ -6,6 +6,46 @@
 Changelog
 =========
 
+..  _changelog-1-5-0:
+
+1.5.0
+=====
+
+-   Added: targeted deletion of processed variants by original path,
+    directory prefix, or glob pattern (``*``/``?``) in the maintenance
+    backend module -- similar to a CDN cache invalidation, instead of
+    clearing the whole "processed" directory. Runs asynchronously with
+    a confirmation dialog and refreshes the statistics afterward. Port
+    of the main-branch feature.
+-   Fixed: the maintenance module no longer risks exhausting memory on
+    large "processed" trees. Opening the module recomputed directory
+    statistics synchronously by materializing every file into an array
+    just to sort it once for the top-5 largest files -- on large
+    instances (measured ~500k files) this could exhaust a typical 256M
+    PHP ``memory_limit`` with a fatal error, on top of blocking page
+    rendering. Statistics are now maintained as a size-bounded top-5
+    list during a single directory walk and fetched asynchronously
+    instead of blocking ``indexAction()``. Port of the main-branch fix.
+-   Fixed: the maintenance module now respects TYPO3's backend dark
+    mode. Card headers, extension tags, and status badges used raw
+    Bootstrap ``bg-*``/``text-bg-*`` utility classes that TYPO3's
+    dark-mode gate never resets, rendering a solid near-white
+    background regardless of the active color scheme. Replaced with
+    TYPO3's own ``badge-*`` modifiers and plain ``card-header``.
+-   Fixed: the statistics JSON response no longer fails outright on a
+    non-UTF-8 file name in "processed" -- invalid bytes are now
+    substituted instead of aborting the whole response.
+-   Added: a "Performance model" section in the Introduction
+    contrasting this extension's render-vs-process decoupling with
+    TYPO3 core's ``f:image``/``ImageService``, which processes every
+    referenced image synchronously during page render. Backed by a
+    real measurement showing a 1,000x-50,000x per-image gap on cold
+    render.
+-   Changed (CI): replaced a temporary ``rector/rector`` cap with a
+    ``ssch/typo3-rector: ^3.15.1`` floor once that release shipped the
+    upstream container-API fix, and aligned the patch-coverage target
+    with ``main`` (80%, was 100%).
+
 ..  _changelog-1-4-1:
 
 1.4.1
