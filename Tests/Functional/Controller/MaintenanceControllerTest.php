@@ -203,7 +203,17 @@ final class MaintenanceControllerTest extends FunctionalTestCase
         try {
             $this->dispatchAction('invalidatePath', ['path' => 'fileadmin/images/logo.png']);
         } finally {
-            self::assertFileExists($foreignTarget . '/keep.txt');
+            try {
+                self::assertFileExists($foreignTarget . '/keep.txt');
+            } finally {
+                // The guard rejects the call, so the dangling "processed"
+                // symlink is never removed by the action itself -- clean up
+                // both fixture paths here so they don't leak into sibling
+                // tests. Nested finally: the outer one runs before the
+                // expected exception propagates past this test method.
+                unlink($processedPath);
+                GeneralUtility::rmdir($foreignTarget, true);
+            }
         }
     }
 
