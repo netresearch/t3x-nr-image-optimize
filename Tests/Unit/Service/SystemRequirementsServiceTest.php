@@ -1557,43 +1557,30 @@ final class SystemRequirementsServiceTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
-    // Mutation-killing: checkCliTools disable_functions parsing (lines 349-354)
+    // Mutation-killing: disable_functions parsing (parseDisabledFunctions)
     // -------------------------------------------------------------------------
 
     #[Test]
-    public function checkCliToolsDisableFunctionsWithWhitespaceAroundNames(): void
+    public function parseDisabledFunctionsTrimsWhitespaceAroundNames(): void
     {
-        // Exercises the trim() in array_map(trim(...), explode(',', ...)) on line 353.
-        // Verifies that even with spaces in disable_functions, function names are matched correctly.
-        // The mutant (UnwrapArrayMap) removes trim(), causing " shell_exec " to not match "shell_exec".
-        $withTrim    = array_map(trim(...), explode(',', ' shell_exec , passthru '));
-        $withoutTrim = explode(',', ' shell_exec , passthru ');
-
-        // With trim: exact match works
-        self::assertTrue(in_array('shell_exec', $withTrim, true), 'trim() must normalize function names');
-        self::assertTrue(in_array('passthru', $withTrim, true), 'trim() must normalize function names');
-
-        // Without trim: exact match fails due to leading/trailing spaces
-        self::assertFalse(in_array('shell_exec', $withoutTrim, true), 'Without trim, spaces prevent exact match');
-        self::assertFalse(in_array('passthru', $withoutTrim, true), 'Without trim, spaces prevent exact match');
+        // The UnwrapArrayMap mutant removes trim(), leaving " shell_exec " and
+        // " passthru ", which checkCliTools would then fail to match.
+        self::assertSame(
+            ['shell_exec', 'passthru'],
+            $this->callMethod('parseDisabledFunctions', ' shell_exec , passthru '),
+        );
     }
 
     #[Test]
-    public function checkCliToolsDisableFunctionsIdenticalHandlesFalseFromIniGet(): void
+    public function parseDisabledFunctionsTreatsFalseAsEmptyAndKeepsRealValues(): void
     {
-        // Exercises the ini_get === false check on line 349.
-        // When ini_get returns false (setting doesn't exist), code must treat it as empty string.
-        // The Identical mutant (=== → !==) would overwrite a REAL string value with ''.
-        $disableFunctions = ini_get('disable_functions');
+        // ini_get() returns false when the setting does not exist; that reads as
+        // an empty list entry. The Identical mutant (=== → !==) would instead
+        // replace a real value with '' and lose the disabled function.
+        self::assertSame([''], $this->callMethod('parseDisabledFunctions', false));
+        self::assertSame(['exec'], $this->callMethod('parseDisabledFunctions', 'exec'));
 
-        if ($disableFunctions === false) {
-            $disableFunctions = '';
-        }
-
-        // Regardless of the actual value, the result must be a string
-        self::assertIsString($disableFunctions, 'disable_functions must be resolved to a string');
-
-        // Verify the actual behavior: no exception, valid category returned
+        // checkCliTools still returns its category with the live ini value
         /** @var array<string, mixed> $result */
         $result = $this->callMethod('checkCliTools');
         self::assertSame('sysreq.cliTools', $result['labelKey']);
