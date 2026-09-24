@@ -1154,14 +1154,9 @@ final class SystemRequirementsServiceTest extends TestCase
         assert(is_array($result['items']));
 
         // The first item must reflect actual exec availability
-        $execItem   = $result['items'][0];
-        $disableFns = ini_get('disable_functions');
-
-        if ($disableFns === false) {
-            $disableFns = '';
-        }
-
-        $disabled    = array_map(trim(...), explode(',', $disableFns));
+        $execItem = $result['items'][0];
+        /** @var list<string> $disabled */
+        $disabled    = $this->callMethod('parseDisabledFunctions', ini_get('disable_functions'));
         $execAllowed = function_exists('shell_exec') && !in_array('shell_exec', $disabled, true);
 
         $expectedStatus     = $execAllowed ? 'success' : 'warning';
@@ -1184,29 +1179,6 @@ final class SystemRequirementsServiceTest extends TestCase
                 'When exec is allowed, tool items must have sysreq.found or sysreq.notFound, not n/a',
             );
         }
-    }
-
-    #[Test]
-    public function checkCliToolsWithShellExecDisabledViaIniShowsWarning(): void
-    {
-        // Verify that when shell_exec is in disable_functions, exec is detected as disabled.
-        // We test the disable_functions parsing logic by checking that the array_map(trim())
-        // properly trims whitespace around function names in the comma-separated list.
-        $disableFns = ini_get('disable_functions');
-
-        if ($disableFns === false) {
-            $disableFns = '';
-        }
-
-        // Verify that trim is applied correctly: " shell_exec " with spaces should still match
-        $disabled = array_map(trim(...), explode(',', ' shell_exec , exec '));
-        self::assertContains('shell_exec', $disabled, 'array_map(trim()) must trim whitespace from function names');
-        self::assertContains('exec', $disabled, 'array_map(trim()) must trim whitespace from function names');
-
-        // Without array_map(trim()), the list would contain " shell_exec " (with spaces)
-        // and in_array('shell_exec', ..., true) would NOT find it.
-        $disabledWithoutTrim = explode(',', ' shell_exec , exec ');
-        self::assertNotContains('shell_exec', $disabledWithoutTrim, 'Without trim, shell_exec should NOT be found due to leading space');
     }
 
     // -------------------------------------------------------------------------
