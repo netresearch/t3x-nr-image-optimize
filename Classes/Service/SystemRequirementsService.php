@@ -343,14 +343,8 @@ final class SystemRequirementsService
      */
     private function checkCliTools(): array
     {
-        $items            = [];
-        $disableFunctions = ini_get('disable_functions');
-
-        if ($disableFunctions === false) {
-            $disableFunctions = '';
-        }
-
-        $disabled    = array_map(trim(...), explode(',', $disableFunctions));
+        $items       = [];
+        $disabled    = $this->parseDisabledFunctions(ini_get('disable_functions'));
         $execAllowed = function_exists('shell_exec') && !in_array('shell_exec', $disabled, true);
 
         $items[] = $this->makeItem(
@@ -381,6 +375,22 @@ final class SystemRequirementsService
         }
 
         return $this->makeCategory('sysreq.cliTools', $items);
+    }
+
+    /**
+     * Split the disable_functions ini value into trimmed function names.
+     *
+     * @param string|false $disableFunctions Value of ini_get('disable_functions'); false when the setting is absent
+     *
+     * @return list<string>
+     */
+    private function parseDisabledFunctions(string|false $disableFunctions): array
+    {
+        if ($disableFunctions === false) {
+            $disableFunctions = '';
+        }
+
+        return array_map(trim(...), explode(',', $disableFunctions));
     }
 
     /**
