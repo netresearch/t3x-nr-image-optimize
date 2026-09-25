@@ -280,8 +280,9 @@ that writes a URL of this form will be intercepted by the
 ``<ext>``
     Source image extension. The processor decides at
     response time whether to serve the original, the
-    ``.webp`` sidecar, or the ``.avif`` sidecar based on
-    the ``Accept`` header and the query flags below.
+    ``.webp`` sidecar, or the ``.avif`` sidecar, based on
+    which of these files exist on disk (see
+    :ref:`configuration-variant-negotiation`).
 
 ..  code-block:: text
     :caption: Example URL
@@ -295,21 +296,27 @@ Variant negotiation
 
 When the processor generates a variant, it writes the original
 file to disk and additionally produces a ``.webp`` and an
-``.avif`` sidecar (same base name). On each request it inspects
-the ``Accept`` header and returns the best match the client
-supports, preferring AVIF over WebP over the original format.
+``.avif`` sidecar (same base name), unless the format is turned
+off (see :ref:`configuration-sidecar-formats`).
+
+The processor does not inspect the ``Accept`` request header.
+On each request it serves the first non-empty file it finds on
+disk, in this order: the ``.avif`` sidecar, the ``.webp``
+sidecar, the original format.
 
 Two query parameters let callers opt out of sidecar generation
 for individual URLs:
 
 ``skipWebP=1``
-    Do not produce or serve a WebP variant for this URL. The
-    ``Content-Type`` always matches the source extension.
+    Do not produce a WebP variant for this URL.
 
 ``skipAvif=1``
-    Do not produce or serve an AVIF variant for this URL. If
-    WebP is still allowed and the client supports it, WebP is
-    served.
+    Do not produce an AVIF variant for this URL.
+
+The flags only control generation. The query string is not part
+of the variant file name, so a URL with a skip flag shares its
+files with the same URL without it: a sidecar already written
+for that variant is served either way.
 
 These flags are useful when specific consumers (for example
 e-mail clients or legacy RSS renderers) cannot handle modern

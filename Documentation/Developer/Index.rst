@@ -139,9 +139,11 @@ Processor
     -   Uses TYPO3's ``LockFactory`` to serialize concurrent
         requests for the same variant; a 503 is returned if
         the lock can't be acquired within ~1 second.
-    -   Respects the ``Accept`` header plus the ``skipWebP``
-        and ``skipAvif`` query parameters when choosing
-        which cached sidecar to serve.
+    -   Serves the first non-empty file on disk: the AVIF
+        sidecar, then the WebP sidecar, then the original
+        format. The ``Accept`` header is not inspected; the
+        ``skipWebP`` and ``skipAvif`` query parameters only
+        suppress sidecar generation.
     -   Dispatches :php:class:`~Netresearch\\NrImageOptimize\\Event\\ImageProcessedEvent`
         after a new variant is written and
         :php:class:`~Netresearch\\NrImageOptimize\\Event\\VariantServedEvent`

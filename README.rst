@@ -334,9 +334,10 @@ Processed variants are served from
 concatenation of any of ``w<n>``, ``h<n>``, ``q<n>``, ``m<n>``
 (width, height, quality 1--100, mode ``0`` = cover / ``1`` = fit).
 The processor decides at response time whether to serve the
-original, the ``.webp`` sidecar, or the ``.avif`` sidecar based on
-the ``Accept`` header and the ``skipWebP`` / ``skipAvif`` query
-flags. Path traversal sequences are rejected; ``w`` / ``h`` are
+original, the ``.webp`` sidecar, or the ``.avif`` sidecar: it serves
+the first of AVIF, WebP, original that exists on disk and does not
+inspect the ``Accept`` header. The ``skipWebP`` / ``skipAvif`` query
+flags suppress generation of the respective sidecar. Path traversal sequences are rejected; ``w`` / ``h`` are
 clamped to 1--8192 and ``q`` to 1--100.
 
 Example: ``/processed/fileadmin/hero.w1200h800m0q85.jpg``.
