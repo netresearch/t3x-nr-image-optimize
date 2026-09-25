@@ -39,6 +39,7 @@ use RuntimeException;
 use SplFileInfo;
 use Throwable;
 use TypeError;
+use TYPO3\CMS\Core\Configuration\Exception\ExtensionConfigurationPathDoesNotExistException;
 use TYPO3\CMS\Core\Configuration\ExtensionConfiguration;
 use TYPO3\CMS\Core\Core\ApplicationContext;
 use TYPO3\CMS\Core\Core\Environment;
@@ -729,9 +730,11 @@ final class ProcessorTest extends TestCase
     {
         $extensionConfiguration = $this->createMock(ExtensionConfiguration::class);
         $extensionConfiguration->method('get')->willReturnCallback(
-            static function (string $extension, string $path = '') use ($settings): mixed {
+            static function (string ...$arguments) use ($settings): mixed {
+                $path = $arguments[1] ?? '';
+
                 if (!array_key_exists($path, $settings)) {
-                    throw new RuntimeException('Path "' . $path . '" does not exist in extension configuration', 1790294400);
+                    throw new ExtensionConfigurationPathDoesNotExistException('Path ' . $path . ' does not exist in extension configuration', 1509977699);
                 }
 
                 return $settings[$path];
