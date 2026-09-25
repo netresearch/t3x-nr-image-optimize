@@ -37,6 +37,7 @@ use function feof;
 use function file_exists;
 use function filemtime;
 use function filesize;
+use function filter_var;
 use function fopen;
 use function fread;
 use function gmdate;
@@ -133,6 +134,19 @@ class Processor
      * smaller size.
      */
     private const DEFAULT_QUALITY_AVIF = 60;
+
+    /**
+     * Highest quality handed to the AVIF encoder.
+     *
+     * At quality 100 ImageMagick's HEIC coder asks libheif/aom for lossless
+     * encoding, which the AOM encoder rejects ("Only --enable_chroma_deltaq=0
+     * can be used with --lossless=1"). No image data comes back, Intervention
+     * throws "Failed to get the image contents" and no AVIF variant is written
+     * at all. Capping at 99 keeps a configured 100 on the lossy path. The cap
+     * applies to the AVIF sidecar and to the primary variant of an AVIF
+     * original requested with q100.
+     */
+    private const MAX_QUALITY_AVIF = 99;
 
     /**
      * Cache-Control max-age for processed images (1 year in seconds).
@@ -520,11 +534,17 @@ class Processor
         $targetQuality  = $urlInfo['targetQuality'];
         $processingMode = $urlInfo['processingMode'];
 
+        // An AVIF primary variant goes through the same encoder as the AVIF
+        // sidecar, so a URL quality of 100 is capped the same way.
+        if ($this->isAvifImage($urlInfo['extension'])) {
+            $targetQuality = min($targetQuality, self::MAX_QUALITY_AVIF);
+        }
+
         // WebP/AVIF quality is a config-driven encoding parameter -- unlike the
         // base quality it is not encoded in the URL/cache key -- so it is
         // resolved here at encode time rather than in the URL parser.
         $webpQuality = $this->resolveFormatQuality('qualityWebp', self::DEFAULT_QUALITY_WEBP);
-        $avifQuality = $this->resolveFormatQuality('qualityAvif', self::DEFAULT_QUALITY_AVIF);
+        $avifQuality = $this->resolveAvifQuality();
 
         $image = $this->processImage($image, $targetWidth, $targetHeight, $processingMode);
 
@@ -539,7 +559,7 @@ class Processor
         // calling parse_str() separately for each flag.
         $queryParams = $this->parseQueryParams($request);
 
-        if (!$this->isWebpImage($extension) && !$queryParams['skipWebP']) {
+        if (!$this->isWebpImage($extension) && !$queryParams['skipWebP'] && $this->isFormatEnabled('generateWebp')) {
             try {
                 $this->generateWebpVariant($image, $webpQuality, $pathVariant);
             } catch (Throwable $e) {
@@ -547,7 +567,7 @@ class Processor
             }
         }
 
-        if (!$this->isAvifImage($extension) && !$queryParams['skipAvif']) {
+        if (!$this->isAvifImage($extension) && !$queryParams['skipAvif'] && $this->isFormatEnabled('generateAvif')) {
             try {
                 $this->generateAvifVariant($image, $avifQuality, $pathVariant);
             } catch (Throwable $e) {
@@ -720,6 +740,42 @@ class Processor
         }
 
         return $this->clampQuality((int) $raw);
+    }
+
+    /**
+     * Resolve the configured AVIF quality, capped at MAX_QUALITY_AVIF.
+     *
+     * @return int Quality handed to the AVIF encoder (1-99)
+     */
+    private function resolveAvifQuality(): int
+    {
+        return min(
+            $this->resolveFormatQuality('qualityAvif', self::DEFAULT_QUALITY_AVIF),
+            self::MAX_QUALITY_AVIF,
+        );
+    }
+
+    /**
+     * Whether generation of a sidecar format is enabled.
+     *
+     * Reads a boolean extension-configuration switch (e.g. "generateWebp").
+     * Defaults to enabled when the setting is missing, not a boolean, or the
+     * ExtensionConfiguration API is unavailable, so installations that never
+     * configure it keep generating both sidecars.
+     *
+     * @param non-empty-string $key Extension-configuration key to read
+     *
+     * @return bool True if the sidecar format should be generated
+     */
+    private function isFormatEnabled(string $key): bool
+    {
+        try {
+            $raw = $this->extensionConfiguration->get(self::EXTENSION_KEY, $key);
+        } catch (Throwable) {
+            return true;
+        }
+
+        return filter_var($raw, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE) ?? true;
     }
 
     /**
@@ -1328,7 +1384,7 @@ class Processor
      * Encode and persist the AVIF variant of the current image.
      *
      * @param ImageInterface $image         The processed image
-     * @param int            $targetQuality Output quality (1-100)
+     * @param int            $targetQuality Output quality (1-99, see MAX_QUALITY_AVIF)
      * @param string         $pathVariant   Absolute path of the primary variant file
      */
     private function generateAvifVariant(ImageInterface $image, int $targetQuality, string $pathVariant): void

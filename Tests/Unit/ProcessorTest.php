@@ -36,6 +36,7 @@ use ReflectionProperty;
 use RuntimeException;
 use SplFileInfo;
 use TypeError;
+use TYPO3\CMS\Core\Configuration\Exception\ExtensionConfigurationPathDoesNotExistException;
 use TYPO3\CMS\Core\Configuration\ExtensionConfiguration;
 use TYPO3\CMS\Core\Core\ApplicationContext;
 use TYPO3\CMS\Core\Core\Environment;
@@ -45,6 +46,7 @@ use TYPO3\CMS\Core\Locking\LockingStrategyInterface;
 use TYPO3\CMS\Core\Resource\ResourceStorage;
 use TYPO3\CMS\Core\Resource\StorageRepository;
 
+use function array_key_exists;
 use function dirname;
 use function file_get_contents;
 use function file_put_contents;
@@ -624,6 +626,98 @@ class ProcessorTest extends TestCase
             'non-numeric falls back' => ['nan', 60],
             'integer value'          => [42, 42],
         ];
+    }
+
+    #[Test]
+    public function resolveAvifQualityFallsBackToDefaultWhenConfigurationUnavailable(): void
+    {
+        self::assertSame(60, $this->callMethod($this->processor, 'resolveAvifQuality'));
+    }
+
+    #[Test]
+    #[DataProvider('configuredAvifQualityProvider')]
+    public function resolveAvifQualityCapsConfiguredValueAt99(int|string $configured, int $expected): void
+    {
+        $this->injectExtensionConfiguration($this->processor, ['qualityAvif' => $configured]);
+
+        self::assertSame($expected, $this->callMethod($this->processor, 'resolveAvifQuality'));
+    }
+
+    /**
+     * @return array<string, array{int|string, int}>
+     */
+    public static function configuredAvifQualityProvider(): array
+    {
+        return [
+            'in range'         => ['70', 70],
+            '99 kept'          => ['99', 99],
+            '100 capped to 99' => ['100', 99],
+            'above 100 capped' => ['150', 99],
+        ];
+    }
+
+    #[Test]
+    public function isFormatEnabledDefaultsToTrueWhenConfigurationUnavailable(): void
+    {
+        self::assertTrue($this->callMethod($this->processor, 'isFormatEnabled', 'generateAvif'));
+    }
+
+    #[Test]
+    #[DataProvider('formatSwitchProvider')]
+    public function isFormatEnabledReadsConfiguredSwitch(mixed $configured, bool $expected): void
+    {
+        $this->injectExtensionConfiguration($this->processor, ['generateWebp' => $configured]);
+
+        self::assertSame($expected, $this->callMethod($this->processor, 'isFormatEnabled', 'generateWebp'));
+    }
+
+    /**
+     * @return array<string, array{mixed, bool}>
+     */
+    public static function formatSwitchProvider(): array
+    {
+        return [
+            'string 1 (backend checkbox on)'  => ['1', true],
+            'string 0 (backend checkbox off)' => ['0', false],
+            'integer 0'                       => [0, false],
+            'boolean false'                   => [false, false],
+            'boolean true'                    => [true, true],
+            'string false'                    => ['false', false],
+            'unparsable falls back to on'     => ['maybe', true],
+            'array falls back to on'          => [['1'], true],
+        ];
+    }
+
+    #[Test]
+    public function isFormatEnabledDefaultsToTrueWhenKeyIsMissing(): void
+    {
+        $this->injectExtensionConfiguration($this->processor, []);
+
+        self::assertTrue($this->callMethod($this->processor, 'isFormatEnabled', 'generateAvif'));
+    }
+
+    /**
+     * Inject an ExtensionConfiguration mock that returns the given settings
+     * and throws for keys that are not set, like the real API does for a
+     * path that is missing from the configuration.
+     *
+     * @param array<string, mixed> $settings
+     */
+    private function injectExtensionConfiguration(object $processor, array $settings): void
+    {
+        $extensionConfiguration = $this->createMock(ExtensionConfiguration::class);
+        $extensionConfiguration->method('get')->willReturnCallback(
+            static function (string ...$arguments) use ($settings): mixed {
+                $path = $arguments[1] ?? '';
+
+                if (!array_key_exists($path, $settings)) {
+                    throw new ExtensionConfigurationPathDoesNotExistException('Path ' . $path . ' does not exist in extension configuration', 1509977699);
+                }
+
+                return $settings[$path];
+            },
+        );
+        $this->setProperty($processor, 'extensionConfiguration', $extensionConfiguration);
     }
 
     #[Test]
@@ -3219,6 +3313,90 @@ class ProcessorTest extends TestCase
             $scenario['response'],
             $this->invokeProcessAndRespond($scenario['processor'], $scenario['request'], $scenario['urlInfo']),
         );
+
+        $this->tearDownProcessAndRespondScenario($scenario['tempDir'], $scenario['originalPath']);
+    }
+
+    #[Test]
+    public function processAndRespondSkipsVariantsDisabledInConfiguration(): void
+    {
+        $scenario = $this->setUpProcessAndRespondScenario('nr-pio-disabled-', 'jpg', 400, 200, 200, 0, '');
+        $this->injectExtensionConfiguration($scenario['processor'], ['generateWebp' => '0', 'generateAvif' => '0']);
+
+        $scenario['image']->expects(self::never())->method('toWebp');
+        $scenario['image']->expects(self::never())->method('toAvif');
+
+        self::assertSame(
+            $scenario['response'],
+            $this->invokeProcessAndRespond($scenario['processor'], $scenario['request'], $scenario['urlInfo']),
+        );
+
+        $this->tearDownProcessAndRespondScenario($scenario['tempDir'], $scenario['originalPath']);
+    }
+
+    #[Test]
+    public function processAndRespondGeneratesOnlyTheEnabledVariant(): void
+    {
+        $scenario = $this->setUpProcessAndRespondScenario('nr-pio-avif-only-', 'jpg', 400, 200, 200, 0, '');
+        $this->injectExtensionConfiguration($scenario['processor'], ['generateWebp' => '0', 'generateAvif' => '1']);
+
+        $encoded = $this->createMock(EncodedImageInterface::class);
+        $scenario['image']->expects(self::never())->method('toWebp');
+        $scenario['image']->expects(self::once())->method('toAvif')->willReturn($encoded);
+        $this->captureEncodedSave($encoded, 'avif-data');
+
+        self::assertSame(
+            $scenario['response'],
+            $this->invokeProcessAndRespond($scenario['processor'], $scenario['request'], $scenario['urlInfo']),
+        );
+
+        $this->tearDownProcessAndRespondScenario($scenario['tempDir'], $scenario['originalPath']);
+    }
+
+    #[Test]
+    public function processAndRespondHandsCappedAvifQualityToEncoder(): void
+    {
+        $scenario = $this->setUpProcessAndRespondScenario('nr-pio-avif-cap-', 'jpg', 400, 200, 200, 0, 'skipWebP=1');
+        $this->injectExtensionConfiguration($scenario['processor'], ['qualityAvif' => '100']);
+
+        $encoded = $this->createMock(EncodedImageInterface::class);
+        $scenario['image']->expects(self::once())->method('toAvif')->with(99)->willReturn($encoded);
+        $this->captureEncodedSave($encoded, 'avif-data');
+
+        self::assertSame(
+            $scenario['response'],
+            $this->invokeProcessAndRespond($scenario['processor'], $scenario['request'], $scenario['urlInfo']),
+        );
+
+        $this->tearDownProcessAndRespondScenario($scenario['tempDir'], $scenario['originalPath']);
+    }
+
+    #[Test]
+    public function processAndRespondCapsQualityOfAvifPrimaryVariant(): void
+    {
+        $scenario                             = $this->setUpProcessAndRespondScenario('nr-pio-avif-primary-', 'avif', 400, 200, 200, 0, 'skipWebP=1');
+        $scenario['urlInfo']['targetQuality'] = 100;
+
+        self::assertSame(
+            $scenario['response'],
+            $this->invokeProcessAndRespond($scenario['processor'], $scenario['request'], $scenario['urlInfo']),
+        );
+        self::assertSame(['quality' => 99], $scenario['capture']['options']);
+
+        $this->tearDownProcessAndRespondScenario($scenario['tempDir'], $scenario['originalPath']);
+    }
+
+    #[Test]
+    public function processAndRespondKeepsQuality100ForNonAvifPrimaryVariant(): void
+    {
+        $scenario                             = $this->setUpProcessAndRespondScenario('nr-pio-jpg-q100-', 'jpg', 400, 200, 200, 0, 'skipWebP=1&skipAvif=1');
+        $scenario['urlInfo']['targetQuality'] = 100;
+
+        self::assertSame(
+            $scenario['response'],
+            $this->invokeProcessAndRespond($scenario['processor'], $scenario['request'], $scenario['urlInfo']),
+        );
+        self::assertSame(['quality' => 100], $scenario['capture']['options']);
 
         $this->tearDownProcessAndRespondScenario($scenario['tempDir'], $scenario['originalPath']);
     }

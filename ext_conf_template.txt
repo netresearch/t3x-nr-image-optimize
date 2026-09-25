@@ -4,8 +4,14 @@ additionalTrustedStorageSymlinks =
 # cat=basic/enable; type=string; label=Additional trusted absolute roots (comma-separated): absolute filesystem paths, outside FAL and TYPO3-internal locations, that are realpath-resolved and added to the path-validation allow-list. Leave empty (default). Only add paths you fully trust -- this widens where the processor will read from and publicly serve variants of.
 additionalTrustedRoots =
 
-# cat=quality/enable/10; type=int+; label=WebP quality (1-100): output quality for the generated WebP variant.
+# cat=quality/enable/10; type=int+; label=WebP quality (1-100): output quality for the generated WebP variant. At 100 the WebP variant is encoded lossless and typically comes out several times larger than the primary JPEG variant.
 qualityWebp = 75
 
-# cat=quality/enable/20; type=int+; label=AVIF quality (1-100): output quality for the generated AVIF variant. AVIF's quality scale is steeper than WebP/JPEG -- at the same number an AVIF comes out larger and defeats the point of serving AVIF, so a lower value (default 60) keeps it genuinely smaller while staying visually comparable. Changing this requires clearing the processed images.
+# cat=quality/enable/20; type=int+; label=AVIF quality (1-99): output quality for the generated AVIF variant. AVIF's quality scale is steeper than WebP/JPEG -- at the same number an AVIF comes out larger and defeats the point of serving AVIF, so a lower value (default 60) keeps it genuinely smaller while staying visually comparable. Values above 99 are capped at 99: at 100 ImageMagick switches to lossless AVIF encoding, which yields no image. Changing this requires clearing the processed images.
 qualityAvif = 60
+
+# cat=quality/enable/30; type=boolean; label=Generate WebP variant: write a .webp file next to each processed variant. Disable to skip WebP encoding. Variants already on disk are still served until the processed images are cleared.
+generateWebp = 1
+
+# cat=quality/enable/40; type=boolean; label=Generate AVIF variant: write an .avif file next to each processed variant. Disable to skip AVIF encoding. Variants already on disk are still served until the processed images are cleared.
+generateAvif = 1
