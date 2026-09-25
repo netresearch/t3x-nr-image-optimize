@@ -280,8 +280,9 @@ that writes a URL of this form will be intercepted by the
 ``<ext>``
     Source image extension. The processor decides at
     response time whether to serve the original, the
-    ``.webp`` sidecar, or the ``.avif`` sidecar based on
-    the ``Accept`` header and the query flags below.
+    ``.webp`` sidecar, or the ``.avif`` sidecar, based on
+    which of these files exist on disk (see
+    :ref:`configuration-variant-negotiation`).
 
 ..  code-block:: text
     :caption: Example URL
@@ -295,21 +296,27 @@ Variant negotiation
 
 When the processor generates a variant, it writes the original
 file to disk and additionally produces a ``.webp`` and an
-``.avif`` sidecar (same base name). On each request it inspects
-the ``Accept`` header and returns the best match the client
-supports, preferring AVIF over WebP over the original format.
+``.avif`` sidecar (same base name), unless the format is turned
+off (see :ref:`configuration-sidecar-formats`).
+
+The processor does not inspect the ``Accept`` request header.
+On each request it serves the first non-empty file it finds on
+disk, in this order: the ``.avif`` sidecar, the ``.webp``
+sidecar, the original format.
 
 Two query parameters let callers opt out of sidecar generation
 for individual URLs:
 
 ``skipWebP=1``
-    Do not produce or serve a WebP variant for this URL. The
-    ``Content-Type`` always matches the source extension.
+    Do not produce a WebP variant for this URL.
 
 ``skipAvif=1``
-    Do not produce or serve an AVIF variant for this URL. If
-    WebP is still allowed and the client supports it, WebP is
-    served.
+    Do not produce an AVIF variant for this URL.
+
+The flags only control generation. The query string is not part
+of the variant file name, so a URL with a skip flag shares its
+files with the same URL without it: a sidecar already written
+for that variant is served either way.
 
 These flags are useful when specific consumers (for example
 e-mail clients or legacy RSS renderers) cannot handle modern
@@ -335,12 +342,19 @@ Two extension configuration settings control sidecar quality
 independently of the primary variant:
 
 ``qualityWebp`` (default ``75``)
-    Output quality for the generated WebP variant.
+    Output quality for the generated WebP variant. At ``100`` the WebP
+    variant is encoded lossless and typically comes out several times
+    larger than the primary JPEG variant.
 
 ``qualityAvif`` (default ``60``)
     Output quality for the generated AVIF variant. The lower default
     keeps AVIF variants genuinely smaller than WebP while staying
     visually comparable.
+
+..  versionchanged:: 2.6.0
+    ``qualityAvif`` is capped at ``99``. At ``100`` ImageMagick
+    switches to lossless AVIF encoding, which returns no image data,
+    so no AVIF variant was written at all.
 
 ..  code-block:: php
     :caption: config/system/additional.php
@@ -358,6 +372,41 @@ nr_image_optimize*.
     variants -- clear already-processed images (see
     :ref:`maintenance-clear`) to apply the new quality to existing
     ones.
+
+..  _configuration-sidecar-formats:
+
+WebP/AVIF generation
+====================
+
+..  versionadded:: 2.6.0
+    The ``generateWebp`` and ``generateAvif`` extension configuration
+    settings.
+
+By default the processor writes a ``.webp`` and an ``.avif`` file next
+to every processed variant. Two switches turn either format off for the
+whole installation, for example to save storage when one sidecar format
+is enough:
+
+``generateWebp`` (default ``1``)
+    Write a ``.webp`` sidecar for each processed variant.
+
+``generateAvif`` (default ``1``)
+    Write an ``.avif`` sidecar for each processed variant.
+
+..  code-block:: php
+    :caption: config/system/additional.php
+
+    $GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['nr_image_optimize']['generateWebp'] = false;
+    $GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['nr_image_optimize']['generateAvif'] = true;
+
+The per-URL ``skipWebP`` and ``skipAvif`` query parameters (see
+:ref:`configuration-variant-negotiation`) still apply on top: a format
+is generated only if its switch is on and the URL does not skip it.
+
+..  attention::
+    The switches only control generation. Sidecars already on disk are
+    still served. Clear already-processed images (see
+    :ref:`maintenance-clear`) to remove them.
 
 ..  _configuration-cache-headers:
 

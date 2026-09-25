@@ -207,8 +207,8 @@ Features
     request, when a browser first asks for it, and served as a static
     file from then on (see :ref:`introduction-performance`).
 -   **Next-gen format support.** Automatic WebP and AVIF sidecar
-    generation with Accept-header-driven content negotiation and
-    ``skipWebP`` / ``skipAvif`` opt-outs.
+    generation, served in the order AVIF, WebP, original format,
+    with per-URL ``skipWebP`` / ``skipAvif`` opt-outs.
 -   **Responsive images.**
     :php:class:`~Netresearch\\NrImageOptimize\\ViewHelpers\\SourceSetViewHelper`
     emits ``<img>`` tags with density-based or width-based
