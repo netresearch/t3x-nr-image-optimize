@@ -11,9 +11,6 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Tests\Functional;
 
-use function class_exists;
-
-use Imagick;
 use Netresearch\NrImageOptimize\Processor;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
@@ -28,6 +25,8 @@ use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
 #[CoversClass(Processor::class)]
 final class ProcessorAvifDisabledTest extends FunctionalTestCase
 {
+    use AvifEncoderProbeTrait;
+
     protected array $testExtensionsToLoad = [
         'netresearch/nr-image-optimize',
     ];
@@ -47,11 +46,9 @@ final class ProcessorAvifDisabledTest extends FunctionalTestCase
     #[Test]
     public function disabledAvifIsNotWritten(): void
     {
-        // Without an AVIF encoder the file would be missing anyway, so the
-        // assertion below could not tell the switch from the environment.
-        if (!class_exists(Imagick::class) || Imagick::queryFormats('AVIF') === []) {
-            self::markTestSkipped('ImageMagick without AVIF encoder');
-        }
+        // Without a working AVIF encoder the file would be missing anyway, so
+        // the assertion below could not tell the switch from the environment.
+        $this->skipUnlessAvifEncoderWorks();
 
         $response = $this->get(Processor::class)->generateAndSend(
             new ServerRequest(new Uri('https://example.com/processed/fileadmin/test-image.w42h31m0q80.png')),
