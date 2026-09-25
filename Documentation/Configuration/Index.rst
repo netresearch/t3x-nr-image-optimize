@@ -354,12 +354,19 @@ Two extension configuration settings control sidecar quality
 independently of the primary variant:
 
 ``qualityWebp`` (default ``75``)
-    Output quality for the generated WebP variant.
+    Output quality for the generated WebP variant. At ``100`` the WebP
+    variant is encoded lossless and typically comes out several times
+    larger than the primary JPEG variant.
 
 ``qualityAvif`` (default ``60``)
     Output quality for the generated AVIF variant. The lower default
     keeps AVIF variants genuinely smaller than WebP while staying
     visually comparable.
+
+..  versionchanged:: 1.6.0
+    ``qualityAvif`` is capped at ``99``. At ``100`` ImageMagick
+    switches to lossless AVIF encoding, which returns no image data,
+    so no AVIF variant was written at all.
 
 ..  code-block:: php
     :caption: config/system/additional.php

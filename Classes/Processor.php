@@ -136,6 +136,17 @@ class Processor
     private const DEFAULT_QUALITY_AVIF = 60;
 
     /**
+     * Highest quality handed to the AVIF encoder.
+     *
+     * At quality 100 ImageMagick's HEIC coder asks libheif/aom for lossless
+     * encoding, which the AOM encoder rejects ("Only --enable_chroma_deltaq=0
+     * can be used with --lossless=1"). No image data comes back, Intervention
+     * throws "Failed to get the image contents" and no AVIF variant is written
+     * at all. Capping at 99 keeps a configured 100 on the lossy path.
+     */
+    private const MAX_QUALITY_AVIF = 99;
+
+    /**
      * Cache-Control max-age for processed images (1 year in seconds).
      * Processed image URLs contain dimension/quality parameters, making them
      * effectively content-addressed -- the URL changes whenever the variant changes.
@@ -525,7 +536,7 @@ class Processor
         // base quality it is not encoded in the URL/cache key -- so it is
         // resolved here at encode time rather than in the URL parser.
         $webpQuality = $this->resolveFormatQuality('qualityWebp', self::DEFAULT_QUALITY_WEBP);
-        $avifQuality = $this->resolveFormatQuality('qualityAvif', self::DEFAULT_QUALITY_AVIF);
+        $avifQuality = $this->resolveAvifQuality();
 
         $image = $this->processImage($image, $targetWidth, $targetHeight, $processingMode);
 
@@ -721,6 +732,19 @@ class Processor
         }
 
         return $this->clampQuality((int) $raw);
+    }
+
+    /**
+     * Resolve the configured AVIF quality, capped at MAX_QUALITY_AVIF.
+     *
+     * @return int Quality handed to the AVIF encoder (1-99)
+     */
+    private function resolveAvifQuality(): int
+    {
+        return min(
+            $this->resolveFormatQuality('qualityAvif', self::DEFAULT_QUALITY_AVIF),
+            self::MAX_QUALITY_AVIF,
+        );
     }
 
     /**

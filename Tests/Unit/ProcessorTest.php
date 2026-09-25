@@ -628,6 +628,34 @@ class ProcessorTest extends TestCase
     }
 
     #[Test]
+    public function resolveAvifQualityFallsBackToDefaultWhenConfigurationUnavailable(): void
+    {
+        self::assertSame(60, $this->callMethod($this->processor, 'resolveAvifQuality'));
+    }
+
+    #[Test]
+    #[DataProvider('configuredAvifQualityProvider')]
+    public function resolveAvifQualityCapsConfiguredValueAt99(int|string $configured, int $expected): void
+    {
+        $this->injectExtensionConfiguration($this->processor, ['qualityAvif' => $configured]);
+
+        self::assertSame($expected, $this->callMethod($this->processor, 'resolveAvifQuality'));
+    }
+
+    /**
+     * @return array<string, array{int|string, int}>
+     */
+    public static function configuredAvifQualityProvider(): array
+    {
+        return [
+            'in range'         => ['70', 70],
+            '99 kept'          => ['99', 99],
+            '100 capped to 99' => ['100', 99],
+            'above 100 capped' => ['150', 99],
+        ];
+    }
+
+    #[Test]
     public function isFormatEnabledDefaultsToTrueWhenConfigurationUnavailable(): void
     {
         self::assertTrue($this->callMethod($this->processor, 'isFormatEnabled', 'generateAvif'));
@@ -3312,6 +3340,24 @@ class ProcessorTest extends TestCase
         $encoded = $this->createMock(EncodedImageInterface::class);
         $scenario['image']->expects(self::never())->method('toWebp');
         $scenario['image']->expects(self::once())->method('toAvif')->willReturn($encoded);
+        $this->captureEncodedSave($encoded, 'avif-data');
+
+        self::assertSame(
+            $scenario['response'],
+            $this->invokeProcessAndRespond($scenario['processor'], $scenario['request'], $scenario['urlInfo']),
+        );
+
+        $this->tearDownProcessAndRespondScenario($scenario['tempDir'], $scenario['originalPath']);
+    }
+
+    #[Test]
+    public function processAndRespondHandsCappedAvifQualityToEncoder(): void
+    {
+        $scenario = $this->setUpProcessAndRespondScenario('nr-pio-avif-cap-', 'jpg', 400, 200, 200, 0, 'skipWebP=1');
+        $this->injectExtensionConfiguration($scenario['processor'], ['qualityAvif' => '100']);
+
+        $encoded = $this->createMock(EncodedImageInterface::class);
+        $scenario['image']->expects(self::once())->method('toAvif')->with(99)->willReturn($encoded);
         $this->captureEncodedSave($encoded, 'avif-data');
 
         self::assertSame(
