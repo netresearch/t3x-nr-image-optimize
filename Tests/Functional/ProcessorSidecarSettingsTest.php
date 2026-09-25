@@ -37,7 +37,7 @@ use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
 #[UsesClass(VariantServedEvent::class)]
 final class ProcessorSidecarSettingsTest extends FunctionalTestCase
 {
-    use AvifEncoderProbeTrait;
+    use EncoderProbeTrait;
 
     protected array $testExtensionsToLoad = [
         'netresearch/nr-image-optimize',
