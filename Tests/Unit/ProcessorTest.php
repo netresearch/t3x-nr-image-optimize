@@ -651,6 +651,68 @@ final class ProcessorTest extends TestCase
     }
 
     #[Test]
+    public function isFormatEnabledDefaultsToTrueWhenConfigurationUnavailable(): void
+    {
+        self::assertTrue($this->callMethod($this->processor, 'isFormatEnabled', 'generateAvif'));
+    }
+
+    #[Test]
+    #[DataProvider('formatSwitchProvider')]
+    public function isFormatEnabledReadsConfiguredSwitch(mixed $configured, bool $expected): void
+    {
+        $this->injectExtensionConfiguration($this->processor, ['generateWebp' => $configured]);
+
+        self::assertSame($expected, $this->callMethod($this->processor, 'isFormatEnabled', 'generateWebp'));
+    }
+
+    /**
+     * @return array<string, array{mixed, bool}>
+     */
+    public static function formatSwitchProvider(): array
+    {
+        return [
+            'string 1 (backend checkbox on)'  => ['1', true],
+            'string 0 (backend checkbox off)' => ['0', false],
+            'integer 0'                       => [0, false],
+            'boolean false'                   => [false, false],
+            'boolean true'                    => [true, true],
+            'string false'                    => ['false', false],
+            'unparsable falls back to on'     => ['maybe', true],
+            'array falls back to on'          => [['1'], true],
+        ];
+    }
+
+    #[Test]
+    public function isFormatEnabledDefaultsToTrueWhenKeyIsMissing(): void
+    {
+        $this->injectExtensionConfiguration($this->processor, []);
+
+        self::assertTrue($this->callMethod($this->processor, 'isFormatEnabled', 'generateAvif'));
+    }
+
+    /**
+     * Inject an ExtensionConfiguration mock that returns the given settings
+     * and throws for keys that are not set, like the real API does for a
+     * path that is missing from the configuration.
+     *
+     * @param array<string, mixed> $settings
+     */
+    private function injectExtensionConfiguration(object $processor, array $settings): void
+    {
+        $extensionConfiguration = $this->createMock(ExtensionConfiguration::class);
+        $extensionConfiguration->method('get')->willReturnCallback(
+            static function (string $extension, string $path = '') use ($settings): mixed {
+                if (!array_key_exists($path, $settings)) {
+                    throw new RuntimeException('Path "' . $path . '" does not exist in extension configuration', 1790294400);
+                }
+
+                return $settings[$path];
+            },
+        );
+        $this->setProperty($processor, 'extensionConfiguration', $extensionConfiguration);
+    }
+
+    #[Test]
     public function generateWebpVariantEncodesAndSavesImage(): void
     {
         $image = $this->createMock(ImageInterface::class);
@@ -3199,6 +3261,39 @@ final class ProcessorTest extends TestCase
 
         self::assertSame($scenario['variantPath'], $capture['path']);
         self::assertSame(['quality' => 80], $capture['options']);
+
+        $this->tearDownProcessAndRespondScenario($scenario['tempDir']);
+    }
+
+    #[Test]
+    public function processAndRespondSkipsVariantsDisabledInConfiguration(): void
+    {
+        $scenario = $this->setUpProcessAndRespondScenario('nr-pio-disabled-', 'jpg', 400, 200, 200, '');
+        $this->injectExtensionConfiguration($scenario['processor'], ['generateWebp' => '0', 'generateAvif' => '0']);
+
+        // Both sidecars disabled: save() called exactly once for the primary file only.
+        $capture = $this->captureSaveCall($scenario['image'], 'processed');
+
+        self::assertSame($scenario['response'], $this->invokeProcessAndRespond($scenario));
+        self::assertSame($scenario['variantPath'], $capture['path']);
+
+        $this->tearDownProcessAndRespondScenario($scenario['tempDir']);
+    }
+
+    #[Test]
+    public function processAndRespondGeneratesOnlyTheEnabledVariant(): void
+    {
+        $scenario = $this->setUpProcessAndRespondScenario('nr-pio-avif-only-', 'jpg', 400, 200, 200, '');
+        $this->injectExtensionConfiguration($scenario['processor'], ['generateWebp' => '0', 'generateAvif' => '1']);
+
+        $this->captureSaveCall(
+            $scenario['image'],
+            'processed',
+            expectedCallCount: 2,
+            allowedPaths: [$scenario['variantPath'], $scenario['variantPath'] . '.avif'],
+        );
+
+        self::assertSame($scenario['response'], $this->invokeProcessAndRespond($scenario));
 
         $this->tearDownProcessAndRespondScenario($scenario['tempDir']);
     }

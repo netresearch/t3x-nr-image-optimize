@@ -9,3 +9,9 @@ qualityWebp = 75
 
 # cat=quality/enable/20; type=int+; label=AVIF quality (1-100): output quality for the generated AVIF variant. AVIF's quality scale is steeper than WebP/JPEG -- at the same number an AVIF comes out larger and defeats the point of serving AVIF, so a lower value (default 60) keeps it genuinely smaller while staying visually comparable. Changing this requires clearing the processed images.
 qualityAvif = 60
+
+# cat=quality/enable/30; type=boolean; label=Generate WebP variant: write a .webp file next to each processed variant. Disable to skip WebP encoding. Variants already on disk are still served until the processed images are cleared.
+generateWebp = 1
+
+# cat=quality/enable/40; type=boolean; label=Generate AVIF variant: write an .avif file next to each processed variant. Disable to skip AVIF encoding. Variants already on disk are still served until the processed images are cleared.
+generateAvif = 1
