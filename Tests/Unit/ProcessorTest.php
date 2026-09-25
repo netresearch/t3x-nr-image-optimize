@@ -3353,6 +3353,35 @@ final class ProcessorTest extends TestCase
     }
 
     #[Test]
+    public function processAndRespondCapsQualityOfAvifPrimaryVariant(): void
+    {
+        $scenario                             = $this->setUpProcessAndRespondScenario('nr-pio-avif-primary-', 'avif', 400, 200, 200, 'skipWebP=1');
+        $scenario['urlInfo']['targetQuality'] = 100;
+
+        $capture = $this->captureSaveCall($scenario['image']);
+
+        self::assertSame($scenario['response'], $this->invokeProcessAndRespond($scenario));
+        self::assertSame($scenario['variantPath'], $capture['path']);
+        self::assertSame(['quality' => 99], $capture['options']);
+
+        $this->tearDownProcessAndRespondScenario($scenario['tempDir']);
+    }
+
+    #[Test]
+    public function processAndRespondKeepsQuality100ForNonAvifPrimaryVariant(): void
+    {
+        $scenario                             = $this->setUpProcessAndRespondScenario('nr-pio-jpg-q100-', 'jpg', 400, 200, 200, 'skipWebP=1&skipAvif=1');
+        $scenario['urlInfo']['targetQuality'] = 100;
+
+        $capture = $this->captureSaveCall($scenario['image']);
+
+        self::assertSame($scenario['response'], $this->invokeProcessAndRespond($scenario));
+        self::assertSame(['quality' => 100], $capture['options']);
+
+        $this->tearDownProcessAndRespondScenario($scenario['tempDir']);
+    }
+
+    #[Test]
     public function processAndRespondHandlesWebpAndAvifGenerationFailure(): void
     {
         $scenario = $this->setUpProcessAndRespondScenario('nr-pio-gen-fail-', 'jpg', 400, 200, 200, '');

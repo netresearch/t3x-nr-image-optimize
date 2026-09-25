@@ -352,9 +352,11 @@ independently of the primary variant:
     visually comparable.
 
 ..  versionchanged:: 2.6.0
-    ``qualityAvif`` is capped at ``99``. At ``100`` ImageMagick
-    switches to lossless AVIF encoding, which returns no image data,
-    so no AVIF variant was written at all.
+    AVIF output quality is capped at ``99``: ``qualityAvif`` for the
+    AVIF variant, and the URL quality (``q100``) for processed AVIF
+    originals. At ``100`` ImageMagick switches to lossless AVIF
+    encoding, which returns no image data, so no AVIF variant was
+    written and a processed AVIF original failed with HTTP 500.
 
 ..  code-block:: php
     :caption: config/system/additional.php
