@@ -1,3 +1,37 @@
+# 1.6.0
+
+## FEATURE
+
+- **Switches to turn WebP and AVIF generation off.** New extension
+  configuration settings `generateWebp` and `generateAvif` (both default
+  on) stop the processor from writing the `.webp` or `.avif` file next
+  to each processed variant, for installations where one sidecar format
+  is enough. A missing or unparsable setting counts as on. The per-URL
+  `skipWebP`/`skipAvif` parameters still apply on top. Sidecars already
+  on disk keep being served until the processed images are cleared.
+  See [#202](https://github.com/netresearch/t3x-nr-image-optimize/pull/202).
+
+## BUGFIX
+
+- **AVIF output quality capped at 99.** At quality 100
+  ImageMagick asks the AOM encoder for lossless AVIF, which it rejects;
+  no image data came back, so `qualityAvif = 100` produced no AVIF
+  variant at all, and a processed AVIF original requested with `q100`
+  failed with HTTP 500. AVIF output quality is now capped at 99 in both
+  cases.
+  See [#202](https://github.com/netresearch/t3x-nr-image-optimize/pull/202).
+
+## DOCUMENTATION
+
+- **WebP quality 100 is lossless.** The `qualityWebp` setting label and
+  the configuration docs state that `100` produces lossless WebP,
+  typically several times the size of the JPEG variant.
+  See [#202](https://github.com/netresearch/t3x-nr-image-optimize/pull/202).
+
+## Contributors
+
+- Axel Seemann
+
 # 1.5.0
 
 ## FEATURE

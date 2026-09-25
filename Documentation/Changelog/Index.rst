@@ -6,6 +6,27 @@
 Changelog
 =========
 
+..  _changelog-1-6-0:
+
+1.6.0
+=====
+
+-   Added: ``generateWebp`` and ``generateAvif`` extension
+    configuration settings (both default on) that stop the processor
+    from writing the ``.webp`` or ``.avif`` file next to each
+    processed variant. The per-URL ``skipWebP``/``skipAvif``
+    parameters still apply on top; sidecars already on disk keep
+    being served until the processed images are cleared. See
+    :ref:`configuration-sidecar-formats`.
+-   Fixed: AVIF output quality is capped at 99. At quality 100
+    ImageMagick asks the AOM encoder for lossless AVIF, which it
+    rejects, so ``qualityAvif = 100`` produced no AVIF variant and a
+    processed AVIF original requested with ``q100`` failed with
+    HTTP 500.
+-   Changed (docs): the ``qualityWebp`` setting label and the
+    configuration docs state that ``100`` produces lossless WebP,
+    typically several times the size of the JPEG variant.
+
 ..  _changelog-1-5-0:
 
 1.5.0
