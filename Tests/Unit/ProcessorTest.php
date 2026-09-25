@@ -651,6 +651,34 @@ final class ProcessorTest extends TestCase
     }
 
     #[Test]
+    public function resolveAvifQualityFallsBackToDefaultWhenConfigurationUnavailable(): void
+    {
+        self::assertSame(60, $this->callMethod($this->processor, 'resolveAvifQuality'));
+    }
+
+    #[Test]
+    #[DataProvider('configuredAvifQualityProvider')]
+    public function resolveAvifQualityCapsConfiguredValueAt99(int|string $configured, int $expected): void
+    {
+        $this->injectExtensionConfiguration($this->processor, ['qualityAvif' => $configured]);
+
+        self::assertSame($expected, $this->callMethod($this->processor, 'resolveAvifQuality'));
+    }
+
+    /**
+     * @return array<string, array{int|string, int}>
+     */
+    public static function configuredAvifQualityProvider(): array
+    {
+        return [
+            'in range'         => ['70', 70],
+            '99 kept'          => ['99', 99],
+            '100 capped to 99' => ['100', 99],
+            'above 100 capped' => ['150', 99],
+        ];
+    }
+
+    #[Test]
     public function isFormatEnabledDefaultsToTrueWhenConfigurationUnavailable(): void
     {
         self::assertTrue($this->callMethod($this->processor, 'isFormatEnabled', 'generateAvif'));
@@ -3294,6 +3322,29 @@ final class ProcessorTest extends TestCase
         );
 
         self::assertSame($scenario['response'], $this->invokeProcessAndRespond($scenario));
+
+        $this->tearDownProcessAndRespondScenario($scenario['tempDir']);
+    }
+
+    #[Test]
+    public function processAndRespondHandsCappedAvifQualityToEncoder(): void
+    {
+        $scenario = $this->setUpProcessAndRespondScenario('nr-pio-avif-cap-', 'jpg', 400, 200, 200, 'skipWebP=1');
+        $this->injectExtensionConfiguration($scenario['processor'], ['qualityAvif' => '100']);
+
+        /** @var ArrayObject<string, mixed> $saved path => named options of every save() call */
+        $saved = new ArrayObject();
+        $image = $scenario['image'];
+        $image->expects(self::exactly(2))->method('save')->willReturnCallback(
+            static function (?string $path = null, mixed ...$options) use ($saved, $image): ImageInterface {
+                $saved[(string) $path] = $options;
+
+                return $image;
+            },
+        );
+
+        self::assertSame($scenario['response'], $this->invokeProcessAndRespond($scenario));
+        self::assertSame(['quality' => 99], $saved[$scenario['variantPath'] . '.avif']);
 
         $this->tearDownProcessAndRespondScenario($scenario['tempDir']);
     }

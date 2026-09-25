@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Tests\Functional;
 
+use function class_exists;
+use function filesize;
+
+use Imagick;
 use Netresearch\NrImageOptimize\Processor;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
@@ -20,7 +24,8 @@ use TYPO3\CMS\Core\Http\Uri;
 use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
 
 /**
- * Functional tests for the sidecar extension settings with the real encoder.
+ * Functional tests for the sidecar extension settings with the real encoder:
+ * WebP generation switched off, AVIF configured at quality 100.
  */
 #[CoversClass(Processor::class)]
 final class ProcessorSidecarSettingsTest extends FunctionalTestCase
@@ -38,6 +43,7 @@ final class ProcessorSidecarSettingsTest extends FunctionalTestCase
             'nr_image_optimize' => [
                 'generateWebp' => '0',
                 'generateAvif' => '1',
+                'qualityAvif'  => '100',
             ],
         ],
     ];
@@ -54,5 +60,23 @@ final class ProcessorSidecarSettingsTest extends FunctionalTestCase
         $variantPath = Environment::getPublicPath() . '/processed/fileadmin/test-image.w40h30m0q80.png';
         self::assertFileExists($variantPath);
         self::assertFileDoesNotExist($variantPath . '.webp', 'WebP variant must not be written when generateWebp=0');
+    }
+
+    #[Test]
+    public function avifIsWrittenAlthoughQualityIsConfiguredAt100(): void
+    {
+        if (!class_exists(Imagick::class) || Imagick::queryFormats('AVIF') === []) {
+            self::markTestSkipped('ImageMagick without AVIF encoder');
+        }
+
+        $response = $this->get(Processor::class)->generateAndSend(
+            new ServerRequest(new Uri('https://example.com/processed/fileadmin/test-image.w44h33m0q80.png')),
+        );
+
+        self::assertSame(200, $response->getStatusCode());
+
+        $avifPath = Environment::getPublicPath() . '/processed/fileadmin/test-image.w44h33m0q80.png.avif';
+        self::assertFileExists($avifPath, 'AVIF variant must be written although qualityAvif=100');
+        self::assertGreaterThan(0, filesize($avifPath));
     }
 }
