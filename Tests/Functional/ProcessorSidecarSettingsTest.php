@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Tests\Functional;
 
+use Imagick;
 use Netresearch\NrImageOptimize\Processor;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
@@ -23,7 +24,8 @@ use function filesize;
 
 /**
  * Functional tests for the sidecar extension settings with the real encoder:
- * WebP generation switched off, AVIF configured at quality 100.
+ * WebP generation switched off, AVIF configured at quality 100, and an AVIF
+ * original requested at quality 100.
  */
 #[CoversClass(Processor::class)]
 final class ProcessorSidecarSettingsTest extends FunctionalTestCase
@@ -76,6 +78,29 @@ final class ProcessorSidecarSettingsTest extends FunctionalTestCase
         $avifPath = Environment::getPublicPath() . '/processed/fileadmin/test-image.w44h33m0q80.png.avif';
         self::assertFileExists($avifPath, 'AVIF variant must be written although qualityAvif=100');
         self::assertGreaterThan(0, filesize($avifPath));
+        self::assertSame('image/avif', $response->getHeaderLine('Content-Type'));
+    }
+
+    #[Test]
+    public function avifOriginalRequestedAtQuality100IsWritten(): void
+    {
+        $this->skipUnlessAvifEncoderWorks();
+
+        $original = new Imagick();
+        $original->newImage(64, 48, 'red');
+        $original->setImageFormat('AVIF');
+        $original->setCompressionQuality(60);
+        $original->writeImage(Environment::getPublicPath() . '/fileadmin/test-image-avif.avif');
+
+        $response = $this->get(Processor::class)->generateAndSend(
+            new ServerRequest(new Uri('https://example.com/processed/fileadmin/test-image-avif.w32h24m0q100.avif')),
+        );
+
+        self::assertSame(200, $response->getStatusCode());
+
+        $variantPath = Environment::getPublicPath() . '/processed/fileadmin/test-image-avif.w32h24m0q100.avif';
+        self::assertFileExists($variantPath, 'AVIF primary variant must be written although q100 was requested');
+        self::assertGreaterThan(0, filesize($variantPath));
         self::assertSame('image/avif', $response->getHeaderLine('Content-Type'));
     }
 }

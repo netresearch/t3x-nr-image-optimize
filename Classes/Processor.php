@@ -142,7 +142,9 @@ class Processor
      * encoding, which the AOM encoder rejects ("Only --enable_chroma_deltaq=0
      * can be used with --lossless=1"). No image data comes back, Intervention
      * throws "Failed to get the image contents" and no AVIF variant is written
-     * at all. Capping at 99 keeps a configured 100 on the lossy path.
+     * at all. Capping at 99 keeps a configured 100 on the lossy path. The cap
+     * applies to the AVIF sidecar and to the primary variant of an AVIF
+     * original requested with q100.
      */
     private const MAX_QUALITY_AVIF = 99;
 
@@ -531,6 +533,12 @@ class Processor
 
         $targetQuality  = $urlInfo['targetQuality'];
         $processingMode = $urlInfo['processingMode'];
+
+        // An AVIF primary variant goes through the same encoder as the AVIF
+        // sidecar, so a URL quality of 100 is capped the same way.
+        if ($this->isAvifImage($urlInfo['extension'])) {
+            $targetQuality = min($targetQuality, self::MAX_QUALITY_AVIF);
+        }
 
         // WebP/AVIF quality is a config-driven encoding parameter -- unlike the
         // base quality it is not encoded in the URL/cache key -- so it is
@@ -1376,7 +1384,7 @@ class Processor
      * Encode and persist the AVIF variant of the current image.
      *
      * @param ImageInterface $image         The processed image
-     * @param int            $targetQuality Output quality (1-100)
+     * @param int            $targetQuality Output quality (1-99, see MAX_QUALITY_AVIF)
      * @param string         $pathVariant   Absolute path of the primary variant file
      */
     private function generateAvifVariant(ImageInterface $image, int $targetQuality, string $pathVariant): void
