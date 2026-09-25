@@ -11,7 +11,6 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Tests\Functional;
 
-use Imagick;
 use Netresearch\NrImageOptimize\Processor;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
@@ -20,7 +19,6 @@ use TYPO3\CMS\Core\Http\ServerRequest;
 use TYPO3\CMS\Core\Http\Uri;
 use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
 
-use function class_exists;
 use function filesize;
 
 /**
@@ -30,6 +28,8 @@ use function filesize;
 #[CoversClass(Processor::class)]
 final class ProcessorSidecarSettingsTest extends FunctionalTestCase
 {
+    use AvifEncoderProbeTrait;
+
     protected array $testExtensionsToLoad = [
         'netresearch/nr-image-optimize',
     ];
@@ -65,9 +65,7 @@ final class ProcessorSidecarSettingsTest extends FunctionalTestCase
     #[Test]
     public function avifIsWrittenAlthoughQualityIsConfiguredAt100(): void
     {
-        if (!class_exists(Imagick::class) || Imagick::queryFormats('AVIF') === []) {
-            self::markTestSkipped('ImageMagick without AVIF encoder');
-        }
+        $this->skipUnlessAvifEncoderWorks();
 
         $response = $this->get(Processor::class)->generateAndSend(
             new ServerRequest(new Uri('https://example.com/processed/fileadmin/test-image.w44h33m0q80.png')),
