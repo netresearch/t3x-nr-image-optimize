@@ -6,6 +6,37 @@
 Changelog
 =========
 
+..  _changelog-2-6-0:
+
+2.6.0
+=====
+
+-   Added: ``generateWebp`` and ``generateAvif`` extension settings
+    turn generation of the ``.webp`` or ``.avif`` sidecar off for the
+    whole installation (see :ref:`configuration-sidecar-formats`). Both
+    default to on; the per-URL ``skipWebP`` / ``skipAvif`` parameters
+    still apply on top. Sidecars already on disk are served until the
+    processed images are cleared.
+-   Added: the maintenance module deletes only the processed variants
+    derived from a given original file path, a directory prefix
+    (trailing ``/``) or a glob pattern (``*`` / ``?``), instead of
+    clearing the whole :file:`processed/` directory.
+-   Fixed: AVIF variants are written when ``qualityAvif`` is ``100``.
+    At quality 100 ImageMagick requests lossless AVIF, the AOM encoder
+    rejects it, and no AVIF variant was written. The processor now hands
+    at most ``99`` to the AVIF encoder.
+-   Fixed: the maintenance module no longer walks :file:`processed/`
+    while rendering the page. Statistics load asynchronously, and the
+    five largest files are tracked during the directory pass instead of
+    collecting every file, which exhausted ``memory_limit`` on large
+    :file:`processed/` trees.
+-   Fixed: the documentation describes variant selection as the
+    processor does it (see :ref:`configuration-variant-negotiation`):
+    the first non-empty file of ``.avif``, ``.webp`` and the original is
+    served, the ``Accept`` header is not inspected, and ``skipWebP`` /
+    ``skipAvif`` only suppress generation. See
+    `pull request #203 <https://github.com/netresearch/t3x-nr-image-optimize/pull/203>`__.
+
 ..  _changelog-2-5-0:
 
 2.5.0

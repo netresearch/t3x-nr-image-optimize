@@ -19,6 +19,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+## [2.6.0] - 2026-09-25
+
+### Added
+
+- **`generateWebp` and `generateAvif` extension settings** — turn generation
+  of the `.webp` or `.avif` sidecar off for the whole installation, for
+  example where one sidecar format is enough. Both default to on; a missing
+  or unparsable setting also counts as on. The per-URL `skipWebP` /
+  `skipAvif` parameters still apply on top. Sidecars already on disk are
+  served until the processed images are cleared (OPSCHEM-605, [#203]).
+- **Invalidate processed variants by original path** — the maintenance
+  module deletes only the variants derived from a given original file path,
+  a directory prefix (trailing `/`) or a glob pattern (`*` / `?`), instead of
+  clearing the whole `processed/` directory ([#182]).
+
+### Fixed
+
+- **AVIF variants are written when `qualityAvif` is 100.** At quality 100
+  ImageMagick requests lossless AVIF from libheif/aom, the AOM encoder
+  rejects it, and no AVIF variant was written. The processor now hands at
+  most 99 to the AVIF encoder (OPSCHEM-605, [#203]).
+- **The maintenance module no longer walks `processed/` while rendering the
+  page.** Statistics load asynchronously in one request, and the five largest
+  files are tracked during the directory pass instead of collecting every
+  file, which exhausted `memory_limit` on large `processed/` trees ([#181]).
+- **Documentation describes variant selection as the processor does it.**
+  The processor serves the first non-empty file of `.avif`, `.webp` and the
+  original, and does not inspect the `Accept` header; `skipWebP` /
+  `skipAvif` only suppress generation ([#203]).
+
+[#181]: https://github.com/netresearch/t3x-nr-image-optimize/pull/181
+[#182]: https://github.com/netresearch/t3x-nr-image-optimize/pull/182
+[#203]: https://github.com/netresearch/t3x-nr-image-optimize/pull/203
+
 ## [2.5.0] - 2026-08-31
 
 ### Added
