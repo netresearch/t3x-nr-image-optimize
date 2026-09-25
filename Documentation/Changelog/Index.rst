@@ -25,6 +25,9 @@ Changelog
     At quality 100 ImageMagick requests lossless AVIF, the AOM encoder
     rejects it, and no AVIF variant was written. The processor now hands
     at most ``99`` to the AVIF encoder.
+-   Fixed: processed AVIF originals requested with ``q100`` no longer
+    fail with HTTP 500. Their URL quality is capped at ``99`` as well;
+    the cached file name keeps ``q100``.
 -   Fixed: the maintenance module no longer walks :file:`processed/`
     while rendering the page. Statistics load asynchronously, and the
     five largest files are tracked during the directory pass instead of

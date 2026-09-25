@@ -40,6 +40,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ImageMagick requests lossless AVIF from libheif/aom, the AOM encoder
   rejects it, and no AVIF variant was written. The processor now hands at
   most 99 to the AVIF encoder (OPSCHEM-605, [#203]).
+- **Processed AVIF originals requested with `q100` no longer fail with HTTP
+  500.** The primary variant of an AVIF original went through the same
+  encoder path; its URL quality is now capped at 99 as well. The cached file
+  name keeps `q100` (OPSCHEM-605, [#206]).
 - **The maintenance module no longer walks `processed/` while rendering the
   page.** Statistics load asynchronously in one request, and the five largest
   files are tracked during the directory pass instead of collecting every
@@ -52,6 +56,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#181]: https://github.com/netresearch/t3x-nr-image-optimize/pull/181
 [#182]: https://github.com/netresearch/t3x-nr-image-optimize/pull/182
 [#203]: https://github.com/netresearch/t3x-nr-image-optimize/pull/203
+[#206]: https://github.com/netresearch/t3x-nr-image-optimize/pull/206
 
 ## [2.5.0] - 2026-08-31
 
