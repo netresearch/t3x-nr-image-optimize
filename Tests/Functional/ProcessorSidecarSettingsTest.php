@@ -13,9 +13,14 @@ namespace Netresearch\NrImageOptimize\Tests\Functional;
 
 use function filesize;
 
+use Netresearch\NrImageOptimize\Event\ImageProcessedEvent;
+use Netresearch\NrImageOptimize\Event\VariantServedEvent;
 use Netresearch\NrImageOptimize\Processor;
+use Netresearch\NrImageOptimize\Service\ImageManagerAdapter;
+use Netresearch\NrImageOptimize\Service\ImageManagerFactory;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\Attributes\UsesClass;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Http\ServerRequest;
 use TYPO3\CMS\Core\Http\Uri;
@@ -26,6 +31,10 @@ use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
  * WebP generation switched off, AVIF configured at quality 100.
  */
 #[CoversClass(Processor::class)]
+#[UsesClass(ImageManagerAdapter::class)]
+#[UsesClass(ImageManagerFactory::class)]
+#[UsesClass(ImageProcessedEvent::class)]
+#[UsesClass(VariantServedEvent::class)]
 final class ProcessorSidecarSettingsTest extends FunctionalTestCase
 {
     use AvifEncoderProbeTrait;
