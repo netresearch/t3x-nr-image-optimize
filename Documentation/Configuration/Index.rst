@@ -377,3 +377,38 @@ nr_image_optimize*.
     variants -- clear already-processed images (see
     :ref:`maintenance-clear`) to apply the new quality to existing
     ones.
+
+..  _configuration-sidecar-formats:
+
+WebP/AVIF generation
+====================
+
+..  versionadded:: 1.6.0
+    The ``generateWebp`` and ``generateAvif`` extension configuration
+    settings.
+
+By default the processor writes a ``.webp`` and an ``.avif`` file next
+to every processed variant. Two switches turn either format off for the
+whole installation, for example to save storage when one sidecar format
+is enough:
+
+``generateWebp`` (default ``1``)
+    Write a ``.webp`` sidecar for each processed variant.
+
+``generateAvif`` (default ``1``)
+    Write an ``.avif`` sidecar for each processed variant.
+
+..  code-block:: php
+    :caption: config/system/additional.php
+
+    $GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['nr_image_optimize']['generateWebp'] = false;
+    $GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['nr_image_optimize']['generateAvif'] = true;
+
+The per-URL ``skipWebP`` and ``skipAvif`` query parameters still apply
+on top: a format is generated only if its switch is on and the URL does
+not skip it.
+
+..  attention::
+    The switches only control generation. Sidecars already on disk are
+    still served. Clear already-processed images (see
+    :ref:`maintenance-clear`) to remove them.

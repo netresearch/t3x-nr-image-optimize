@@ -37,6 +37,7 @@ use function feof;
 use function file_exists;
 use function filemtime;
 use function filesize;
+use function filter_var;
 use function fopen;
 use function fread;
 use function gmdate;
@@ -539,7 +540,7 @@ class Processor
         // calling parse_str() separately for each flag.
         $queryParams = $this->parseQueryParams($request);
 
-        if (!$this->isWebpImage($extension) && !$queryParams['skipWebP']) {
+        if (!$this->isWebpImage($extension) && !$queryParams['skipWebP'] && $this->isFormatEnabled('generateWebp')) {
             try {
                 $this->generateWebpVariant($image, $webpQuality, $pathVariant);
             } catch (Throwable $e) {
@@ -547,7 +548,7 @@ class Processor
             }
         }
 
-        if (!$this->isAvifImage($extension) && !$queryParams['skipAvif']) {
+        if (!$this->isAvifImage($extension) && !$queryParams['skipAvif'] && $this->isFormatEnabled('generateAvif')) {
             try {
                 $this->generateAvifVariant($image, $avifQuality, $pathVariant);
             } catch (Throwable $e) {
@@ -720,6 +721,29 @@ class Processor
         }
 
         return $this->clampQuality((int) $raw);
+    }
+
+    /**
+     * Whether generation of a sidecar format is enabled.
+     *
+     * Reads a boolean extension-configuration switch (e.g. "generateWebp").
+     * Defaults to enabled when the setting is missing, not a boolean, or the
+     * ExtensionConfiguration API is unavailable, so installations that never
+     * configure it keep generating both sidecars.
+     *
+     * @param non-empty-string $key Extension-configuration key to read
+     *
+     * @return bool True if the sidecar format should be generated
+     */
+    private function isFormatEnabled(string $key): bool
+    {
+        try {
+            $raw = $this->extensionConfiguration->get(self::EXTENSION_KEY, $key);
+        } catch (Throwable) {
+            return true;
+        }
+
+        return filter_var($raw, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE) ?? true;
     }
 
     /**
