@@ -40,7 +40,7 @@ PHP source of the `nr_image_optimize` extension. Namespace `Netresearch\NrImageO
 <!-- AGENTS-GENERATED:START setup -->
 ## Setup & environment
 - Install: `composer install` (uses `.Build/vendor/` per `composer.json` config).
-- PHP: >=8.2; TYPO3: `^13.4 || ^14.0` on `main`, `^12.4` on `TYPO3_12` branch.
+- PHP: >=8.2; TYPO3: `^13.4 || ^14.3` on `main`, `^12.4` on `TYPO3_12` branch.
 - PHP extension: Intervention Image uses Imagick if available, else GD — both supported via `Classes/Service/ImageManagerFactory`.
 - External binaries (optional, for `ImageOptimizer`): `optipng`, `gifsicle`, `jpegoptim`. Missing binaries degrade gracefully.
 - `make` targets invoke `Build/Scripts/runTests.sh`, which runs each task inside a Docker (or Podman) PHP image — that's the CI-parity path. Use it when host PHP/Imagick differs from the matrix. Plain `composer` works too if your host has compatible PHP + extensions.
