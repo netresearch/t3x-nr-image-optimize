@@ -13,7 +13,7 @@
 - **PHP:** >=8.2
 - **TYPO3 image library:** Intervention Image. `Classes/Service/ImageManagerFactory` auto-selects Imagick when available, falls back to GD.
 - **Branch layout:**
-  - `main` → TYPO3 13.4 / 14 (v2.x releases)
+  - `main` → TYPO3 13.4 LTS / 14.3 LTS (v2.x releases)
   - `TYPO3_12` → TYPO3 12.4 LTS (v1.x releases). Port relevant fixes here. Avoid LoggerAware dependencies — TYPO3_12 uses plain `error_log(sprintf(...))` to keep the dep surface narrow.
 - **Release process:** one release PR from `main` / `TYPO3_12` carrying **both** the CHANGELOG/`Documentation/Changelog` entries **and** the version bumps (`ext_emconf.php`, `Documentation/guides.xml` `release=`, `composer.json` branch-alias on a minor/major) → merge → tag signed annotated on `main`'s post-merge HEAD (`git tag -s vX.Y.Z`) → push tag → the `release.yml` workflow creates the GitHub Release + TER upload + docs.typo3.org publish. The workflow **validates** the tag against `ext_emconf.php`, it does not bump anything — a tag pushed ahead of the bump fails the TER job after Packagist has already recorded the tag. **Never run `gh release create`** — it makes the release tag immutable and blocks re-publishing.
 
@@ -90,7 +90,7 @@ composer.json    → Composer metadata (authoritative version + PHP/TYPO3 constr
 <!-- AGENTS-GENERATED:START repo-settings -->
 - **Default branch:** `main`
 - **Merge strategy:** merge
-- **Required checks (rulesets):** `ci / Code Style`, `ci / Functional Tests SQLite (8.2, ^13.4)`, `ci / Functional Tests SQLite (8.2, ^14.0)`, `ci / Lint (8.2)`, `ci / PHPStan (8.2, ^13.4)`, `ci / PHPStan (8.2, ^14.0)`, `ci / Rector`, `ci / Unit Tests (8.2, ^13.4)`, `ci / Unit Tests (8.2, ^14.0)`, `security / Composer Audit`
+- **Required checks (rulesets):** `ci / Code Style`, `ci / Functional Tests SQLite (8.2, ^13.4)`, `ci / Functional Tests SQLite (8.2, ^14.3)`, `ci / Lint (8.2)`, `ci / PHPStan (8.2, ^13.4)`, `ci / PHPStan (8.2, ^14.3)`, `ci / Rector`, `ci / Unit Tests (8.2, ^13.4)`, `ci / Unit Tests (8.2, ^14.3)`, `security / Composer Audit`
 - **Active rulesets:** CI Required Checks, Copilot review for default branch, global, require-signed-commits, t3x-baseline, t3x-pull-request
 <!-- AGENTS-GENERATED:END repo-settings -->
 

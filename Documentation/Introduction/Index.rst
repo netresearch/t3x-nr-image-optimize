@@ -240,7 +240,7 @@ Requirements
 ============
 
 -   PHP 8.2, 8.3, 8.4, or 8.5.
--   TYPO3 13.4 or 14.
+-   TYPO3 13.4 LTS or 14.3 LTS.
 -   Imagick **or** GD PHP extension.
 -   Intervention Image 3.11+ (installed automatically via
     Composer).

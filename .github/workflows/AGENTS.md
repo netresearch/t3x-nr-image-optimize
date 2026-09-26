@@ -11,7 +11,7 @@ GitHub Actions workflows and CI/CD automation
 ## Workflow files
 | File | Purpose |
 |------|---------|
-| `ci.yml` | Matrix CI: lint / phpstan / unit / functional / acceptance (SQLite) across PHP 8.2–8.5 × TYPO3 ^13.4 / ^14.0. Thin caller of the reusable `netresearch/typo3-ci-workflows/.github/workflows/ci.yml@main`. Per-extension matrix = intentional drift. |
+| `ci.yml` | Matrix CI: lint / phpstan / unit / functional / acceptance (SQLite) across PHP 8.2–8.5 × TYPO3 ^13.4 / ^14.3. Thin caller of the reusable `netresearch/typo3-ci-workflows/.github/workflows/ci.yml@main`. Per-extension matrix = intentional drift. |
 | `checks.yml` | Security + quality jobs (security, betterleaks, zizmor, fuzz, license-check, CodeQL, scorecard, dependency-review, pr-quality) funnelled into one `gate` job named `All security checks`. **Byte-identical and drift-enforced across every typo3-extension** — change it via the template, not here. Any job added must also be added to `gate.needs`. |
 | `check-template-drift.yml` | Enforces `checks.yml` template parity (`netresearch/.github` reusable, `template: typo3-extension`). |
 | `release.yml` | Thin caller of `netresearch/typo3-ci-workflows/.github/workflows/release-typo3-extension.yml@main`. Fires on signed `v*` tag push. Creates GH Release + TER upload + docs.typo3.org publish. |
@@ -90,7 +90,7 @@ jobs:
       contents: read
     with:
       php-versions: '["8.2","8.3","8.4","8.5"]'
-      typo3-versions: '["^13.4","^14.0"]'
+      typo3-versions: '["^13.4","^14.3"]'
       upload-coverage: true
       run-functional-tests: true
       run-acceptance-tests: true
