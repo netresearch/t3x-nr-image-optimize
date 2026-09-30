@@ -1,9 +1,10 @@
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- SPDX-FileCopyrightText: Netresearch DTT GmbH -->
 <!-- FOR AI AGENTS - Human readability is a side effect, not a goal -->
 <!-- Managed by agent: keep sections and order; edit content, not structure -->
 <!-- Last updated: 2026-08-19 | Last verified: 2026-08-19 -->
 
 # AGENTS.md
-
 **Precedence:** the **closest `AGENTS.md`** to the files you're changing wins. Root holds global defaults only.
 
 ## Project
@@ -145,5 +146,4 @@ composer.json    → Composer metadata (authoritative version + PHP/TYPO3 constr
 - `./Resources/AGENTS.md` — Static resources, assets, templates, and configuration files
 - `./.github/workflows/AGENTS.md` — GitHub Actions workflows and CI/CD automation
 <!-- AGENTS-GENERATED:END scope-index -->
-
 > **Agents**: When you read or edit files in a listed directory, you **must** load its AGENTS.md first. It contains directory-specific conventions that override this root file. When instructions conflict, the nearest `AGENTS.md` wins; explicit user prompts override files.

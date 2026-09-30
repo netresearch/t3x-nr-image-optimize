@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-FileCopyrightText: Netresearch DTT GmbH
+
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 

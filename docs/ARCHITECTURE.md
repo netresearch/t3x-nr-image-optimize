@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- SPDX-FileCopyrightText: Netresearch DTT GmbH -->
 # Architecture
 
 Agent-facing component map for `netresearch/nr-image-optimize`. Verified against the tree on 2026-08-19; when this file and the code disagree, the code wins — fix this file in the same PR.

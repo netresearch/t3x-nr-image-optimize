@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileCopyrightText: Netresearch DTT GmbH
+
 .PHONY: help cgl cgl-fix phpstan rector fractor lint test test-unit test-functional test-acceptance test-fuzz test-e2e benchmark mutation mutation-full ci all
 
 RUNTESTS = Build/Scripts/runTests.sh
