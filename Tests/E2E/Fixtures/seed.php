@@ -55,7 +55,7 @@ for ($i = 1; $i <= PHOTO_COUNT; ++$i) {
         escapeshellarg($target),
     );
 
-    exec($command, $output, $exitCode);
+    exec($command, $output, $exitCode); // nosemgrep: php.lang.security.exec-use.exec-use -- fixed magick command; the only string argument is escapeshellarg()-quoted
 
     if ($exitCode !== 0 || !is_file($target)) {
         fwrite(STDERR, "seed: generating {$target} failed:\n" . implode("\n", $output) . "\n");
