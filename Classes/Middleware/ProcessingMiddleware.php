@@ -31,7 +31,7 @@ use function str_starts_with;
  * passed to the next handler in the stack.
  *
  * @author  Axel Seemann <axel.seemann@netresearch.de>
- * @license Netresearch https://www.netresearch.de
+ * @license GPL-3.0-or-later https://www.gnu.org/licenses/gpl-3.0.html
  */
 final readonly class ProcessingMiddleware implements MiddlewareInterface
 {

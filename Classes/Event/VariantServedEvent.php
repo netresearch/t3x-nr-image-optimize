@@ -20,7 +20,7 @@ namespace Netresearch\NrImageOptimize\Event;
  * related metadata for purposes such as logging, analytics, or metrics collection.
  *
  * @author  Rico Sonntag <rico.sonntag@netresearch.de>
- * @license Netresearch https://www.netresearch.de
+ * @license GPL-3.0-or-later https://www.gnu.org/licenses/gpl-3.0.html
  */
 final readonly class VariantServedEvent
 {

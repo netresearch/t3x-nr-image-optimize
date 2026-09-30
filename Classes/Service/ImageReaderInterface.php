@@ -25,7 +25,7 @@ use Intervention\Image\Interfaces\ImageInterface;
  * without version-conditional code or PHPStan ignore tags.
  *
  * @author  Sebastian Mendel <sebastian.mendel@netresearch.de>
- * @license Netresearch https://www.netresearch.de
+ * @license GPL-3.0-or-later https://www.gnu.org/licenses/gpl-3.0.html
  */
 interface ImageReaderInterface
 {

@@ -24,7 +24,7 @@ use Psr\Http\Message\ServerRequestInterface;
  * variant (or serve it from cache), and return a PSR-7 response.
  *
  * @author  Rico Sonntag <rico.sonntag@netresearch.de>
- * @license Netresearch https://www.netresearch.de
+ * @license GPL-3.0-or-later https://www.gnu.org/licenses/gpl-3.0.html
  */
 interface ProcessorInterface
 {
