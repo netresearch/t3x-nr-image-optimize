@@ -33,7 +33,7 @@
 | Acceptance tests | `composer ci:test:php:acceptance` | ~15s |
 | Fuzz tests | `composer ci:test:php:fuzz` | ~10s |
 | Mutation testing | `composer ci:test:php:mutation` | ~2m |
-| Full CI bundle (lint+phpstan+rector+fractor+unit+cgl) | `composer ci:test` | ~1m |
+| Full CI bundle (lint+phpstan+rector+fractor+unit+acceptance+cgl) | `composer ci:test` | ~1m |
 
 All scripts also work via `make` targets (see `make help`). The `make` targets use `Build/Scripts/runTests.sh` which runs inside a Docker PHP image — use `make` when your host PHP differs from CI or when Imagick isn't installed locally.
 <!-- AGENTS-GENERATED:END commands -->
@@ -98,7 +98,7 @@ composer.json    → Composer metadata (authoritative version + PHP/TYPO3 constr
 ## Boundaries
 
 ### Always Do
-- Run `composer ci:test` before committing (bundles lint + phpstan + rector + fractor + unit + cgl).
+- Run `composer ci:test` before committing (bundles lint + phpstan + rector + fractor + unit + acceptance + cgl).
 - **Sign commits** with `git commit -S --signoff` — `main` branch protection requires signed commits (GitHub rejects unsigned pushes).
 - Use **Conventional Commits**: `feat:`, `fix:`, `chore:`, `ci:`, `docs:`, `test:`, `refactor:`. See `git log --oneline -20` for established style.
 - **Atomic commits**: one logical change per commit; each commit builds and passes tests independently.

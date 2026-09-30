@@ -29,7 +29,7 @@ make cgl-fix      # Auto-fix code style
 
 ### Static Analysis
 
-PHPStan at level 8, Rector, and Fractor are used for static analysis:
+PHPStan at level 10, Rector, and Fractor are used for static analysis:
 
 ```bash
 make phpstan      # Run PHPStan
@@ -40,15 +40,16 @@ make fractor      # Run Fractor dry-run
 ### Testing
 
 ```bash
-make test         # Run unit tests (does not run the full CI suite)
+make test         # Run unit, functional and acceptance tests
 make test-fuzz    # Run fuzz tests
 ```
 
-> **Note:** `make test` only runs PHPUnit unit tests. To run all checks
-> (code style, static analysis, linting, and tests), use `composer ci:test`.
+> **Note:** `make test` runs the PHPUnit suites only. `composer ci:test`
+> additionally runs lint, PHPStan, Rector, Fractor and the code style check,
+> but not the functional tests.
 >
-> Fuzz tests are currently disabled in CI. You can run them locally with
-> `make test-fuzz`.
+> CI runs the fuzz tests on every pull request (`checks.yml`). You can run
+> them locally with `make test-fuzz`.
 
 ### Full CI Check
 
