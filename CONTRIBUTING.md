@@ -75,6 +75,10 @@ composer ci:test
 
 For security vulnerabilities, please follow the [Security Policy](SECURITY.md). Do **not** open public issues.
 
+[docs/SECURITY-ASSURANCE.md](docs/SECURITY-ASSURANCE.md) describes what the
+extension protects against and what it does not, its trust boundaries, and
+the code and tests behind each claim.
+
 ## Governance and policies
 
 This extension follows the organisation-wide Netresearch policies:

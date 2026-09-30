@@ -45,6 +45,10 @@ Use [GitHub Security Advisories](https://github.com/netresearch/t3x-nr-image-opt
 
 This policy covers the `nr_image_optimize` TYPO3 extension code. For vulnerabilities in dependencies or TYPO3 core, please report to the respective upstream projects.
 
+## Security assurance
+
+What users can and cannot expect from the extension in terms of security, its threat model and trust boundaries are described in [docs/SECURITY-ASSURANCE.md](docs/SECURITY-ASSURANCE.md).
+
 ## Safe Harbor
 
 We consider security research conducted in good faith to be authorized. We will not pursue legal action against researchers who follow responsible disclosure practices.
