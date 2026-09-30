@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- SPDX-FileCopyrightText: Netresearch DTT GmbH -->
 # ADR-0001: Browser Format Support via Explicit Query Parameters, Not Accept-Header Sniffing
 
 **Status:** Accepted

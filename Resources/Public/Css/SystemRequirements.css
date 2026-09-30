@@ -1,3 +1,8 @@
+/*
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ * SPDX-FileCopyrightText: Netresearch DTT GmbH
+ */
+
 .tooltip-wide .tooltip-inner {
     max-width: 400px;
     text-align: left;

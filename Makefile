@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileCopyrightText: Netresearch DTT GmbH
+
 .PHONY: help cgl cgl-fix phpstan rector fractor lint test test-unit test-functional test-acceptance test-fuzz test-e2e benchmark mutation mutation-full ci all
 
 RUNTESTS = Build/Scripts/runTests.sh
@@ -9,7 +12,7 @@ cgl: ## Check code style (dry-run)
 	$(RUNTESTS) -s cgl -n
 
 cgl-fix: ## Fix code style
-	$(RUNTESTS) -s cgl:fix
+	$(RUNTESTS) -s cgl
 
 phpstan: ## Run PHPStan static analysis
 	$(RUNTESTS) -s phpstan
@@ -32,7 +35,7 @@ test-functional: ## Run functional tests
 	$(RUNTESTS) -s functional
 
 test-acceptance: ## Run acceptance tests
-	$(RUNTESTS) -s acceptance
+	$(RUNTESTS) -s composer -- ci:test:php:acceptance
 
 test-fuzz: ## Run fuzz tests
 	$(RUNTESTS) -s fuzz

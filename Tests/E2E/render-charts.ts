@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-FileCopyrightText: Netresearch DTT GmbH
+
 /*
  * Re-render the documentation charts from an existing results file without
  * running the benchmark again:

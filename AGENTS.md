@@ -1,9 +1,10 @@
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- SPDX-FileCopyrightText: Netresearch DTT GmbH -->
 <!-- FOR AI AGENTS - Human readability is a side effect, not a goal -->
 <!-- Managed by agent: keep sections and order; edit content, not structure -->
 <!-- Last updated: 2026-08-19 | Last verified: 2026-08-19 -->
 
 # AGENTS.md
-
 **Precedence:** the **closest `AGENTS.md`** to the files you're changing wins. Root holds global defaults only.
 
 ## Project
@@ -32,7 +33,7 @@
 | Acceptance tests | `composer ci:test:php:acceptance` | ~15s |
 | Fuzz tests | `composer ci:test:php:fuzz` | ~10s |
 | Mutation testing | `composer ci:test:php:mutation` | ~2m |
-| Full CI bundle (lint+phpstan+rector+fractor+unit+cgl) | `composer ci:test` | ~1m |
+| Full CI bundle (lint+phpstan+rector+fractor+unit+acceptance+cgl) | `composer ci:test` | ~1m |
 
 All scripts also work via `make` targets (see `make help`). The `make` targets use `Build/Scripts/runTests.sh` which runs inside a Docker PHP image — use `make` when your host PHP differs from CI or when Imagick isn't installed locally.
 <!-- AGENTS-GENERATED:END commands -->
@@ -97,7 +98,7 @@ composer.json    → Composer metadata (authoritative version + PHP/TYPO3 constr
 ## Boundaries
 
 ### Always Do
-- Run `composer ci:test` before committing (bundles lint + phpstan + rector + fractor + unit + cgl).
+- Run `composer ci:test` before committing (bundles lint + phpstan + rector + fractor + unit + acceptance + cgl).
 - **Sign commits** with `git commit -S --signoff` — `main` branch protection requires signed commits (GitHub rejects unsigned pushes).
 - Use **Conventional Commits**: `feat:`, `fix:`, `chore:`, `ci:`, `docs:`, `test:`, `refactor:`. See `git log --oneline -20` for established style.
 - **Atomic commits**: one logical change per commit; each commit builds and passes tests independently.
@@ -145,5 +146,4 @@ composer.json    → Composer metadata (authoritative version + PHP/TYPO3 constr
 - `./Resources/AGENTS.md` — Static resources, assets, templates, and configuration files
 - `./.github/workflows/AGENTS.md` — GitHub Actions workflows and CI/CD automation
 <!-- AGENTS-GENERATED:END scope-index -->
-
 > **Agents**: When you read or edit files in a listed directory, you **must** load its AGENTS.md first. It contains directory-specific conventions that override this root file. When instructions conflict, the nearest `AGENTS.md` wins; explicit user prompts override files.

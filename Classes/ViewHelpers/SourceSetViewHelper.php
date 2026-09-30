@@ -3,6 +3,9 @@
 /*
  * This file is part of the package netresearch/nr-image-optimize.
  *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ * SPDX-FileCopyrightText: Netresearch DTT GmbH
+ *
  * For the full copyright and license information, please read the
  * LICENSE file that was distributed with this source code.
  */
@@ -48,7 +51,7 @@ use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper;
  *
  * @author  Axel Seemann <axel.seemann@netresearch.de>
  * @author  Rico Sonntag <rico.sonntag@netresearch.de>
- * @license Netresearch https://www.netresearch.de
+ * @license GPL-3.0-or-later https://www.gnu.org/licenses/gpl-3.0.html
  */
 final class SourceSetViewHelper extends AbstractViewHelper
 {

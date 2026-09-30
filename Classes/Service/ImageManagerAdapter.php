@@ -3,6 +3,9 @@
 /*
  * This file is part of the package netresearch/nr-image-optimize.
  *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ * SPDX-FileCopyrightText: Netresearch DTT GmbH
+ *
  * For the full copyright and license information, please read the
  * LICENSE file that was distributed with this source code.
  */
@@ -26,7 +29,7 @@ use SplFileInfo;
  * any version-conditional logic.
  *
  * @author  Sebastian Mendel <sebastian.mendel@netresearch.de>
- * @license Netresearch https://www.netresearch.de
+ * @license GPL-3.0-or-later https://www.gnu.org/licenses/gpl-3.0.html
  */
 final readonly class ImageManagerAdapter implements ImageReaderInterface
 {

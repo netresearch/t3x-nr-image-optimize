@@ -1,3 +1,6 @@
+.. SPDX-License-Identifier: GPL-3.0-or-later
+.. SPDX-FileCopyrightText: Netresearch DTT GmbH
+
 ..  |release| image:: https://img.shields.io/github/v/release/netresearch/t3x-nr-image-optimize?sort=semver
     :target: https://github.com/netresearch/t3x-nr-image-optimize/releases/latest
 ..  |license| image:: https://img.shields.io/github/license/netresearch/t3x-nr-image-optimize

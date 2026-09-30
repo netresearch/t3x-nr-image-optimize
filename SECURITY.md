@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- SPDX-FileCopyrightText: Netresearch DTT GmbH -->
 # Security Policy
 
 ## Supported Versions
@@ -42,6 +44,10 @@ Use [GitHub Security Advisories](https://github.com/netresearch/t3x-nr-image-opt
 ### Scope
 
 This policy covers the `nr_image_optimize` TYPO3 extension code. For vulnerabilities in dependencies or TYPO3 core, please report to the respective upstream projects.
+
+## Security assurance
+
+What users can and cannot expect from the extension in terms of security, its threat model and trust boundaries are described in [docs/SECURITY-ASSURANCE.md](docs/SECURITY-ASSURANCE.md).
 
 ## Safe Harbor
 

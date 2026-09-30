@@ -3,6 +3,9 @@
 /*
  * This file is part of the package netresearch/nr-image-optimize.
  *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ * SPDX-FileCopyrightText: Netresearch DTT GmbH
+ *
  * For the full copyright and license information, please read the
  * LICENSE file that was distributed with this source code.
  */
@@ -22,7 +25,7 @@ use Intervention\Image\Interfaces\ImageInterface;
  * without version-conditional code or PHPStan ignore tags.
  *
  * @author  Sebastian Mendel <sebastian.mendel@netresearch.de>
- * @license Netresearch https://www.netresearch.de
+ * @license GPL-3.0-or-later https://www.gnu.org/licenses/gpl-3.0.html
  */
 interface ImageReaderInterface
 {

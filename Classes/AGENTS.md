@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- SPDX-FileCopyrightText: Netresearch DTT GmbH -->
 <!-- Managed by agent: keep sections and order; edit content, not structure. Last updated: 2026-08-19 -->
 
 # AGENTS.md — Classes
@@ -80,7 +82,7 @@ This extension has **no** `Classes/Domain/` (no Extbase models), **no** `Configu
 | Functional tests | `composer ci:test:php:functional` |
 | Acceptance tests | `composer ci:test:php:acceptance` |
 | Fuzz tests | `composer ci:test:php:fuzz` |
-| Full CI bundle | `composer ci:test` (lint + phpstan + rector + fractor + unit + cgl) |
+| Full CI bundle | `composer ci:test` (lint + phpstan + rector + fractor + unit + acceptance + cgl) |
 
 `make` targets in the root (e.g. `make phpstan`, `make test-unit`) invoke `Build/Scripts/runTests.sh` inside a Docker PHP image — useful when host PHP differs from CI or when Imagick isn't installed locally.
 <!-- AGENTS-GENERATED:END commands -->
@@ -133,7 +135,7 @@ This extension has **no** `Classes/Domain/` (no Extbase models), **no** `Configu
 
 <!-- AGENTS-GENERATED:START checklist -->
 ## PR/commit checklist
-- [ ] `composer ci:test` passes locally (lint + phpstan + rector + fractor + unit + cgl).
+- [ ] `composer ci:test` passes locally (lint + phpstan + rector + fractor + unit + acceptance + cgl).
 - [ ] PHPStan clean without adding to `Build/phpstan-baseline.neon`. If a rule genuinely doesn't fit, add a path-scoped `identifier:`-based `ignoreErrors` entry in `Build/phpstan.neon` with a comment explaining why.
 - [ ] New public methods / events / command flags reflected in `Documentation/`.
 - [ ] If touching `Classes/Processor.php` or allowed-roots logic: extend `Tests/Functional/ProcessorSymlinkedFileadminTest.php` with a scenario covering your change.
