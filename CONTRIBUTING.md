@@ -74,6 +74,43 @@ composer ci:test
 
 For security vulnerabilities, please follow the [Security Policy](SECURITY.md). Do **not** open public issues.
 
+## Governance and policies
+
+This extension follows the organisation-wide Netresearch policies:
+
+- [Governance](https://github.com/netresearch/.github/blob/main/GOVERNANCE.md):
+  ownership, roles, how decisions are made and conflicts resolved.
+- [Roadmap](https://github.com/netresearch/.github/blob/main/ROADMAP.md):
+  planned and excluded work for the next twelve months.
+- [Handling of dependency and code analysis findings](https://github.com/netresearch/.github/blob/main/SECURITY.md#handling-of-dependency-and-code-analysis-findings):
+  which vulnerability, licence and static-analysis findings must be fixed,
+  by when, and how exceptions are recorded.
+- [Secret management](https://github.com/netresearch/.github/blob/main/SECURITY.md#secret-management):
+  where CI and release credentials are stored, who may use them, how
+  committed secrets are detected, and when secrets are rotated.
+- [Access roster](https://github.com/netresearch/.github/blob/main/docs/access-roster.md):
+  the people and teams with administrative or write access to this
+  repository.
+
+Checks that run on every pull request in this repository:
+
+- `.github/workflows/checks.yml`: Composer Audit (fails on any advisory for
+  an installed package) and Opengrep SAST (fails on findings of severity
+  WARNING or higher), both through `typo3-ci-workflows`' `security.yml`;
+  Dependency Review (fails on newly added dependencies with a vulnerability
+  of severity high or higher); PHP License Audit (`license-check.yml`, fails
+  on an SSPL or BSL licensed Composer dependency); CodeQL for the
+  JavaScript, the TypeScript and the workflow files (CodeQL has no PHP
+  analysis; PHPStan and Opengrep cover the PHP code); Betterleaks secret
+  scanning; zizmor for the workflow files; the fuzz tests (the `fuzzy`
+  suite in `Build/phpunit.xml`); the pull request quality check.
+- `.github/workflows/ci.yml`: PHP lint, code style, PHPStan (level 10,
+  `Build/phpstan.neon`, including the architecture rules in
+  `Tests/Architecture/`), Rector, unit, functional (SQLite) and acceptance
+  tests on PHP 8.2 to 8.5 with TYPO3 13.4 and 14.3, and the documentation
+  rendering of `Documentation/`.
+- `.github/workflows/harness-verify.yml`: `Build/Scripts/verify-harness.sh`.
+
 ## License
 
 By contributing, you agree that your contributions will be licensed under the [GPL-3.0-or-later](LICENSE) license.
