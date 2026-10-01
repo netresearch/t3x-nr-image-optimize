@@ -80,7 +80,7 @@ Users cannot expect:
 
 ## Verification
 
-The tests named above run in CI on every pull request (`.github/workflows/ci.yml`, `.github/workflows/checks.yml`). PHPStan runs at level 10 with an empty baseline, and Opengrep fails a pull request on findings of its rules with severity WARNING (`--severity WARNING` leaves out the rules with severity ERROR). The full list of pull-request checks is in [CONTRIBUTING.md](../CONTRIBUTING.md#governance-and-policies). Locally:
+The tests named above run in CI on every pull request (`.github/workflows/ci.yml`, `.github/workflows/checks.yml`). PHPStan runs at level 10 with an empty baseline, and Opengrep fails a pull request on the findings the organisation's [static analysis rule](https://github.com/netresearch/.github/blob/main/SECURITY.md#static-analysis-sast) makes blocking. The full list of pull-request checks is in [CONTRIBUTING.md](../CONTRIBUTING.md#governance-and-policies). Locally:
 
 ```bash
 composer ci:test:php:unit
