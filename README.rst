@@ -118,6 +118,11 @@ Supported parameters
     tag: no ``srcset``/``sizes``, no WebP/AVIF variants, but the
     URL's own access control stays intact.
 
+    Every ``/processed/`` URL the ViewHelper renders carries a ``sig``
+    parameter; the processor creates a variant that is not on disk yet
+    only for a signed URL, refuses files of non-public FAL storages,
+    and decodes only JPEG, PNG, GIF, WebP, AVIF, BMP and TIFF content.
+
 ``width``
     Target width in pixels. Default: ``0`` (auto from file).
 
