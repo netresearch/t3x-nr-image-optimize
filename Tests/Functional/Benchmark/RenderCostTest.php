@@ -21,9 +21,11 @@ use function is_dir;
 use function is_executable;
 use function mkdir;
 
+use Netresearch\NrImageOptimize\Service\VariantUrlSigner;
 use Netresearch\NrImageOptimize\ViewHelpers\SourceSetViewHelper;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\Attributes\UsesClass;
 
 use function sprintf;
 
@@ -46,6 +48,7 @@ use TYPO3Fluid\Fluid\View\TemplateView;
  * matrix with real browser timings lives in Tests/E2E (`make benchmark`).
  */
 #[CoversClass(SourceSetViewHelper::class)]
+#[UsesClass(VariantUrlSigner::class)]
 final class RenderCostTest extends FunctionalTestCase
 {
     private const IMAGE_COUNT = 12;

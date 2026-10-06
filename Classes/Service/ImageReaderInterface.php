@@ -32,9 +32,14 @@ interface ImageReaderInterface
     /**
      * Load an image from the given filesystem path.
      *
+     * Only files whose content is a JPEG, PNG, GIF, WebP, AVIF, BMP or TIFF
+     * image are decoded.
+     *
      * @param string $path Absolute filesystem path to the image file
      *
      * @return ImageInterface The decoded image
+     *
+     * @throws UnsupportedImageTypeException If the file's content is not an image of a supported type
      */
     public function read(string $path): ImageInterface;
 }

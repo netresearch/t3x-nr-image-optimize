@@ -89,12 +89,14 @@ parameters:
               - %currentWorkingDirectory%/Tests/*
           reportUnmatched: false
         # ergebnis.noExtends — only allowed where the framework requires inheritance
-        # (Symfony Command, TYPO3 ActionController, Fluid ViewHelper, TYPO3 FunctionalTestCase).
+        # (Symfony Command, TYPO3 ActionController, Fluid ViewHelper, TYPO3 FunctionalTestCase)
+        # and for exceptions, which PHP only accepts as subclasses of Exception/Error.
         # Path-scoped so a new `extends` in Services/Events/Middleware would get caught.
         - identifier: ergebnis.noExtends
           paths:
               - %currentWorkingDirectory%/Classes/Command/*
               - %currentWorkingDirectory%/Classes/Controller/*
+              - %currentWorkingDirectory%/Classes/Service/UnsupportedImageTypeException.php
               - %currentWorkingDirectory%/Classes/ViewHelpers/*
               - %currentWorkingDirectory%/Tests/Functional/*
               - %currentWorkingDirectory%/Tests/Unit/Command/AbstractImageCommandTest.php

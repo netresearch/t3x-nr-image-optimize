@@ -16,6 +16,7 @@ namespace Netresearch\NrImageOptimize\Tests\Unit\ViewHelpers;
 
 use function array_filter;
 use function array_map;
+use function array_pad;
 use function assert;
 use function base64_decode;
 use function explode;
@@ -24,8 +25,10 @@ use function floor;
 use function is_dir;
 use function mkdir;
 
+use Netresearch\NrImageOptimize\Service\VariantUrlSigner;
 use Netresearch\NrImageOptimize\ViewHelpers\SourceSetViewHelper;
 
+use function parse_str;
 use function pathinfo;
 
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -45,6 +48,7 @@ use function sys_get_temp_dir;
 
 use TYPO3\CMS\Core\Core\ApplicationContext;
 use TYPO3\CMS\Core\Core\Environment;
+use TYPO3\CMS\Core\Crypto\HashService;
 use TYPO3\CMS\Core\Resource\FileReference;
 use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper;
 use TYPO3Fluid\Fluid\Core\ViewHelper\ArgumentDefinition;
@@ -74,7 +78,7 @@ final class SourceSetViewHelperTest extends TestCase
             'UNIX',
         );
 
-        $this->viewHelper = new SourceSetViewHelper();
+        $this->viewHelper = new SourceSetViewHelper(new VariantUrlSigner(new HashService()));
         $this->viewHelper->initializeArguments();
     }
 
@@ -356,6 +360,83 @@ final class SourceSetViewHelperTest extends TestCase
         $result = $this->viewHelper->getResourcePath('/path/to/image.jpg', 320, 200, 75);
 
         self::assertSame('/processed/path/to/image.w320h200m0q75.jpg', $result);
+    }
+
+    /**
+     * Run $test with an encryption key configured and remove it afterwards,
+     * so the other tests keep rendering unsigned URLs.
+     *
+     * @param callable(): void $test
+     */
+    private function withEncryptionKey(callable $test): void
+    {
+        $GLOBALS['TYPO3_CONF_VARS']['SYS']['encryptionKey'] = 'source-set-view-helper-test-key';
+
+        try {
+            $test();
+        } finally {
+            unset($GLOBALS['TYPO3_CONF_VARS']['SYS']['encryptionKey']);
+        }
+    }
+
+    /**
+     * Split a rendered URL into its path and query parameters.
+     *
+     * @return array{0: string, 1: array<array-key, mixed>}
+     */
+    private function splitUrl(string $url): array
+    {
+        [$path, $query] = array_pad(explode('?', $url, 2), 2, '');
+        parse_str($query, $parameters);
+
+        return [$path, $parameters];
+    }
+
+    #[Test]
+    public function getResourcePathAppendsSignatureValidForTheVariantPath(): void
+    {
+        $this->withEncryptionKey(function (): void {
+            $this->viewHelper->setArguments(['mode' => 'cover']);
+
+            [$path, $parameters] = $this->splitUrl($this->viewHelper->getResourcePath('/path/to/image.jpg', 320, 200, 75));
+
+            self::assertSame('/processed/path/to/image.w320h200m0q75.jpg', $path);
+            self::assertIsString($parameters[VariantUrlSigner::QUERY_PARAMETER] ?? null);
+            self::assertTrue((new VariantUrlSigner(new HashService()))->isValid($path, $parameters[VariantUrlSigner::QUERY_PARAMETER]));
+        });
+    }
+
+    #[Test]
+    public function getResourcePathKeepsSkipFlagsNextToTheSignature(): void
+    {
+        $this->withEncryptionKey(function (): void {
+            $this->viewHelper->setArguments(['mode' => 'fit']);
+
+            [$path, $parameters] = $this->splitUrl($this->viewHelper->getResourcePath('/path/to/image.jpg', 640, 480, 85, true, true));
+
+            self::assertSame('1', $parameters['skipWebP'] ?? null);
+            self::assertSame('1', $parameters['skipAvif'] ?? null);
+            self::assertIsString($parameters[VariantUrlSigner::QUERY_PARAMETER] ?? null);
+            self::assertTrue((new VariantUrlSigner(new HashService()))->isValid($path, $parameters[VariantUrlSigner::QUERY_PARAMETER]));
+        });
+    }
+
+    #[Test]
+    public function getResourcePathSignsTheDecodedPathOfAPercentEncodedSource(): void
+    {
+        $this->withEncryptionKey(function (): void {
+            $this->viewHelper->setArguments(['mode' => 'cover']);
+
+            [$path, $parameters] = $this->splitUrl($this->viewHelper->getResourcePath('/fileadmin/Gr%C3%BCndung/image.jpg', 320, 200, 75));
+
+            self::assertSame('/processed/fileadmin/Gr%C3%BCndung/image.w320h200m0q75.jpg', $path);
+            self::assertIsString($parameters[VariantUrlSigner::QUERY_PARAMETER] ?? null);
+            // The processor verifies against urldecode() of the request path.
+            self::assertTrue((new VariantUrlSigner(new HashService()))->isValid(
+                '/processed/fileadmin/Gründung/image.w320h200m0q75.jpg',
+                $parameters[VariantUrlSigner::QUERY_PARAMETER],
+            ));
+        });
     }
 
     #[Test]
@@ -1127,7 +1208,7 @@ final class SourceSetViewHelperTest extends TestCase
     public function initializeArgumentsRegistersAllExpectedArguments(): void
     {
         // Verify all arguments are registered (kills MethodCallRemoval on each registerArgument line)
-        $viewHelper = new SourceSetViewHelper();
+        $viewHelper = new SourceSetViewHelper(new VariantUrlSigner(new HashService()));
         $viewHelper->initializeArguments();
 
         $reflection = new ReflectionProperty(AbstractViewHelper::class, 'argumentDefinitions');
@@ -1149,7 +1230,7 @@ final class SourceSetViewHelperTest extends TestCase
     public function initializeArgumentsRegistersPathAsRequired(): void
     {
         // Kills TrueValue mutant on path (true → false)
-        $viewHelper = new SourceSetViewHelper();
+        $viewHelper = new SourceSetViewHelper(new VariantUrlSigner(new HashService()));
         $viewHelper->initializeArguments();
 
         $reflection = new ReflectionProperty(AbstractViewHelper::class, 'argumentDefinitions');
@@ -1163,7 +1244,7 @@ final class SourceSetViewHelperTest extends TestCase
     public function initializeArgumentsRegistersCorrectDefaults(): void
     {
         // Kills DecrementInteger/IncrementInteger on width/height defaults (0 → -1/1)
-        $viewHelper = new SourceSetViewHelper();
+        $viewHelper = new SourceSetViewHelper(new VariantUrlSigner(new HashService()));
         $viewHelper->initializeArguments();
 
         $reflection = new ReflectionProperty(AbstractViewHelper::class, 'argumentDefinitions');
@@ -1187,7 +1268,7 @@ final class SourceSetViewHelperTest extends TestCase
     public function initializeArgumentsRegistersWidthVariantsAsOptional(): void
     {
         // Kills FalseValue mutant on widthVariants (false → true for required)
-        $viewHelper = new SourceSetViewHelper();
+        $viewHelper = new SourceSetViewHelper(new VariantUrlSigner(new HashService()));
         $viewHelper->initializeArguments();
 
         $reflection = new ReflectionProperty(AbstractViewHelper::class, 'argumentDefinitions');
@@ -1832,7 +1913,7 @@ final class SourceSetViewHelperTest extends TestCase
     #[Test]
     public function initializeArgumentsRegistersSizesWithCorrectDefault(): void
     {
-        $viewHelper = new SourceSetViewHelper();
+        $viewHelper = new SourceSetViewHelper(new VariantUrlSigner(new HashService()));
         $viewHelper->initializeArguments();
 
         $reflection = new ReflectionProperty(AbstractViewHelper::class, 'argumentDefinitions');
@@ -2122,7 +2203,7 @@ final class SourceSetViewHelperTest extends TestCase
     #[Test]
     public function initializeArgumentsRegistersImageAndCropVariantArguments(): void
     {
-        $viewHelper = new SourceSetViewHelper();
+        $viewHelper = new SourceSetViewHelper(new VariantUrlSigner(new HashService()));
         $viewHelper->initializeArguments();
 
         $reflection = new ReflectionProperty(AbstractViewHelper::class, 'argumentDefinitions');

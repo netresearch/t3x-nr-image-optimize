@@ -16,16 +16,19 @@ namespace Netresearch\NrImageOptimize\Tests\Acceptance\ViewHelpers;
 
 use DOMDocument;
 use DOMElement;
+use Netresearch\NrImageOptimize\Service\VariantUrlSigner;
 use Netresearch\NrImageOptimize\ViewHelpers\SourceSetViewHelper;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\TestCase;
 
 use function sys_get_temp_dir;
 
 use TYPO3\CMS\Core\Core\ApplicationContext;
 use TYPO3\CMS\Core\Core\Environment;
+use TYPO3\CMS\Core\Crypto\HashService;
 
 /**
  * Acceptance tests that verify the rendered HTML output of the SourceSetViewHelper.
@@ -35,6 +38,7 @@ use TYPO3\CMS\Core\Core\Environment;
  * a browser would receive.
  */
 #[CoversClass(SourceSetViewHelper::class)]
+#[UsesClass(VariantUrlSigner::class)]
 final class SourceSetViewHelperHtmlOutputTest extends TestCase
 {
     private SourceSetViewHelper $viewHelper;
@@ -57,7 +61,7 @@ final class SourceSetViewHelperHtmlOutputTest extends TestCase
             'UNIX',
         );
 
-        $this->viewHelper = new SourceSetViewHelper();
+        $this->viewHelper = new SourceSetViewHelper(new VariantUrlSigner(new HashService()));
         $this->viewHelper->initializeArguments();
     }
 

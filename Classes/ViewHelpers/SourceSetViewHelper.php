@@ -26,6 +26,9 @@ use function http_build_query;
 use function implode;
 use function is_array;
 use function json_decode;
+
+use Netresearch\NrImageOptimize\Service\VariantUrlSigner;
+
 use function round;
 use function sort;
 use function sprintf;
@@ -40,11 +43,15 @@ use TYPO3\CMS\Core\Resource\FileReference;
 use TYPO3\CMS\Core\Utility\PathUtility;
 use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper;
 
+use function urldecode;
+
 /**
  * Fluid ViewHelper that renders a responsive <picture> source set and <img> tag
  * for images processed by the on-the-fly processor. It generates URLs pointing
  * to the "/processed" endpoint, including width/height/mode/quality parameters
- * and optional flags to skip AVIF or WebP creation.
+ * and optional flags to skip AVIF or WebP creation. Every such URL carries the
+ * signature (VariantUrlSigner) the processor requires before it creates a
+ * variant.
  *
  * Supports both native lazy loading and JS-based lazyload libraries by emitting
  * appropriate attributes (loading, data-src, data-srcset).
@@ -112,6 +119,13 @@ final class SourceSetViewHelper extends AbstractViewHelper
      * @var array<string, array{0: int, 1: int}|false>
      */
     private static array $imageSizeCache = [];
+
+    /**
+     * @param VariantUrlSigner $variantUrlSigner Signs the variant URLs this ViewHelper renders
+     */
+    public function __construct(
+        private readonly VariantUrlSigner $variantUrlSigner,
+    ) {}
 
     /**
      * Register and describe supported ViewHelper arguments.
@@ -414,7 +428,7 @@ final class SourceSetViewHelper extends AbstractViewHelper
      * @param bool   $skipAvif Whether to suppress AVIF generation for this URL
      * @param bool   $skipWebP Whether to suppress WebP generation for this URL
      *
-     * @return string URL under /processed/... including variant configuration and optional query string
+     * @return string URL under /processed/... including variant configuration, optional skip flags and the signature
      */
     public function getResourcePath(
         string $path,
@@ -473,6 +487,15 @@ final class SourceSetViewHelper extends AbstractViewHelper
             'skipWebP' => $skipWebP,
             'skipAvif' => $skipAvif,
         ]);
+
+        // Signed over the URL-decoded path: the processor verifies against
+        // urldecode() of the request path, and $path may arrive already
+        // percent-encoded (f:uri.image() encodes non-ASCII characters).
+        $signature = $this->variantUrlSigner->sign(urldecode($url));
+
+        if ($signature !== '') {
+            $queryArgs[VariantUrlSigner::QUERY_PARAMETER] = $signature;
+        }
 
         if ($queryArgs === []) {
             return $url;

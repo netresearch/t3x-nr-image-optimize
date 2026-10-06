@@ -43,6 +43,8 @@ use function mkdir;
 use Netresearch\NrImageOptimize\Event\ImageProcessedEvent;
 use Netresearch\NrImageOptimize\Event\VariantServedEvent;
 use Netresearch\NrImageOptimize\Service\ImageReaderInterface;
+use Netresearch\NrImageOptimize\Service\UnsupportedImageTypeException;
+use Netresearch\NrImageOptimize\Service\VariantUrlSigner;
 
 use function parse_str;
 use function preg_match;
@@ -255,6 +257,34 @@ final class Processor implements LoggerAwareInterface, ProcessorInterface
     private static array $resolvedAllowedRootsByPublicPath = [];
 
     /**
+     * Realpath-resolved base paths of Local FAL storages that are not public
+     * (sys_file_storage.is_public = 0), keyed and cached like
+     * $resolvedAllowedRootsByPublicPath and filled by the same computation.
+     *
+     * A source file below one of these roots is never processed or served,
+     * even when the directory lies inside the public web root (where only a
+     * web-server rule protects it).
+     *
+     * @var array<string, list<string>>
+     */
+    private static array $resolvedNonPublicRootsByPublicPath = [];
+
+    /**
+     * Per-request copy of the non-public storage roots; null until
+     * getAllowedRoots() ran in this request.
+     *
+     * @var list<string>|null
+     */
+    private ?array $requestNonPublicRoots = null;
+
+    /**
+     * Whether StorageRepository could not be read in this request. Then it is
+     * unknown which directories belong to a non-public storage, and the
+     * request is refused instead of guessed.
+     */
+    private bool $requestStorageLookupFailed = false;
+
+    /**
      * Per-request memoization of the resolved allowed-roots list.
      *
      * Reset at the top of generateAndSend() so a single request computes the
@@ -286,6 +316,8 @@ final class Processor implements LoggerAwareInterface, ProcessorInterface
      *                                                         (supports symlinked storage targets, e.g. NFS/EFS)
      * @param ExtensionConfiguration   $extensionConfiguration Provides the per-instance-configurable
      *                                                         "additionalTrustedStorageSymlinks" setting
+     * @param VariantUrlSigner         $variantUrlSigner       Verifies the signature a variant URL needs
+     *                                                         before a new variant is created
      */
     public function __construct(
         private readonly ImageReaderInterface $imageReader,
@@ -295,6 +327,7 @@ final class Processor implements LoggerAwareInterface, ProcessorInterface
         private readonly EventDispatcherInterface $eventDispatcher,
         private readonly StorageRepository $storageRepository,
         private readonly ExtensionConfiguration $extensionConfiguration,
+        private readonly VariantUrlSigner $variantUrlSigner,
     ) {
         $this->logger = new NullLogger();
     }
@@ -312,9 +345,13 @@ final class Processor implements LoggerAwareInterface, ProcessorInterface
      * the processed files (including optional WebP/AVIF variants), and returns a
      * PSR-7 response with the best available representation.
      *
-     * Returns 400 if the URL does not match the expected pattern or path validation
-     * fails, 404 if the original image is missing, 500 on processing errors, and
-     * 503 if a lock cannot be acquired in time.
+     * Returns 400 if the URL does not match the expected pattern (including an
+     * extension outside the supported image types), path validation fails, or
+     * the source file is not an image of a supported type; 403 if a variant
+     * that does not exist yet is requested without a valid signature (see
+     * VariantUrlSigner); 404 if the original image is missing or belongs to a
+     * non-public FAL storage; 500 on processing errors; and 503 if a lock
+     * cannot be acquired in time or the FAL storages cannot be read.
      *
      * @param ServerRequestInterface $request Incoming request containing the processed URL and query params
      *
@@ -325,7 +362,9 @@ final class Processor implements LoggerAwareInterface, ProcessorInterface
         // Reset the per-request allowed-roots memoization so a fresh list
         // (or a fresh retry of StorageRepository::findAll() if it was
         // unavailable earlier) is computed on the first call below.
-        $this->requestAllowedRoots = null;
+        $this->requestAllowedRoots        = null;
+        $this->requestNonPublicRoots      = null;
+        $this->requestStorageLookupFailed = false;
 
         $variantUrl = urldecode($request->getUri()->getPath());
 
@@ -344,6 +383,23 @@ final class Processor implements LoggerAwareInterface, ProcessorInterface
             );
 
             return $this->responseFactory->createResponse(400);
+        }
+
+        // Which directories belong to a non-public storage is only known when
+        // the FAL storages could be read. Without that list, refuse rather
+        // than serve a file whose storage may not be public. Checked before
+        // the path validation, which without the storage list knows fewer
+        // roots and would answer 400 for a source in a symlinked storage.
+        // Not cached, so the next request retries the lookup.
+        if ($this->hasStorageLookupFailed()) {
+            $this->getLogger()->warning(
+                'Rejecting variant request with 503: FAL storages could not be read to check storage access',
+                [
+                    'url' => $variantUrl,
+                ],
+            );
+
+            return $this->responseFactory->createResponse(503);
         }
 
         // Validate that both resolved paths stay within an allowed root
@@ -367,6 +423,23 @@ final class Processor implements LoggerAwareInterface, ProcessorInterface
             return $this->responseFactory->createResponse(400);
         }
 
+        // Files of a non-public storage are delivered by TYPO3 only through
+        // an access-checked mechanism (e.g. an eID script); a variant of such
+        // a file must not be created or served here. Checked before the
+        // cache lookup so a variant written before this check existed is not
+        // served either. 404 (not 403) so the response does not depend on
+        // whether the file exists.
+        if ($this->isInNonPublicStorage($urlInfo['pathOriginal'])) {
+            $this->getLogger()->info(
+                'Rejecting variant request with 404: source belongs to a non-public storage',
+                [
+                    'url' => $variantUrl,
+                ],
+            );
+
+            return $this->responseFactory->createResponse(404);
+        }
+
         // Short-circuit: serve the already-processed file directly from disk,
         // bypassing lock acquisition, image loading, and all processing.
         $cachedResponse = $this->serveCachedVariant($urlInfo['pathVariant'], $urlInfo['extension']);
@@ -384,6 +457,21 @@ final class Processor implements LoggerAwareInterface, ProcessorInterface
             }
 
             return $cachedResponse;
+        }
+
+        // Creating a variant costs CPU, memory and disk. Only URLs signed by
+        // this installation (SourceSetViewHelper signs every URL it renders)
+        // may create one; otherwise every w/h/q/m combination a client makes
+        // up would become a new file.
+        if (!$this->hasValidSignature($request, $variantUrl)) {
+            $this->getLogger()->info(
+                'Rejecting variant request with 403: missing or invalid signature',
+                [
+                    'url' => $variantUrl,
+                ],
+            );
+
+            return $this->responseFactory->createResponse(403);
         }
 
         try {
@@ -574,7 +662,21 @@ final class Processor implements LoggerAwareInterface, ProcessorInterface
             return $this->passThroughOriginal($urlInfo);
         }
 
-        $image = $this->imageReader->read($urlInfo['pathOriginal']);
+        // The reader decodes only files whose content is an image of a
+        // supported type (see ImageReaderInterface::read()).
+        try {
+            $image = $this->imageReader->read($urlInfo['pathOriginal']);
+        } catch (UnsupportedImageTypeException $exception) {
+            $this->getLogger()->info(
+                'Rejecting variant request with 400: source is not an image of a supported type',
+                [
+                    'pathOriginal' => $urlInfo['pathOriginal'],
+                    'exception'    => $exception,
+                ],
+            );
+
+            return $this->responseFactory->createResponse(400);
+        }
 
         $targetWidth  = $urlInfo['targetWidth'];
         $targetHeight = $urlInfo['targetHeight'];
@@ -667,8 +769,9 @@ final class Processor implements LoggerAwareInterface, ProcessorInterface
     /**
      * Parse the requested variant URL and derive processing parameters.
      *
-     * Returns null if the URL does not match the expected pattern, preventing
-     * arbitrary path construction from malformed input.
+     * Returns null if the URL does not match the expected pattern or its
+     * extension is not one of EXTENSION_MIME_MAP, preventing arbitrary path
+     * construction from malformed input.
      *
      * Computes original/variant file paths, normalizes the extension, and
      * extracts width/height/quality/mode values from the encoded mode string
@@ -710,6 +813,12 @@ final class Processor implements LoggerAwareInterface, ProcessorInterface
 
         if ($extension === 'jpeg') {
             $extension = 'jpg';
+        }
+
+        // Only image formats the processor knows how to serve
+        // (EXTENSION_MIME_MAP); anything else is not a variant URL.
+        if (!array_key_exists($extension, self::EXTENSION_MIME_MAP)) {
+            return null;
         }
 
         // Parse the mode string once and extract all values in a single pass
@@ -898,11 +1007,30 @@ final class Processor implements LoggerAwareInterface, ProcessorInterface
             return false;
         }
 
+        $resolvedPath = $this->resolveExistingPathOrParent($path);
+
+        if ($resolvedPath === null) {
+            return false;
+        }
+
+        return $this->isWithinAnyRoot($resolvedPath, $allowedRoots);
+    }
+
+    /**
+     * Resolve a path through realpath(), or -- for paths that do not exist
+     * yet (variant files) -- the deepest existing parent directory.
+     *
+     * @param string $path Absolute filesystem path
+     *
+     * @return string|null Realpath-resolved path or parent, null if nothing resolves
+     */
+    private function resolveExistingPathOrParent(string $path): ?string
+    {
         // For existing paths, use realpath to resolve symlinks
         $resolvedPath = realpath($path);
 
         if ($resolvedPath !== false) {
-            return $this->isWithinAnyRoot($resolvedPath, $allowedRoots);
+            return $resolvedPath;
         }
 
         // For paths that do not yet exist (variant files), resolve the
@@ -916,11 +1044,96 @@ final class Processor implements LoggerAwareInterface, ProcessorInterface
             $resolvedParent = realpath($parent);
 
             if ($resolvedParent !== false) {
-                return $this->isWithinAnyRoot($resolvedParent, $allowedRoots);
+                return $resolvedParent;
             }
         } while ($parent !== $previous);
 
-        return false;
+        return null;
+    }
+
+    /**
+     * Whether a source path lies inside the base path of a Local FAL storage
+     * that is not public.
+     *
+     * The path is resolved like in isPathWithinAllowedRoots() -- the file
+     * itself, or its deepest existing parent when it does not exist -- so
+     * the answer does not depend on whether the file exists, and a symlink
+     * from a public location into a non-public storage is followed.
+     *
+     * @param string $path Absolute filesystem path of the source image
+     *
+     * @return bool True if the path belongs to a non-public storage
+     */
+    private function isInNonPublicStorage(string $path): bool
+    {
+        $nonPublicRoots = $this->getNonPublicStorageRoots();
+
+        if ($nonPublicRoots === []) {
+            return false;
+        }
+
+        $resolvedPath = $this->resolveExistingPathOrParent($path);
+
+        if ($resolvedPath === null) {
+            return false;
+        }
+
+        return $this->isWithinAnyRoot($resolvedPath, $nonPublicRoots);
+    }
+
+    /**
+     * Whether the FAL storages could not be read in this request.
+     *
+     * Computed together with the allowed roots (see getAllowedRoots()).
+     */
+    private function hasStorageLookupFailed(): bool
+    {
+        $this->getAllowedRoots();
+
+        return $this->requestStorageLookupFailed;
+    }
+
+    /**
+     * Realpath-resolved base paths of non-public Local FAL storages.
+     *
+     * Computed together with the allowed roots (see getAllowedRoots()).
+     *
+     * @return list<string>
+     */
+    private function getNonPublicStorageRoots(): array
+    {
+        $this->getAllowedRoots();
+
+        return $this->requestNonPublicRoots ?? [];
+    }
+
+    /**
+     * Whether the variant request carries a valid signature for its path.
+     *
+     * Any failure (missing parameter, non-string value, signer not available)
+     * counts as "not signed".
+     *
+     * @param ServerRequestInterface $request    The incoming request
+     * @param string                 $variantUrl URL-decoded request path
+     *
+     * @return bool True if the signature matches the path
+     */
+    private function hasValidSignature(ServerRequestInterface $request, string $variantUrl): bool
+    {
+        $query = [];
+        parse_str($request->getUri()->getQuery(), $query);
+
+        $signature = $query[VariantUrlSigner::QUERY_PARAMETER] ?? null;
+
+        if (!is_string($signature)) {
+            return false;
+        }
+
+        try {
+            return $this->variantUrlSigner->isValid($variantUrl, $signature);
+        } catch (Throwable) {
+            return false;
+        }
     }
 
     /**
@@ -979,7 +1192,9 @@ final class Processor implements LoggerAwareInterface, ProcessorInterface
      * Always includes the TYPO3 public path, as well as the TYPO3 var path
      * (Environment::getVarPath(), the composer-mode var/ directory that is
      * a sibling of public/). Additionally includes the resolved base path
-     * of every Local-driver FAL storage so that storages whose directory
+     * of every public Local-driver FAL storage (base paths of non-public
+     * storages are collected into $requestNonPublicRoots instead, see
+     * isInNonPublicStorage()) so that storages whose directory
      * is a symlink to an external mount (e.g. fileadmin on
      * AWS EFS or another NFS share) remain servable, and the resolved
      * target of every extension asset published under public/_assets/
@@ -1014,12 +1229,17 @@ final class Processor implements LoggerAwareInterface, ProcessorInterface
 
         $publicPathRaw = Environment::getPublicPath();
 
-        if (array_key_exists($publicPathRaw, self::$resolvedAllowedRootsByPublicPath)) {
+        if (array_key_exists($publicPathRaw, self::$resolvedAllowedRootsByPublicPath)
+            && array_key_exists($publicPathRaw, self::$resolvedNonPublicRootsByPublicPath)
+        ) {
+            $this->requestNonPublicRoots = self::$resolvedNonPublicRootsByPublicPath[$publicPathRaw];
+
             return $this->requestAllowedRoots = self::$resolvedAllowedRootsByPublicPath[$publicPathRaw];
         }
 
-        $roots      = [];
-        $publicPath = realpath($publicPathRaw);
+        $roots          = [];
+        $nonPublicRoots = [];
+        $publicPath     = realpath($publicPathRaw);
 
         if ($publicPath !== false) {
             $roots[$publicPath] = true;
@@ -1071,8 +1291,17 @@ final class Processor implements LoggerAwareInterface, ProcessorInterface
 
                 $resolvedBasePath = realpath($absolutePath);
 
+                // A non-public storage (is_public = 0) is not an allowed
+                // root, and its files are refused even where the directory
+                // sits inside the public web root (isInNonPublicStorage()).
+                $isPublicStorage = $storage->isPublic();
+
                 if ($resolvedBasePath !== false) {
-                    $roots[$resolvedBasePath] = true;
+                    if ($isPublicStorage) {
+                        $roots[$resolvedBasePath] = true;
+                    } else {
+                        $nonPublicRoots[$resolvedBasePath] = true;
+                    }
                 }
 
                 // Per-instance opt-in: resolve any of the configured
@@ -1081,14 +1310,21 @@ final class Processor implements LoggerAwareInterface, ProcessorInterface
                 // fileadmin/_processed_ symlinked to local/ephemeral
                 // storage to keep frequently-rewritten image-processing
                 // caches off shared/NFS storage). Empty by default -- see
-                // ext_conf_template.txt.
+                // ext_conf_template.txt. Inside a non-public storage the
+                // resolved target belongs to that storage as well.
                 foreach ($trustedStorageSymlinkNames as $symlinkName) {
                     $resolvedChild = $this->resolveSymlinkedDirectory(
                         rtrim($absolutePath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $symlinkName,
                     );
 
-                    if ($resolvedChild !== null) {
+                    if ($resolvedChild === null) {
+                        continue;
+                    }
+
+                    if ($isPublicStorage) {
                         $roots[$resolvedChild] = true;
+                    } else {
+                        $nonPublicRoots[$resolvedChild] = true;
                     }
                 }
             }
@@ -1180,13 +1416,16 @@ final class Processor implements LoggerAwareInterface, ProcessorInterface
             }
         }
 
-        $resolved = array_keys($roots);
+        $resolved          = array_keys($roots);
+        $resolvedNonPublic = array_keys($nonPublicRoots);
 
         // Always populate the per-request cache so follow-up calls in the
         // same request (second isPathWithinAllowedRoots, log context, …)
         // reuse this result instead of retrying findAll() and re-emitting
         // the StorageRepository-unavailable warning.
-        $this->requestAllowedRoots = $resolved;
+        $this->requestAllowedRoots        = $resolved;
+        $this->requestNonPublicRoots      = $resolvedNonPublic;
+        $this->requestStorageLookupFailed = $storageLookupFailed;
 
         // Only populate the static per-process cache on success. A degraded
         // fallback (public root only, without FAL storages) must not be
@@ -1196,7 +1435,8 @@ final class Processor implements LoggerAwareInterface, ProcessorInterface
         // worker's lifetime. generateAndSend() resets the per-request
         // cache on the next invocation, giving findAll() another chance.
         if (!$storageLookupFailed) {
-            self::$resolvedAllowedRootsByPublicPath[$publicPathRaw] = $resolved;
+            self::$resolvedAllowedRootsByPublicPath[$publicPathRaw]   = $resolved;
+            self::$resolvedNonPublicRootsByPublicPath[$publicPathRaw] = $resolvedNonPublic;
         }
 
         return $resolved;
