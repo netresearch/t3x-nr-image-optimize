@@ -112,7 +112,16 @@ Checks that run on every pull request in this repository:
   JavaScript, the TypeScript and the workflow files (CodeQL has no PHP
   analysis; PHPStan and Opengrep cover the PHP code); Betterleaks secret
   scanning; zizmor for the workflow files; the fuzz tests (the `fuzzy`
-  suite in `Build/phpunit.xml`); the pull request quality check.
+  suite in `Build/phpunit.xml`); the pull request quality check. Its
+  `All security checks` job fails unless every one of these jobs succeeded
+  or was skipped.
+- `.github/workflows/check-template-drift.yml`: compares the files of the
+  organisation's `typo3-extension` template in `netresearch/.github` with
+  this repository's copies and fails when one is missing or behaves
+  differently (YAML files are compared as parsed documents, so a
+  difference only in comments, key order or whitespace is reported as a
+  notice). Files listed under `intentional-drift` in
+  `.github/template.yaml`, and that file itself, are not compared.
 - `.github/workflows/ci.yml`: PHP lint, code style, PHPStan (level 10,
   `Build/phpstan.neon`, including the architecture rules in
   `Tests/Architecture/`), Rector, unit, functional (SQLite) and acceptance
