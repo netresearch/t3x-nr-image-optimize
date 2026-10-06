@@ -94,9 +94,10 @@ $now = time();
 // not expose the skip flags), so it cannot get the signature the ViewHelper
 // adds. Sign them here with the instance's key, in image order, and hand the
 // list to the template through the page record.
-require INSTANCE_ROOT . '/vendor/autoload.php';
+require_once INSTANCE_ROOT . '/vendor/autoload.php';
 
-$settings      = require INSTANCE_ROOT . '/config/system/settings.php';
+// First and only inclusion in this process, so require_once returns the array.
+$settings      = require_once INSTANCE_ROOT . '/config/system/settings.php';
 $encryptionKey = $settings['SYS']['encryptionKey'] ?? '';
 
 if (!is_string($encryptionKey) || $encryptionKey === '') {
