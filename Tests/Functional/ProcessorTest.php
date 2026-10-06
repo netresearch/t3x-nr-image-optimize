@@ -21,6 +21,7 @@ use Netresearch\NrImageOptimize\Event\VariantServedEvent;
 use Netresearch\NrImageOptimize\Processor;
 use Netresearch\NrImageOptimize\Service\ImageManagerAdapter;
 use Netresearch\NrImageOptimize\Service\ImageManagerFactory;
+use Netresearch\NrImageOptimize\Service\VariantUrlSigner;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\Attributes\UsesClass;
@@ -43,8 +44,11 @@ use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
 #[UsesClass(ImageManagerFactory::class)]
 #[UsesClass(ImageProcessedEvent::class)]
 #[UsesClass(VariantServedEvent::class)]
+#[UsesClass(VariantUrlSigner::class)]
 final class ProcessorTest extends FunctionalTestCase
 {
+    use SignedVariantRequestTrait;
+
     protected array $testExtensionsToLoad = [
         'netresearch/nr-image-optimize',
     ];
@@ -58,8 +62,7 @@ final class ProcessorTest extends FunctionalTestCase
     {
         $processor = $this->get(Processor::class);
 
-        $uri     = new Uri('https://example.com/processed/fileadmin/test-image.w50h38m0q80.png');
-        $request = new ServerRequest($uri);
+        $request = $this->signedVariantRequest('/processed/fileadmin/test-image.w50h38m0q80.png');
 
         $response = $processor->generateAndSend($request);
 
@@ -80,8 +83,7 @@ final class ProcessorTest extends FunctionalTestCase
     {
         $processor = $this->get(Processor::class);
 
-        $uri     = new Uri('https://example.com/processed/fileadmin/test-image.w50h38m0q80.png');
-        $request = new ServerRequest($uri);
+        $request = $this->signedVariantRequest('/processed/fileadmin/test-image.w50h38m0q80.png');
 
         $response = $processor->generateAndSend($request);
 
@@ -97,8 +99,7 @@ final class ProcessorTest extends FunctionalTestCase
     {
         $processor = $this->get(Processor::class);
 
-        $uri     = new Uri('https://example.com/processed/fileadmin/test-image.w50h38m0q80.png');
-        $request = new ServerRequest($uri);
+        $request = $this->signedVariantRequest('/processed/fileadmin/test-image.w50h38m0q80.png');
 
         // First request generates the image
         $response1 = $processor->generateAndSend($request);
@@ -115,8 +116,7 @@ final class ProcessorTest extends FunctionalTestCase
     {
         $processor = $this->get(Processor::class);
 
-        $uri     = new Uri('https://example.com/processed/fileadmin/no-such-file.w100h75m0q80.png');
-        $request = new ServerRequest($uri);
+        $request = $this->signedVariantRequest('/processed/fileadmin/no-such-file.w100h75m0q80.png');
 
         $response = $processor->generateAndSend($request);
 
@@ -155,8 +155,7 @@ final class ProcessorTest extends FunctionalTestCase
         $processor = $this->get(Processor::class);
 
         // mode=0 is cover (crop to fill)
-        $uri     = new Uri('https://example.com/processed/fileadmin/test-image.w50h50m0q90.png');
-        $request = new ServerRequest($uri);
+        $request = $this->signedVariantRequest('/processed/fileadmin/test-image.w50h50m0q90.png');
 
         $response = $processor->generateAndSend($request);
 
@@ -177,8 +176,7 @@ final class ProcessorTest extends FunctionalTestCase
         $processor = $this->get(Processor::class);
 
         // mode=1 is scale (fit inside)
-        $uri     = new Uri('https://example.com/processed/fileadmin/test-image.w50h50m1q90.png');
-        $request = new ServerRequest($uri);
+        $request = $this->signedVariantRequest('/processed/fileadmin/test-image.w50h50m1q90.png');
 
         $response = $processor->generateAndSend($request);
 
@@ -205,8 +203,7 @@ final class ProcessorTest extends FunctionalTestCase
     {
         $processor = $this->get(Processor::class);
 
-        $uri     = new Uri('https://example.com/processed/fileadmin/test-image.w50h38m0q80.png?skipWebP=1&skipAvif=1');
-        $request = new ServerRequest($uri);
+        $request = $this->signedVariantRequest('/processed/fileadmin/test-image.w50h38m0q80.png', 'skipWebP=1&skipAvif=1');
 
         $response = $processor->generateAndSend($request);
 
@@ -228,8 +225,7 @@ final class ProcessorTest extends FunctionalTestCase
 
         $processor = $this->get(Processor::class);
 
-        $uri     = new Uri('https://example.com/processed/fileadmin/Gr%C3%BCndung/test-image.w50h38m0q80.png');
-        $request = new ServerRequest($uri);
+        $request = $this->signedVariantRequest('/processed/fileadmin/Gr%C3%BCndung/test-image.w50h38m0q80.png');
 
         $response = $processor->generateAndSend($request);
 
@@ -245,8 +241,7 @@ final class ProcessorTest extends FunctionalTestCase
     {
         $processor = $this->get(Processor::class);
 
-        $uri     = new Uri('https://example.com/processed/fileadmin/test-image.w30h23m0q80.png?skipWebP=1&skipAvif=1');
-        $request = new ServerRequest($uri);
+        $request = $this->signedVariantRequest('/processed/fileadmin/test-image.w30h23m0q80.png', 'skipWebP=1&skipAvif=1');
 
         $response = $processor->generateAndSend($request);
         self::assertSame(200, $response->getStatusCode());

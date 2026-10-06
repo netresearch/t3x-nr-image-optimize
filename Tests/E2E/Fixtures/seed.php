@@ -12,6 +12,9 @@
 
 declare(strict_types=1);
 
+use Netresearch\NrImageOptimize\Service\VariantUrlSigner;
+use TYPO3\CMS\Core\Crypto\HashService;
+
 /*
  * Seeds the throw-away e2e instance for the performance benchmark.
  *
@@ -24,6 +27,9 @@ declare(strict_types=1);
  *     (plasma fractals, one seed per image so no two files are identical)
  *   - public/_bench/control.php, the reset/stat endpoint the suite calls
  *   - four pages below the root page, one per benchmark template
+ *   - for the ext-eager-jpeg page, the signatures of its hand-written
+ *     /processed/ URLs (pages.abstract), made with the instance's
+ *     encryption key by the extension's own VariantUrlSigner
  */
 
 const INSTANCE_ROOT = '/var/www/html';
@@ -84,24 +90,49 @@ $pdo = new PDO(
 
 $now = time();
 
-// uid => [slug, template name]. The template name lands in the page's
-// subtitle, which the TypoScript in runTests.conf reads as templateName.
+// ExtEagerJpeg.html writes its /processed/ URLs by hand (the ViewHelper does
+// not expose the skip flags), so it cannot get the signature the ViewHelper
+// adds. Sign them here with the instance's key, in image order, and hand the
+// list to the template through the page record.
+require_once INSTANCE_ROOT . '/vendor/autoload.php';
+
+// First and only inclusion in this process, so require_once returns the array.
+$settings      = require_once INSTANCE_ROOT . '/config/system/settings.php';
+$encryptionKey = $settings['SYS']['encryptionKey'] ?? '';
+
+if (!is_string($encryptionKey) || $encryptionKey === '') {
+    fwrite(STDERR, "seed: no SYS.encryptionKey in config/system/settings.php\n");
+    exit(1);
+}
+
+$GLOBALS['TYPO3_CONF_VARS']['SYS']['encryptionKey'] = $encryptionKey;
+
+$signer     = new VariantUrlSigner(new HashService());
+$signatures = [];
+
+for ($i = 1; $i <= PHOTO_COUNT; ++$i) {
+    $signatures[] = $signer->sign(sprintf('/processed/fileadmin/benchmark/photo-%02d.w800h600m0q75.jpg', $i));
+}
+
+// uid => [slug, template name, abstract]. The template name lands in the
+// page's subtitle, which the TypoScript in runTests.conf reads as
+// templateName; ExtEagerJpeg reads its URL signatures from the abstract.
 $pages = [
-    10 => ['core-eager', 'CoreEager'],
-    11 => ['ext-eager', 'ExtEager'],
-    12 => ['core-lazy', 'CoreLazy'],
-    13 => ['ext-lazy', 'ExtLazy'],
-    14 => ['ext-eager-jpeg', 'ExtEagerJpeg'],
+    10 => ['core-eager', 'CoreEager', ''],
+    11 => ['ext-eager', 'ExtEager', ''],
+    12 => ['core-lazy', 'CoreLazy', ''],
+    13 => ['ext-lazy', 'ExtLazy', ''],
+    14 => ['ext-eager-jpeg', 'ExtEagerJpeg', implode(',', $signatures)],
 ];
 
 $statement = $pdo->prepare(
-    'INSERT INTO pages (uid, pid, title, subtitle, slug, doktype, hidden, deleted, tstamp, crdate)'
-    . ' VALUES (?, 1, ?, ?, ?, 1, 0, 0, ?, ?)'
-    . ' ON DUPLICATE KEY UPDATE subtitle = VALUES(subtitle), slug = VALUES(slug)',
+    'INSERT INTO pages (uid, pid, title, subtitle, slug, abstract, doktype, hidden, deleted, tstamp, crdate)'
+    . ' VALUES (?, 1, ?, ?, ?, ?, 1, 0, 0, ?, ?)'
+    . ' ON DUPLICATE KEY UPDATE subtitle = VALUES(subtitle), slug = VALUES(slug), abstract = VALUES(abstract)',
 );
 
-foreach ($pages as $uid => [$slug, $template]) {
-    $statement->execute([$uid, 'Benchmark ' . $template, $template, '/bench/' . $slug, $now, $now]);
+foreach ($pages as $uid => [$slug, $template, $abstract]) {
+    $statement->execute([$uid, 'Benchmark ' . $template, $template, '/bench/' . $slug, $abstract, $now, $now]);
 }
 
 $totalBytes = array_sum(array_map(filesize(...), glob($photoDir . '/photo-*.jpg') ?: []));

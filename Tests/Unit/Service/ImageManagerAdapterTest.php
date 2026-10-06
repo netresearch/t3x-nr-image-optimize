@@ -20,7 +20,9 @@ use Intervention\Image\Drivers\Gd\Driver;
 use Intervention\Image\ImageManager;
 use Netresearch\NrImageOptimize\Service\ImageManagerAdapter;
 use Netresearch\NrImageOptimize\Service\ImageReaderInterface;
+use Netresearch\NrImageOptimize\Service\UnsupportedImageTypeException;
 use PHPUnit\Framework\Attributes\CoversNothing;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
@@ -92,6 +94,35 @@ final class ImageManagerAdapterTest extends TestCase
             unlink($tmpFile); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
             rmdir($tmpDir);
             rmdir(dirname($tmpDir));
+        }
+    }
+
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function nonImageContentProvider(): iterable
+    {
+        yield 'PostScript named .png' => ['png', "%!PS-Adobe-3.0\n%%BoundingBox: 0 0 10 10\nshowpage\n"];
+        yield 'SVG named .jpg' => ['jpg', '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"/>'];
+        yield 'text named .gif' => ['gif', 'plain text'];
+        yield 'empty file' => ['png', ''];
+    }
+
+    #[Test]
+    #[DataProvider('nonImageContentProvider')]
+    public function readRefusesFileWhoseContentIsNotASupportedImage(string $extension, string $content): void
+    {
+        $tmpFile = sys_get_temp_dir() . '/nr-pio-adapter-test-' . uniqid('', true) . '.' . $extension;
+        file_put_contents($tmpFile, $content);
+
+        try {
+            $adapter = new ImageManagerAdapter(new ImageManager(Driver::class));
+
+            $this->expectException(UnsupportedImageTypeException::class);
+
+            $adapter->read($tmpFile);
+        } finally {
+            unlink($tmpFile); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp file
         }
     }
 

@@ -126,6 +126,9 @@ This extension has **no** `Classes/Domain/` (no Extbase models), **no** `Configu
 - **External binaries**: `ImageOptimizer` invokes optipng/gifsicle/jpegoptim via `proc_open` with argument arrays (not shell strings) — keep it that way. Never concatenate user input into a command string.
 - **nosemgrep tags**: the three `@unlink()` finally-block cleanups in `Classes/Service/ImageOptimizer.php` carry `// nosemgrep: php.lang.security.unlink-use.unlink-use` — only suppress with this exact pattern after verifying the path originates from `getForLocalProcessing(true)`.
 - **Backend access**: `MaintenanceController` relies on TYPO3 backend-user session; no additional check needed for routed actions. For ad-hoc access, use `$GLOBALS['BE_USER']->check()`.
+- **Variant creation**: a variant that is not on disk yet is created only for a URL whose `sig` parameter `VariantUrlSigner::isValid()` accepts; `SourceSetViewHelper::getResourcePath()` signs every URL. Never add a code path that creates a variant before `Processor::hasValidSignature()`.
+- **Storage access**: sources inside a non-public Local FAL storage are refused before the cache lookup (`Processor::isInNonPublicStorage()`); a failed storage lookup refuses the request (503) instead of guessing.
+- **Image types**: `ImageReaderInterface::read()` decodes only JPEG/PNG/GIF/WebP/AVIF/BMP/TIFF content; keep every decode behind it.
 - **Path traversal**: combine the regex negative lookahead `(?:(?!\.\.).)` with a `realpath()` check against the cached public path — not one or the other.
 - **XSS**: run `htmlspecialchars()` on **every** tag attribute emitted in a ViewHelper `tag()` method.
 - **CSP**: include external JS/CSS through `f:be.pageRenderer` `includeJsFiles` / `includeCssFiles`, **not** `includeJavaScriptFiles` (inline-emitting variants break CSP).

@@ -19,6 +19,8 @@ use Netresearch\NrImageOptimize\Middleware\ProcessingMiddleware;
 use Netresearch\NrImageOptimize\Processor;
 use Netresearch\NrImageOptimize\Service\ImageManagerAdapter;
 use Netresearch\NrImageOptimize\Service\ImageManagerFactory;
+use Netresearch\NrImageOptimize\Service\VariantUrlSigner;
+use Netresearch\NrImageOptimize\Tests\Functional\SignedVariantRequestTrait;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\Attributes\UsesClass;
@@ -44,8 +46,11 @@ use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
 #[UsesClass(ImageManagerAdapter::class)]
 #[UsesClass(ImageManagerFactory::class)]
 #[UsesClass(VariantServedEvent::class)]
+#[UsesClass(VariantUrlSigner::class)]
 final class ProcessingMiddlewareTest extends FunctionalTestCase
 {
+    use SignedVariantRequestTrait;
+
     protected array $testExtensionsToLoad = [
         'netresearch/nr-image-optimize',
     ];
@@ -79,7 +84,7 @@ final class ProcessingMiddlewareTest extends FunctionalTestCase
     #[Test]
     public function middlewareInterceptsProcessedPathRequests(): void
     {
-        $request = new ServerRequest(new Uri('https://example.com/processed/fileadmin/test.w100h75m0q80.png'));
+        $request = $this->signedVariantRequest('/processed/fileadmin/test.w100h75m0q80.png');
 
         $handler = new class implements RequestHandlerInterface {
             public bool $called = false;
@@ -124,9 +129,7 @@ final class ProcessingMiddlewareTest extends FunctionalTestCase
     #[Test]
     public function middlewareReturns404ForNonExistentSourceImage(): void
     {
-        $request = new ServerRequest(
-            new Uri('https://example.com/processed/fileadmin/nonexistent.w100h75m0q80.png'),
-        );
+        $request = $this->signedVariantRequest('/processed/fileadmin/nonexistent.w100h75m0q80.png');
 
         $handler = new class implements RequestHandlerInterface {
             public function handle(ServerRequestInterface $request): ResponseInterface

@@ -14,9 +14,19 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Tests\Functional\ViewHelpers;
 
+use Netresearch\NrImageOptimize\Event\ImageProcessedEvent;
+use Netresearch\NrImageOptimize\Event\VariantServedEvent;
+use Netresearch\NrImageOptimize\Processor;
+use Netresearch\NrImageOptimize\Service\ImageManagerAdapter;
+use Netresearch\NrImageOptimize\Service\ImageManagerFactory;
+use Netresearch\NrImageOptimize\Service\VariantUrlSigner;
 use Netresearch\NrImageOptimize\ViewHelpers\SourceSetViewHelper;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\Attributes\UsesClass;
+use TYPO3\CMS\Core\Core\Environment;
+use TYPO3\CMS\Core\Http\ServerRequest;
+use TYPO3\CMS\Core\Http\Uri;
 use TYPO3\CMS\Fluid\Core\Rendering\RenderingContextFactory;
 use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
 use TYPO3Fluid\Fluid\View\TemplateView;
@@ -25,6 +35,12 @@ use TYPO3Fluid\Fluid\View\TemplateView;
  * Functional tests for SourceSetViewHelper rendering with actual Fluid templates.
  */
 #[CoversClass(SourceSetViewHelper::class)]
+#[UsesClass(VariantUrlSigner::class)]
+#[UsesClass(Processor::class)]
+#[UsesClass(ImageManagerAdapter::class)]
+#[UsesClass(ImageManagerFactory::class)]
+#[UsesClass(ImageProcessedEvent::class)]
+#[UsesClass(VariantServedEvent::class)]
 final class SourceSetViewHelperTest extends FunctionalTestCase
 {
     protected array $testExtensionsToLoad = [
@@ -166,6 +182,27 @@ final class SourceSetViewHelperTest extends FunctionalTestCase
 
         // SVG paths should not be routed through /processed/
         self::assertStringNotContainsString('/processed/', $output);
+    }
+
+    #[Test]
+    public function renderedVariantUrlIsAcceptedByTheProcessor(): void
+    {
+        $output = $this->renderTemplate(
+            '{namespace nrio=Netresearch\NrImageOptimize\ViewHelpers}'
+            . '<nrio:sourceSet path="/fileadmin/test-image.png" width="60" height="45" alt="" />',
+        );
+
+        self::assertSame(1, preg_match('/<img[^>]* src="([^"]+)"/', $output, $matches), $output);
+
+        $src = html_entity_decode($matches[1], ENT_QUOTES | ENT_HTML5);
+        self::assertStringContainsString(VariantUrlSigner::QUERY_PARAMETER . '=', $src);
+
+        $response = $this->get(Processor::class)->generateAndSend(
+            new ServerRequest(new Uri('https://example.com' . $src)),
+        );
+
+        self::assertSame(200, $response->getStatusCode());
+        self::assertFileExists(Environment::getPublicPath() . '/processed/fileadmin/test-image.w60h45m0q75.png');
     }
 
     /**
