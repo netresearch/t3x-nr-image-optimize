@@ -171,6 +171,47 @@ default.
     Use :ref:`Clear processed images <maintenance-clear>` to remove
     the obsolete files.
 
+..  _configuration-url-signature:
+
+Signed variant URLs
+===================
+
+..  versionchanged:: 1.6.1
+    A variant that is not on disk yet is created only for a URL with a
+    valid ``sig`` parameter, and only for source files whose content is
+    a JPEG, PNG, GIF, WebP, AVIF, BMP or TIFF image. Variant URLs accept
+    only the extensions ``jpg``, ``jpeg``, ``png``, ``gif``, ``webp``,
+    ``avif``, ``bmp``, ``tif`` and ``tiff``.
+
+Creating a variant costs CPU time, memory and disk space, so the
+processor creates one only when the URL carries a signature issued by
+the installation itself:
+
+*   ``sig`` is an HMAC (SHA-1, ``GeneralUtility::hmac()``) of the
+    URL-decoded variant path -- source path, mode config and
+    extension -- keyed with
+    ``$GLOBALS['TYPO3_CONF_VARS']['SYS']['encryptionKey']`` plus a
+    secret specific to this extension.
+*   The ``sourceSet`` ViewHelper signs every URL it renders.
+*   A URL without a valid signature is answered with HTTP 403 unless
+    the variant is already on disk; existing variants are served
+    without a signature.
+*   The ``skipWebP`` / ``skipAvif`` flags are not part of the
+    signature.
+
+Consequences for existing installations:
+
+*   Pages rendered before the update carry unsigned URLs. Flush the
+    page cache after updating, so variants that do not exist yet can
+    be created.
+*   URLs written by hand need a signature. Build them in PHP with
+    ``SourceSetViewHelper::getResourcePath()`` or sign the path with
+    the ``Netresearch\NrImageOptimize\Service\VariantUrlSigner``
+    service (``sign(string $variantPath)``, with the URL-decoded path).
+*   Changing the ``encryptionKey`` invalidates all signatures; flush
+    the page cache afterwards.
+*   Without an ``encryptionKey`` no signature is issued or accepted.
+
 ..  _configuration-source-sets:
 
 Source set configuration

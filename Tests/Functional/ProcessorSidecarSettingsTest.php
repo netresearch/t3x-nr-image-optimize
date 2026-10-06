@@ -13,11 +13,11 @@ namespace Netresearch\NrImageOptimize\Tests\Functional;
 
 use Imagick;
 use Netresearch\NrImageOptimize\Processor;
+use Netresearch\NrImageOptimize\Service\VariantUrlSigner;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\Attributes\UsesClass;
 use TYPO3\CMS\Core\Core\Environment;
-use TYPO3\CMS\Core\Http\ServerRequest;
-use TYPO3\CMS\Core\Http\Uri;
 use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
 
 use function filesize;
@@ -28,8 +28,11 @@ use function filesize;
  * original requested at quality 100.
  */
 #[CoversClass(Processor::class)]
+#[UsesClass(VariantUrlSigner::class)]
 final class ProcessorSidecarSettingsTest extends FunctionalTestCase
 {
+    use SignedVariantRequestTrait;
+
     use AvifEncoderProbeTrait;
 
     protected array $testExtensionsToLoad = [
@@ -54,7 +57,7 @@ final class ProcessorSidecarSettingsTest extends FunctionalTestCase
     public function disabledWebpIsNotWritten(): void
     {
         $response = $this->get(Processor::class)->generateAndSend(
-            new ServerRequest(new Uri('https://example.com/processed/fileadmin/test-image.w40h30m0q80.png')),
+            $this->signedVariantRequest('/processed/fileadmin/test-image.w40h30m0q80.png'),
         );
 
         self::assertSame(200, $response->getStatusCode());
@@ -70,7 +73,7 @@ final class ProcessorSidecarSettingsTest extends FunctionalTestCase
         $this->skipUnlessAvifEncoderWorks();
 
         $response = $this->get(Processor::class)->generateAndSend(
-            new ServerRequest(new Uri('https://example.com/processed/fileadmin/test-image.w44h33m0q80.png')),
+            $this->signedVariantRequest('/processed/fileadmin/test-image.w44h33m0q80.png'),
         );
 
         self::assertSame(200, $response->getStatusCode());
@@ -93,7 +96,7 @@ final class ProcessorSidecarSettingsTest extends FunctionalTestCase
         $original->writeImage(Environment::getPublicPath() . '/fileadmin/test-image-avif.avif');
 
         $response = $this->get(Processor::class)->generateAndSend(
-            new ServerRequest(new Uri('https://example.com/processed/fileadmin/test-image-avif.w32h24m0q100.avif')),
+            $this->signedVariantRequest('/processed/fileadmin/test-image-avif.w32h24m0q100.avif'),
         );
 
         self::assertSame(200, $response->getStatusCode());

@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Tests\Unit\ViewHelpers;
 
+use Netresearch\NrImageOptimize\Service\VariantUrlSigner;
 use Netresearch\NrImageOptimize\ViewHelpers\SourceSetViewHelper;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -22,12 +23,14 @@ use TYPO3\CMS\Core\Core\Environment;
 
 use function array_filter;
 use function array_map;
+use function array_pad;
 use function base64_decode;
 use function explode;
 use function file_put_contents;
 use function floor;
 use function is_dir;
 use function mkdir;
+use function parse_str;
 use function pathinfo;
 use function preg_match;
 use function rmdir;
@@ -342,6 +345,83 @@ class SourceSetViewHelperTest extends TestCase
         $result = $this->viewHelper->getResourcePath('/path/to/image.jpg', 320, 200, 75);
 
         self::assertSame('/processed/path/to/image.w320h200m0q75.jpg', $result);
+    }
+
+    /**
+     * Run $test with an encryption key configured and remove it afterwards,
+     * so the other tests keep rendering unsigned URLs.
+     *
+     * @param callable(): void $test
+     */
+    private function withEncryptionKey(callable $test): void
+    {
+        $GLOBALS['TYPO3_CONF_VARS']['SYS']['encryptionKey'] = 'source-set-view-helper-test-key';
+
+        try {
+            $test();
+        } finally {
+            unset($GLOBALS['TYPO3_CONF_VARS']['SYS']['encryptionKey']);
+        }
+    }
+
+    /**
+     * Split a rendered URL into its path and query parameters.
+     *
+     * @return array{0: string, 1: array<array-key, mixed>}
+     */
+    private function splitUrl(string $url): array
+    {
+        [$path, $query] = array_pad(explode('?', $url, 2), 2, '');
+        parse_str($query, $parameters);
+
+        return [$path, $parameters];
+    }
+
+    #[Test]
+    public function getResourcePathAppendsSignatureValidForTheVariantPath(): void
+    {
+        $this->withEncryptionKey(function (): void {
+            $this->viewHelper->setArguments(['mode' => 'cover']);
+
+            [$path, $parameters] = $this->splitUrl($this->viewHelper->getResourcePath('/path/to/image.jpg', 320, 200, 75));
+
+            self::assertSame('/processed/path/to/image.w320h200m0q75.jpg', $path);
+            self::assertIsString($parameters[VariantUrlSigner::QUERY_PARAMETER] ?? null);
+            self::assertTrue((new VariantUrlSigner())->isValid($path, $parameters[VariantUrlSigner::QUERY_PARAMETER]));
+        });
+    }
+
+    #[Test]
+    public function getResourcePathKeepsSkipFlagsNextToTheSignature(): void
+    {
+        $this->withEncryptionKey(function (): void {
+            $this->viewHelper->setArguments(['mode' => 'fit']);
+
+            [$path, $parameters] = $this->splitUrl($this->viewHelper->getResourcePath('/path/to/image.jpg', 640, 480, 85, true, true));
+
+            self::assertSame('1', $parameters['skipWebP'] ?? null);
+            self::assertSame('1', $parameters['skipAvif'] ?? null);
+            self::assertIsString($parameters[VariantUrlSigner::QUERY_PARAMETER] ?? null);
+            self::assertTrue((new VariantUrlSigner())->isValid($path, $parameters[VariantUrlSigner::QUERY_PARAMETER]));
+        });
+    }
+
+    #[Test]
+    public function getResourcePathSignsTheDecodedPathOfAPercentEncodedSource(): void
+    {
+        $this->withEncryptionKey(function (): void {
+            $this->viewHelper->setArguments(['mode' => 'cover']);
+
+            [$path, $parameters] = $this->splitUrl($this->viewHelper->getResourcePath('/fileadmin/Gr%C3%BCndung/image.jpg', 320, 200, 75));
+
+            self::assertSame('/processed/fileadmin/Gr%C3%BCndung/image.w320h200m0q75.jpg', $path);
+            self::assertIsString($parameters[VariantUrlSigner::QUERY_PARAMETER] ?? null);
+            // The processor verifies against urldecode() of the request path.
+            self::assertTrue((new VariantUrlSigner())->isValid(
+                '/processed/fileadmin/Gründung/image.w320h200m0q75.jpg',
+                $parameters[VariantUrlSigner::QUERY_PARAMETER],
+            ));
+        });
     }
 
     #[Test]

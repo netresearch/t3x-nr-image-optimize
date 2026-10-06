@@ -13,10 +13,12 @@ namespace Netresearch\NrImageOptimize\Tests\Acceptance\ViewHelpers;
 
 use DOMDocument;
 use DOMElement;
+use Netresearch\NrImageOptimize\Service\VariantUrlSigner;
 use Netresearch\NrImageOptimize\ViewHelpers\SourceSetViewHelper;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\TestCase;
 use TYPO3\CMS\Core\Core\ApplicationContext;
 use TYPO3\CMS\Core\Core\Environment;
@@ -31,6 +33,7 @@ use function sys_get_temp_dir;
  * a browser would receive.
  */
 #[CoversClass(SourceSetViewHelper::class)]
+#[UsesClass(VariantUrlSigner::class)]
 class SourceSetViewHelperHtmlOutputTest extends TestCase
 {
     private SourceSetViewHelper $viewHelper;

@@ -391,18 +391,18 @@ final class SystemRequirementsService
             return ['available' => null, 'version' => 'n/a'];
         }
 
-        $path = shell_exec('command -v ' . escapeshellarg($cmd) . ' 2>/dev/null');
+        $path = shell_exec('command -v ' . escapeshellarg($cmd) . ' 2>/dev/null'); // nosemgrep: php.lang.security.exec-use.exec-use -- $cmd is a key of the CLI_TOOLS constant, passed through escapeshellarg()
         $path = trim((string) $path);
 
         if ($path === '') {
             return ['available' => false, 'version' => null];
         }
 
-        $ver = shell_exec(escapeshellarg($cmd) . ' -version 2>&1');
+        $ver = shell_exec(escapeshellarg($cmd) . ' -version 2>&1'); // nosemgrep: php.lang.security.exec-use.exec-use -- $cmd is a key of the CLI_TOOLS constant, passed through escapeshellarg()
         $ver = trim((string) $ver);
 
         if ($ver === '') {
-            $ver = shell_exec(escapeshellarg($cmd) . ' --version 2>&1');
+            $ver = shell_exec(escapeshellarg($cmd) . ' --version 2>&1'); // nosemgrep: php.lang.security.exec-use.exec-use -- $cmd is a key of the CLI_TOOLS constant, passed through escapeshellarg()
             $ver = trim((string) $ver);
         }
 

@@ -13,6 +13,7 @@ namespace Netresearch\NrImageOptimize;
 
 use Intervention\Image\ImageManager;
 use Intervention\Image\Interfaces\ImageInterface;
+use Netresearch\NrImageOptimize\Service\VariantUrlSigner;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ResponseInterface;
@@ -40,8 +41,10 @@ use function filesize;
 use function filter_var;
 use function fopen;
 use function fread;
+use function getimagesize;
 use function gmdate;
 use function implode;
+use function in_array;
 use function is_dir;
 use function is_link;
 use function is_numeric;
@@ -54,9 +57,11 @@ use function parse_str;
 use function preg_match;
 use function preg_match_all;
 use function realpath;
+use function restore_error_handler;
 use function round;
 use function rtrim;
 use function scandir;
+use function set_error_handler;
 use function sprintf;
 use function str_contains;
 use function str_starts_with;
@@ -205,6 +210,26 @@ class Processor
     private const ANIMATED_GIF_SCAN_CHUNK_BYTES = 102_400;
 
     /**
+     * Image types (as reported by getimagesize()) handed to the decoder.
+     *
+     * What Intervention/Imagick would otherwise decode depends on the host's
+     * ImageMagick policy -- which may include formats such as PostScript,
+     * PDF, SVG or MVG. The content is checked, not the file name.
+     *
+     * @var list<int>
+     */
+    private const SUPPORTED_IMAGE_TYPES = [
+        IMAGETYPE_JPEG,
+        IMAGETYPE_PNG,
+        IMAGETYPE_GIF,
+        IMAGETYPE_WEBP,
+        IMAGETYPE_AVIF,
+        IMAGETYPE_BMP,
+        IMAGETYPE_TIFF_II,
+        IMAGETYPE_TIFF_MM,
+    ];
+
+    /**
      * Regex pattern for parsing variant URLs.
      */
     private const URL_PATTERN = '/^(\/processed\/)((?:(?!\.\.).)*)\.([0-9whqm]*[whqm][0-9whqm]*)\.([a-zA-Z0-9]{1,4})$/';
@@ -256,6 +281,34 @@ class Processor
     private ?array $requestAllowedRoots = null;
 
     /**
+     * Realpath-resolved base paths of Local FAL storages that are not public
+     * (sys_file_storage.is_public = 0), keyed and cached like
+     * $resolvedAllowedRootsByPublicPath and filled by the same computation.
+     *
+     * A source file below one of these roots is never processed or served,
+     * even when the directory lies inside the public web root (where only a
+     * web-server rule protects it).
+     *
+     * @var array<string, list<string>>
+     */
+    private static array $resolvedNonPublicRootsByPublicPath = [];
+
+    /**
+     * Per-request copy of the non-public storage roots; null until
+     * getAllowedRoots() ran in this request.
+     *
+     * @var list<string>|null
+     */
+    private ?array $requestNonPublicRoots = null;
+
+    /**
+     * Whether StorageRepository could not be read in this request. Then it is
+     * unknown which directories belong to a non-public storage, and the
+     * request is refused instead of guessed.
+     */
+    private bool $requestStorageLookupFailed = false;
+
+    /**
      * Initialize the image processor with all required dependencies.
      *
      * @param ImageManager             $imageManager           Intervention Image manager used to read/encode images
@@ -267,6 +320,8 @@ class Processor
      *                                                         (supports symlinked storage targets, e.g. NFS/EFS)
      * @param ExtensionConfiguration   $extensionConfiguration Provides the per-instance-configurable
      *                                                         "additionalTrustedStorageSymlinks" setting
+     * @param VariantUrlSigner         $variantUrlSigner       Verifies the signature a variant URL needs
+     *                                                         before a new variant is created
      */
     public function __construct(
         private readonly ImageManager $imageManager,
@@ -275,6 +330,7 @@ class Processor
         private readonly StreamFactoryInterface $streamFactory,
         private readonly StorageRepository $storageRepository,
         private readonly ExtensionConfiguration $extensionConfiguration,
+        private readonly VariantUrlSigner $variantUrlSigner,
     ) {
     }
 
@@ -291,9 +347,13 @@ class Processor
      * the processed files (including optional WebP/AVIF variants), and returns a
      * PSR-7 response with the best available representation.
      *
-     * Returns 400 if the URL does not match the expected pattern or path validation
-     * fails, 404 if the original image is missing, 500 on processing errors, and
-     * 503 if a lock cannot be acquired in time.
+     * Returns 400 if the URL does not match the expected pattern (including an
+     * extension outside the supported image types), path validation fails, or
+     * the source file is not an image of a supported type; 403 if a variant
+     * that does not exist yet is requested without a valid signature (see
+     * VariantUrlSigner); 404 if the original image is missing or belongs to a
+     * non-public FAL storage; 500 on processing errors; and 503 if a lock
+     * cannot be acquired in time or the FAL storages cannot be read.
      *
      * @param RequestInterface $request Incoming request containing the processed URL and query params
      *
@@ -304,7 +364,9 @@ class Processor
         // Reset the per-request allowed-roots memoization so a fresh list
         // (or a fresh retry of StorageRepository::findAll() if it was
         // unavailable earlier) is computed on the first call below.
-        $this->requestAllowedRoots = null;
+        $this->requestAllowedRoots        = null;
+        $this->requestNonPublicRoots      = null;
+        $this->requestStorageLookupFailed = false;
 
         $variantUrl = urldecode($request->getUri()->getPath());
 
@@ -322,6 +384,21 @@ class Processor
             ));
 
             return $this->responseFactory->createResponse(400);
+        }
+
+        // Which directories belong to a non-public storage is only known when
+        // the FAL storages could be read. Without that list, refuse rather
+        // than serve a file whose storage may not be public. Checked before
+        // the path validation, which without the storage list knows fewer
+        // roots and would answer 400 for a source in a symlinked storage.
+        // Not cached, so the next request retries the lookup.
+        if ($this->hasStorageLookupFailed()) {
+            error_log(sprintf(
+                'nr_image_optimize: rejecting variant request with 503 (FAL storages could not be read to check storage access): url=%s',
+                $variantUrl,
+            ));
+
+            return $this->responseFactory->createResponse(503);
         }
 
         // Validate that both resolved paths stay within an allowed root
@@ -345,12 +422,30 @@ class Processor
             return $this->responseFactory->createResponse(400);
         }
 
+        // Files of a non-public storage are delivered by TYPO3 only through
+        // an access-checked mechanism (e.g. an eID script); a variant of such
+        // a file must not be created or served here. Checked before the
+        // cache lookup so a variant written before this check existed is not
+        // served either. 404 (not 403) so the response does not depend on
+        // whether the file exists.
+        if ($this->isInNonPublicStorage($urlInfo['pathOriginal'])) {
+            return $this->responseFactory->createResponse(404);
+        }
+
         // Short-circuit: serve the already-processed file directly from disk,
         // bypassing lock acquisition, image loading, and all processing.
         $cachedResponse = $this->serveCachedVariant($urlInfo['pathVariant'], $urlInfo['extension']);
 
         if ($cachedResponse instanceof ResponseInterface) {
             return $cachedResponse;
+        }
+
+        // Creating a variant costs CPU, memory and disk. Only URLs signed by
+        // this installation (SourceSetViewHelper signs every URL it renders)
+        // may create one; otherwise every w/h/q/m combination a client makes
+        // up would become a new file.
+        if (!$this->hasValidSignature($request, $variantUrl)) {
+            return $this->responseFactory->createResponse(403);
         }
 
         try {
@@ -512,6 +607,13 @@ class Processor
         // max_execution_time fatal, and completed variants came out ~5.5x
         // LARGER than the source). Returning early here also skips the
         // WebP/AVIF variant generation below.
+        // Only files whose content is an image of a supported type reach the
+        // decoder; what ImageMagick would otherwise accept depends on the
+        // host's policy.
+        if (!$this->isSupportedImageFile($urlInfo['pathOriginal'])) {
+            return $this->responseFactory->createResponse(400);
+        }
+
         if ($urlInfo['extension'] === 'gif' && $this->isAnimatedGif($urlInfo['pathOriginal'])) {
             return $this->passThroughOriginal($urlInfo);
         }
@@ -581,8 +683,9 @@ class Processor
     /**
      * Parse the requested variant URL and derive processing parameters.
      *
-     * Returns null if the URL does not match the expected pattern, preventing
-     * arbitrary path construction from malformed input.
+     * Returns null if the URL does not match the expected pattern or its
+     * extension is not one of EXTENSION_MIME_MAP, preventing arbitrary path
+     * construction from malformed input.
      *
      * Computes original/variant file paths, normalizes the extension, and
      * extracts width/height/quality/mode values from the encoded mode string
@@ -624,6 +727,12 @@ class Processor
 
         if ($extension === 'jpeg') {
             $extension = 'jpg';
+        }
+
+        // Only image formats the processor knows how to serve
+        // (EXTENSION_MIME_MAP); anything else is not a variant URL.
+        if (!isset(self::EXTENSION_MIME_MAP[$extension])) {
+            return null;
         }
 
         // Parse the mode string once and extract all values in a single pass
@@ -810,11 +919,30 @@ class Processor
             return false;
         }
 
+        $resolvedPath = $this->resolveExistingPathOrParent($path);
+
+        if ($resolvedPath === null) {
+            return false;
+        }
+
+        return $this->isWithinAnyRoot($resolvedPath, $allowedRoots);
+    }
+
+    /**
+     * Resolve a path through realpath(), or -- for paths that do not exist
+     * yet (variant files) -- the deepest existing parent directory.
+     *
+     * @param string $path Absolute filesystem path
+     *
+     * @return string|null Realpath-resolved path or parent, null if nothing resolves
+     */
+    private function resolveExistingPathOrParent(string $path): ?string
+    {
         // For existing paths, use realpath to resolve symlinks
         $resolvedPath = realpath($path);
 
         if ($resolvedPath !== false) {
-            return $this->isWithinAnyRoot($resolvedPath, $allowedRoots);
+            return $resolvedPath;
         }
 
         // For paths that do not yet exist (variant files), resolve the
@@ -828,11 +956,113 @@ class Processor
             $resolvedParent = realpath($parent);
 
             if ($resolvedParent !== false) {
-                return $this->isWithinAnyRoot($resolvedParent, $allowedRoots);
+                return $resolvedParent;
             }
         } while ($parent !== $previous);
 
-        return false;
+        return null;
+    }
+
+    /**
+     * Whether a source path lies inside the base path of a Local FAL storage
+     * that is not public.
+     *
+     * The path is resolved like in isPathWithinAllowedRoots() -- the file
+     * itself, or its deepest existing parent when it does not exist -- so
+     * the answer does not depend on whether the file exists, and a symlink
+     * from a public location into a non-public storage is followed.
+     *
+     * @param string $path Absolute filesystem path of the source image
+     *
+     * @return bool True if the path belongs to a non-public storage
+     */
+    private function isInNonPublicStorage(string $path): bool
+    {
+        $this->getAllowedRoots();
+
+        $nonPublicRoots = $this->requestNonPublicRoots ?? [];
+
+        if ($nonPublicRoots === []) {
+            return false;
+        }
+
+        $resolvedPath = $this->resolveExistingPathOrParent($path);
+
+        if ($resolvedPath === null) {
+            return false;
+        }
+
+        return $this->isWithinAnyRoot($resolvedPath, $nonPublicRoots);
+    }
+
+    /**
+     * Whether the FAL storages could not be read in this request.
+     *
+     * Computed together with the allowed roots (see getAllowedRoots()).
+     */
+    private function hasStorageLookupFailed(): bool
+    {
+        $this->getAllowedRoots();
+
+        return $this->requestStorageLookupFailed;
+    }
+
+    /**
+     * Whether the variant request carries a valid signature for its path.
+     *
+     * Any failure (missing parameter, non-string value, signer not available)
+     * counts as "not signed".
+     *
+     * @param RequestInterface $request    The incoming request
+     * @param string           $variantUrl URL-decoded request path
+     *
+     * @return bool True if the signature matches the path
+     */
+    private function hasValidSignature(RequestInterface $request, string $variantUrl): bool
+    {
+        $query = [];
+        parse_str($request->getUri()->getQuery(), $query);
+
+        $signature = $query[VariantUrlSigner::QUERY_PARAMETER] ?? null;
+
+        if (!is_string($signature)) {
+            return false;
+        }
+
+        try {
+            return $this->variantUrlSigner->isValid($variantUrl, $signature);
+        } catch (Throwable) {
+            return false;
+        }
+    }
+
+    /**
+     * Whether the file's content is an image of one of SUPPORTED_IMAGE_TYPES.
+     *
+     * getimagesize() reads only the header bytes. For a file too short to
+     * hold an image header it emits a notice; that case is answered by the
+     * false return value, so the notice is not passed on to the error
+     * handler (which may log it or turn it into an exception).
+     *
+     * @param string $path Absolute path of an existing source file
+     *
+     * @return bool True if the content is a supported image type
+     */
+    private function isSupportedImageFile(string $path): bool
+    {
+        set_error_handler(static fn (): bool => true);
+
+        try {
+            $info = getimagesize($path);
+        } finally {
+            restore_error_handler();
+        }
+
+        if ($info === false) {
+            return false;
+        }
+
+        return in_array($info[2], self::SUPPORTED_IMAGE_TYPES, true);
     }
 
     /**
@@ -889,7 +1119,9 @@ class Processor
      * roots under which image paths are considered safe.
      *
      * Always includes the TYPO3 public path. Additionally includes the
-     * resolved base path of every Local-driver FAL storage so that storages
+     * resolved base path of every public Local-driver FAL storage (base paths
+     * of non-public storages are collected into $requestNonPublicRoots
+     * instead, see isInNonPublicStorage()) so that storages
      * whose directory is a symlink to an external mount (e.g. fileadmin on
      * AWS EFS or another NFS share) remain servable, and the resolved
      * target of every extension asset published under public/_assets/
@@ -924,12 +1156,18 @@ class Processor
 
         $publicPathRaw = Environment::getPublicPath();
 
-        if (isset(self::$resolvedAllowedRootsByPublicPath[$publicPathRaw])) {
+        if (isset(
+            self::$resolvedAllowedRootsByPublicPath[$publicPathRaw],
+            self::$resolvedNonPublicRootsByPublicPath[$publicPathRaw],
+        )) {
+            $this->requestNonPublicRoots = self::$resolvedNonPublicRootsByPublicPath[$publicPathRaw];
+
             return $this->requestAllowedRoots = self::$resolvedAllowedRootsByPublicPath[$publicPathRaw];
         }
 
-        $roots      = [];
-        $publicPath = realpath($publicPathRaw);
+        $roots          = [];
+        $nonPublicRoots = [];
+        $publicPath     = realpath($publicPathRaw);
 
         if ($publicPath !== false) {
             $roots[$publicPath] = true;
@@ -982,8 +1220,17 @@ class Processor
 
                 $resolvedBasePath = realpath($absolutePath);
 
+                // A non-public storage (is_public = 0) is not an allowed
+                // root, and its files are refused even where the directory
+                // sits inside the public web root (isInNonPublicStorage()).
+                $isPublicStorage = $storage->isPublic();
+
                 if ($resolvedBasePath !== false) {
-                    $roots[$resolvedBasePath] = true;
+                    if ($isPublicStorage) {
+                        $roots[$resolvedBasePath] = true;
+                    } else {
+                        $nonPublicRoots[$resolvedBasePath] = true;
+                    }
                 }
 
                 // Per-instance opt-in: resolve any of the configured
@@ -998,8 +1245,16 @@ class Processor
                         rtrim($absolutePath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $symlinkName,
                     );
 
-                    if ($resolvedChild !== null) {
+                    if ($resolvedChild === null) {
+                        continue;
+                    }
+
+                    // Inside a non-public storage the resolved target
+                    // belongs to that storage as well.
+                    if ($isPublicStorage) {
                         $roots[$resolvedChild] = true;
+                    } else {
+                        $nonPublicRoots[$resolvedChild] = true;
                     }
                 }
             }
@@ -1090,13 +1345,16 @@ class Processor
             }
         }
 
-        $resolved = array_keys($roots);
+        $resolved          = array_keys($roots);
+        $resolvedNonPublic = array_keys($nonPublicRoots);
 
         // Always populate the per-request cache so follow-up calls in the
         // same request (second isPathWithinAllowedRoots, log context, …)
         // reuse this result instead of retrying findAll() and re-emitting
         // the StorageRepository-unavailable log line.
-        $this->requestAllowedRoots = $resolved;
+        $this->requestAllowedRoots        = $resolved;
+        $this->requestNonPublicRoots      = $resolvedNonPublic;
+        $this->requestStorageLookupFailed = $storageLookupFailed;
 
         // Only populate the static per-process cache on success. A degraded
         // fallback (public root only, without FAL storages) must not be
@@ -1106,7 +1364,8 @@ class Processor
         // worker's lifetime. generateAndSend() resets the per-request
         // cache on the next invocation, giving findAll() another chance.
         if (!$storageLookupFailed) {
-            self::$resolvedAllowedRootsByPublicPath[$publicPathRaw] = $resolved;
+            self::$resolvedAllowedRootsByPublicPath[$publicPathRaw]   = $resolved;
+            self::$resolvedNonPublicRootsByPublicPath[$publicPathRaw] = $resolvedNonPublic;
         }
 
         return $resolved;

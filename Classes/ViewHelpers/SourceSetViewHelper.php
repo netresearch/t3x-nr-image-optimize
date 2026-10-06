@@ -11,7 +11,9 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\ViewHelpers;
 
+use Netresearch\NrImageOptimize\Service\VariantUrlSigner;
 use TYPO3\CMS\Core\Core\Environment;
+use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\PathUtility;
 use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper;
 
@@ -33,12 +35,15 @@ use function str_contains;
 use function str_starts_with;
 use function strtolower;
 use function trim;
+use function urldecode;
 
 /**
  * Fluid ViewHelper that renders a responsive <picture> source set and <img> tag
  * for images processed by the on-the-fly processor. It generates URLs pointing
  * to the "/processed" endpoint, including width/height/mode/quality parameters
- * and optional flags to skip AVIF or WebP creation.
+ * and optional flags to skip AVIF or WebP creation. Every such URL carries the
+ * signature (VariantUrlSigner) the processor requires before it creates a
+ * variant.
  *
  * Supports both native lazy loading and JS-based lazyload libraries by emitting
  * appropriate attributes (loading, data-src, data-srcset).
@@ -90,6 +95,20 @@ class SourceSetViewHelper extends AbstractViewHelper
      * @var array<string, array{0: int, 1: int}|false>
      */
     private static array $imageSizeCache = [];
+
+    /**
+     * Signs the variant URLs this ViewHelper renders.
+     */
+    private readonly VariantUrlSigner $variantUrlSigner;
+
+    /**
+     * @param VariantUrlSigner|null $variantUrlSigner Signs the variant URLs; optional so that
+     *                                                subclasses and direct instantiation keep working
+     */
+    public function __construct(?VariantUrlSigner $variantUrlSigner = null)
+    {
+        $this->variantUrlSigner = $variantUrlSigner ?? GeneralUtility::makeInstance(VariantUrlSigner::class);
+    }
 
     /**
      * Register and describe supported ViewHelper arguments.
@@ -437,6 +456,15 @@ class SourceSetViewHelper extends AbstractViewHelper
             'skipWebP' => $skipWebP,
             'skipAvif' => $skipAvif,
         ]);
+
+        // Signed over the URL-decoded path: the processor verifies against
+        // urldecode() of the request path, and $path may arrive already
+        // percent-encoded (f:uri.image() encodes non-ASCII characters).
+        $signature = $this->variantUrlSigner->sign(urldecode($url));
+
+        if ($signature !== '') {
+            $queryArgs[VariantUrlSigner::QUERY_PARAMETER] = $signature;
+        }
 
         if ($queryArgs === []) {
             return $url;
