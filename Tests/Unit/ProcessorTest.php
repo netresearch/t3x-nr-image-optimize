@@ -4004,6 +4004,39 @@ class ProcessorTest extends TestCase
     }
 
     #[Test]
+    public function nonPublicStorageIsNotAnAllowedRoot(): void
+    {
+        $tempDir = sys_get_temp_dir() . '/nr-pio-nonpublic-' . uniqid('', true);
+        mkdir($tempDir . '/public', 0o777, true);
+        mkdir($tempDir . '/srv/private', 0o777, true);
+
+        try {
+            $this->initializeEnvironment($tempDir, $tempDir . '/public');
+
+            $storage = $this->createMock(ResourceStorage::class);
+            $storage->method('getDriverType')->willReturn('Local');
+            $storage->method('isPublic')->willReturn(false);
+            $storage->method('getConfiguration')->willReturn([
+                'basePath' => $tempDir . '/srv/private',
+                'pathType' => 'absolute',
+            ]);
+
+            $storageRepository = $this->createMock(StorageRepository::class);
+            $storageRepository->method('findAll')->willReturn([$storage]);
+
+            $processor = $this->createProcessor(storageRepository: $storageRepository);
+            $this->resetAllowedRootsCache();
+
+            self::assertFalse($this->callMethod($processor, 'isPathWithinAllowedRoots', $tempDir . '/srv/private/image.jpg'));
+            self::assertTrue($this->callMethod($processor, 'isInNonPublicStorage', $tempDir . '/srv/private/image.jpg'));
+        } finally {
+            $this->removeOwnedTempTree($tempDir);
+            $this->resetAllowedRootsCache();
+            $this->initializeDefaultEnvironment();
+        }
+    }
+
+    #[Test]
     public function trustedSymlinkInsideNonPublicStorageIsNotAnAllowedRoot(): void
     {
         $tempDir = sys_get_temp_dir() . '/nr-pio-nonpublic-link-' . uniqid('', true);
