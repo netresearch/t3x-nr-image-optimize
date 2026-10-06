@@ -12,8 +12,10 @@ declare(strict_types=1);
 namespace Netresearch\NrImageOptimize\Tests\Functional;
 
 use Netresearch\NrImageOptimize\Processor;
+use Netresearch\NrImageOptimize\Service\VariantUrlSigner;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\Attributes\UsesClass;
 use ReflectionClass;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Http\ServerRequest;
@@ -51,8 +53,11 @@ use function unlink;
  * against a mocked boundary.
  */
 #[CoversClass(Processor::class)]
+#[UsesClass(VariantUrlSigner::class)]
 final class ProcessorSymlinkedFileadminTest extends FunctionalTestCase
 {
+    use SignedVariantRequestTrait;
+
     protected array $testExtensionsToLoad = [
         'netresearch/nr-image-optimize',
     ];
@@ -150,8 +155,7 @@ final class ProcessorSymlinkedFileadminTest extends FunctionalTestCase
     {
         $processor = $this->get(Processor::class);
 
-        $uri     = new Uri('https://example.com/processed/fileadmin/test-image.w50h38m0q80.png');
-        $request = new ServerRequest($uri);
+        $request = $this->signedVariantRequest('/processed/fileadmin/test-image.w50h38m0q80.png');
 
         $response = $processor->generateAndSend($request);
 
@@ -181,8 +185,7 @@ final class ProcessorSymlinkedFileadminTest extends FunctionalTestCase
     {
         $processor = $this->get(Processor::class);
 
-        $uri     = new Uri('https://example.com/processed/fileadmin/test-image.w50h38m0q80.png');
-        $request = new ServerRequest($uri);
+        $request = $this->signedVariantRequest('/processed/fileadmin/test-image.w50h38m0q80.png');
 
         // First request generates the variant; second must hit the cached-
         // file short-circuit at the top of generateAndSend().
@@ -227,8 +230,7 @@ final class ProcessorSymlinkedFileadminTest extends FunctionalTestCase
 
         $processor = $this->get(Processor::class);
 
-        $uri     = new Uri('https://example.com/processed/_assets/deadbeefdeadbeefdeadbeefdeadbeef/Images/default.w50h38m0q80.png');
-        $request = new ServerRequest($uri);
+        $request = $this->signedVariantRequest('/processed/_assets/deadbeefdeadbeefdeadbeefdeadbeef/Images/default.w50h38m0q80.png');
 
         $response = $processor->generateAndSend($request);
 
@@ -274,8 +276,7 @@ final class ProcessorSymlinkedFileadminTest extends FunctionalTestCase
 
         $processor = $this->get(Processor::class);
 
-        $uri     = new Uri('https://example.com/processed/fileadmin/_processed_/test-image.w50h38m0q80.png');
-        $request = new ServerRequest($uri);
+        $request = $this->signedVariantRequest('/processed/fileadmin/_processed_/test-image.w50h38m0q80.png');
 
         $response = $processor->generateAndSend($request);
 
@@ -311,8 +312,7 @@ final class ProcessorSymlinkedFileadminTest extends FunctionalTestCase
 
         $processor = $this->get(Processor::class);
 
-        $uri     = new Uri('https://example.com/processed/fileadmin/_processed_/test-image.w50h38m0q80.png');
-        $request = new ServerRequest($uri);
+        $request = $this->signedVariantRequest('/processed/fileadmin/_processed_/test-image.w50h38m0q80.png');
 
         $response = $processor->generateAndSend($request);
 

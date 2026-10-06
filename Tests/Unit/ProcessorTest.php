@@ -17,6 +17,7 @@ use Intervention\Image\Interfaces\DriverInterface;
 use Intervention\Image\Interfaces\EncodedImageInterface;
 use Intervention\Image\Interfaces\ImageInterface;
 use Netresearch\NrImageOptimize\Processor;
+use Netresearch\NrImageOptimize\Service\VariantUrlSigner;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
@@ -47,6 +48,7 @@ use TYPO3\CMS\Core\Resource\ResourceStorage;
 use TYPO3\CMS\Core\Resource\StorageRepository;
 
 use function array_key_exists;
+use function base64_decode;
 use function dirname;
 use function file_get_contents;
 use function file_put_contents;
@@ -78,6 +80,46 @@ class ProcessorTest extends TestCase
     private MockObject $storageRepository;
 
     private Processor $processor;
+
+    private const ENCRYPTION_KEY = 'nr-image-optimize-unit-test-encryption-key';
+
+    /**
+     * A 1x1 PNG: source files whose content the processor checks must be a
+     * real image header, whatever the test's file extension.
+     */
+    private const MINIMAL_PNG_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+
+    protected function tearDown(): void
+    {
+        unset($GLOBALS['TYPO3_CONF_VARS']['SYS']['encryptionKey']);
+
+        parent::tearDown();
+    }
+
+    /**
+     * The signer used by the processor under test, keyed with ENCRYPTION_KEY.
+     */
+    private function createSigner(): VariantUrlSigner
+    {
+        $GLOBALS['TYPO3_CONF_VARS']['SYS']['encryptionKey'] = self::ENCRYPTION_KEY;
+
+        return new VariantUrlSigner();
+    }
+
+    /**
+     * Query string carrying the signature SourceSetViewHelper would render
+     * for the given variant path.
+     */
+    private function signedQuery(string $variantPath, string $query = ''): string
+    {
+        return ($query === '' ? '' : $query . '&')
+            . VariantUrlSigner::QUERY_PARAMETER . '=' . $this->createSigner()->sign($variantPath);
+    }
+
+    private function minimalPng(): string
+    {
+        return (string) base64_decode(self::MINIMAL_PNG_BASE64, true);
+    }
 
     protected function setUp(): void
     {
@@ -115,6 +157,7 @@ class ProcessorTest extends TestCase
         $this->setProperty($this->processor, 'responseFactory', $this->responseFactory);
         $this->setProperty($this->processor, 'streamFactory', $this->streamFactory);
         $this->setProperty($this->processor, 'storageRepository', $this->storageRepository);
+        $this->setProperty($this->processor, 'variantUrlSigner', $this->createSigner());
     }
 
     private function setProperty(object $object, string $property, mixed $value): void
@@ -176,6 +219,7 @@ class ProcessorTest extends TestCase
     {
         $storage = $this->createMock(ResourceStorage::class);
         $storage->method('getDriverType')->willReturn('Local');
+        $storage->method('isPublic')->willReturn(true);
         $storage->method('getConfiguration')->willReturn([
             'basePath' => $basePath,
             'pathType' => $pathType,
@@ -267,6 +311,7 @@ class ProcessorTest extends TestCase
         $this->setProperty($instance, 'responseFactory', $responseFactory ?? $this->createMock(ResponseFactoryInterface::class));
         $this->setProperty($instance, 'streamFactory', $streamFactory ?? $this->createMock(StreamFactoryInterface::class));
         $this->setProperty($instance, 'storageRepository', $storageRepository);
+        $this->setProperty($instance, 'variantUrlSigner', $this->createSigner());
 
         return $instance;
     }
@@ -1944,6 +1989,7 @@ class ProcessorTest extends TestCase
 
             $missing = $this->createMock(ResourceStorage::class);
             $missing->method('getDriverType')->willReturn('Local');
+            $missing->method('isPublic')->willReturn(true);
             $missing->method('getConfiguration')->willReturn([
                 'basePath' => $tempDir . '/does/not/exist',
                 'pathType' => 'absolute',
@@ -1951,6 +1997,7 @@ class ProcessorTest extends TestCase
 
             $empty = $this->createMock(ResourceStorage::class);
             $empty->method('getDriverType')->willReturn('Local');
+            $empty->method('isPublic')->willReturn(true);
             $empty->method('getConfiguration')->willReturn([
                 'basePath' => '',
                 'pathType' => 'relative',
@@ -1958,6 +2005,7 @@ class ProcessorTest extends TestCase
 
             $nonString = $this->createMock(ResourceStorage::class);
             $nonString->method('getDriverType')->willReturn('Local');
+            $nonString->method('isPublic')->willReturn(true);
             $nonString->method('getConfiguration')->willReturn([
                 'basePath' => null,
                 'pathType' => 'relative',
@@ -2035,6 +2083,7 @@ class ProcessorTest extends TestCase
 
         $healthyStorage = $this->createMock(ResourceStorage::class);
         $healthyStorage->method('getDriverType')->willReturn('Local');
+        $healthyStorage->method('isPublic')->willReturn(true);
         $healthyStorage->method('getConfiguration')->willReturn([
             'basePath' => 'fileadmin/',
             'pathType' => 'relative',
@@ -2099,6 +2148,7 @@ class ProcessorTest extends TestCase
 
         $storage = $this->createMock(ResourceStorage::class);
         $storage->method('getDriverType')->willReturn('Local');
+        $storage->method('isPublic')->willReturn(true);
         $storage->method('getConfiguration')->willReturn([
             'basePath' => 'fileadmin/',
             'pathType' => 'relative',
@@ -2845,7 +2895,7 @@ class ProcessorTest extends TestCase
         ['tempDir' => $tempDir, 'prop' => $prop] = $this->setUpRealEnvironment();
 
         // Create original image so path validation succeeds
-        file_put_contents($tempDir . '/public/img.jpg', 'fake-image');
+        file_put_contents($tempDir . '/public/img.jpg', $this->minimalPng());
 
         $response503     = $this->createMock(ResponseInterface::class);
         $responseFactory = $this->createMock(ResponseFactoryInterface::class);
@@ -2865,6 +2915,7 @@ class ProcessorTest extends TestCase
 
         $uri = $this->createMock(UriInterface::class);
         $uri->method('getPath')->willReturn('/processed/img.w100h50m0q80.jpg');
+        $uri->method('getQuery')->willReturn($this->signedQuery('/processed/img.w100h50m0q80.jpg'));
         $request = $this->createMock(RequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
@@ -2883,7 +2934,7 @@ class ProcessorTest extends TestCase
     {
         ['tempDir' => $tempDir, 'prop' => $prop] = $this->setUpRealEnvironment();
 
-        file_put_contents($tempDir . '/public/img.jpg', 'fake-image');
+        file_put_contents($tempDir . '/public/img.jpg', $this->minimalPng());
 
         $response503 = $this->createMock(ResponseInterface::class);
         $stream503   = $this->createMock(StreamInterface::class);
@@ -2909,6 +2960,7 @@ class ProcessorTest extends TestCase
 
         $uri = $this->createMock(UriInterface::class);
         $uri->method('getPath')->willReturn('/processed/img.w100h50m0q80.jpg');
+        $uri->method('getQuery')->willReturn($this->signedQuery('/processed/img.w100h50m0q80.jpg'));
         $request = $this->createMock(RequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
@@ -2927,7 +2979,7 @@ class ProcessorTest extends TestCase
     {
         ['tempDir' => $tempDir, 'prop' => $prop] = $this->setUpRealEnvironment();
 
-        file_put_contents($tempDir . '/public/img.jpg', 'fake-image');
+        file_put_contents($tempDir . '/public/img.jpg', $this->minimalPng());
 
         $response500     = $this->createMock(ResponseInterface::class);
         $responseFactory = $this->createMock(ResponseFactoryInterface::class);
@@ -2951,7 +3003,7 @@ class ProcessorTest extends TestCase
 
         $uri = $this->createMock(UriInterface::class);
         $uri->method('getPath')->willReturn('/processed/img.w100h50m0q80.jpg');
-        $uri->method('getQuery')->willReturn('');
+        $uri->method('getQuery')->willReturn($this->signedQuery('/processed/img.w100h50m0q80.jpg'));
         $request = $this->createMock(RequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
@@ -2974,7 +3026,7 @@ class ProcessorTest extends TestCase
         ['tempDir' => $tempDir, 'prop' => $prop] = $this->setUpRealEnvironment();
 
         // Create original AND variant (simulates another process finished while waiting)
-        file_put_contents($tempDir . '/public/img.jpg', 'fake-original');
+        file_put_contents($tempDir . '/public/img.jpg', $this->minimalPng());
         file_put_contents($tempDir . '/public/processed/img.w100h50m0q80.jpg', 'cached-variant');
 
         $response200 = $this->createMock(ResponseInterface::class);
@@ -3146,7 +3198,7 @@ class ProcessorTest extends TestCase
         mkdir($tempDir . '/processed', 0o777, true);
 
         $originalPath = $tempDir . '/original.' . $extension;
-        file_put_contents($originalPath, 'fake-image-data');
+        file_put_contents($originalPath, $this->minimalPng());
 
         $variantPath = sprintf(
             '%s/processed/original.w%d%sm%dq%d.%s',
@@ -3648,7 +3700,7 @@ class ProcessorTest extends TestCase
         ['tempDir' => $tempDir, 'prop' => $prop] = $this->setUpRealEnvironment();
 
         // Create original but NOT the variant before lock acquisition
-        file_put_contents($tempDir . '/public/img.jpg', 'fake-original');
+        file_put_contents($tempDir . '/public/img.jpg', $this->minimalPng());
         $variantPath = $tempDir . '/public/processed/img.w100h50m0q80.jpg';
 
         $response200 = $this->createMock(ResponseInterface::class);
@@ -3684,6 +3736,7 @@ class ProcessorTest extends TestCase
 
         $uri = $this->createMock(UriInterface::class);
         $uri->method('getPath')->willReturn('/processed/img.w100h50m0q80.jpg');
+        $uri->method('getQuery')->willReturn($this->signedQuery('/processed/img.w100h50m0q80.jpg'));
         $request = $this->createMock(RequestInterface::class);
         $request->method('getUri')->willReturn($uri);
 
@@ -3763,5 +3816,341 @@ class ProcessorTest extends TestCase
             '/var/www/html/public/index.php',
             'UNIX',
         );
+    }
+
+    // =========================================================================
+    // Which requests may create or receive a variant
+    // =========================================================================
+
+    private function createVariantRequest(string $path, string $query = ''): RequestInterface
+    {
+        $uri = $this->createMock(UriInterface::class);
+        $uri->method('getPath')->willReturn($path);
+        $uri->method('getQuery')->willReturn($query);
+
+        $request = $this->createMock(RequestInterface::class);
+        $request->method('getUri')->willReturn($uri);
+
+        return $request;
+    }
+
+    /**
+     * @param list<int> $statusCodes
+     *
+     * @return array{factory: ResponseFactoryInterface, responses: array<int, ResponseInterface>}
+     */
+    private function createStatusResponseFactory(array $statusCodes): array
+    {
+        $responses = [];
+        $map       = [];
+
+        foreach ($statusCodes as $statusCode) {
+            $response = $this->createMock(ResponseInterface::class);
+            $response->method('withBody')->willReturn($response);
+            $response->method('withHeader')->willReturn($response);
+            $response->method('getStatusCode')->willReturn($statusCode);
+
+            $responses[$statusCode] = $response;
+            $map[]                  = [$statusCode, '', $response];
+        }
+
+        $factory = $this->createMock(ResponseFactoryInterface::class);
+        $factory->method('createResponse')->willReturnMap($map);
+
+        return ['factory' => $factory, 'responses' => $responses];
+    }
+
+    private function createNonPublicStorageRepository(string $basePath): StorageRepository
+    {
+        $storage = $this->createMock(ResourceStorage::class);
+        $storage->method('getDriverType')->willReturn('Local');
+        $storage->method('isPublic')->willReturn(false);
+        $storage->method('getConfiguration')->willReturn(['basePath' => $basePath, 'pathType' => 'relative']);
+
+        $storageRepository = $this->createMock(StorageRepository::class);
+        $storageRepository->method('findAll')->willReturn([$storage]);
+
+        return $storageRepository;
+    }
+
+    #[Test]
+    public function uncachedVariantWithoutSignatureIsRefusedBeforeAnyWork(): void
+    {
+        ['tempDir' => $tempDir, 'prop' => $prop] = $this->setUpRealEnvironment();
+        file_put_contents($tempDir . '/public/images/photo.jpg', $this->minimalPng());
+
+        ['factory' => $responseFactory, 'responses' => $responses] = $this->createStatusResponseFactory([403]);
+
+        $lockFactory = $this->createMock(LockFactory::class);
+        $lockFactory->expects(self::never())->method('createLocker');
+
+        $processor = $this->createProcessor(lockFactory: $lockFactory, responseFactory: $responseFactory);
+
+        try {
+            $result = $processor->generateAndSend($this->createVariantRequest('/processed/images/photo.w100h50m0q80.jpg'));
+
+            self::assertSame($responses[403], $result);
+            self::assertFileDoesNotExist($tempDir . '/public/processed/images/photo.w100h50m0q80.jpg');
+        } finally {
+            $this->tearDownRealEnvironment($tempDir, $prop);
+        }
+    }
+
+    #[Test]
+    public function uncachedVariantWithSignatureOfAnotherVariantIsRefused(): void
+    {
+        ['tempDir' => $tempDir, 'prop' => $prop] = $this->setUpRealEnvironment();
+        file_put_contents($tempDir . '/public/images/photo.jpg', $this->minimalPng());
+
+        ['factory' => $responseFactory, 'responses' => $responses] = $this->createStatusResponseFactory([403]);
+
+        $lockFactory = $this->createMock(LockFactory::class);
+        $lockFactory->expects(self::never())->method('createLocker');
+
+        $processor = $this->createProcessor(lockFactory: $lockFactory, responseFactory: $responseFactory);
+
+        try {
+            $result = $processor->generateAndSend($this->createVariantRequest(
+                '/processed/images/photo.w8192h8192m0q100.jpg',
+                $this->signedQuery('/processed/images/photo.w100h50m0q80.jpg'),
+            ));
+
+            self::assertSame($responses[403], $result);
+        } finally {
+            $this->tearDownRealEnvironment($tempDir, $prop);
+        }
+    }
+
+    #[Test]
+    public function existingVariantIsServedWithoutSignature(): void
+    {
+        ['tempDir' => $tempDir, 'prop' => $prop] = $this->setUpRealEnvironment();
+        file_put_contents($tempDir . '/public/images/photo.jpg', $this->minimalPng());
+        file_put_contents($tempDir . '/public/processed/images/photo.w100h50m0q80.jpg', 'variant');
+
+        ['factory' => $responseFactory, 'responses' => $responses] = $this->createStatusResponseFactory([200]);
+
+        $streamFactory = $this->createMock(StreamFactoryInterface::class);
+        $streamFactory->method('createStreamFromFile')->willReturn($this->createMock(StreamInterface::class));
+
+        $processor = $this->createProcessor(responseFactory: $responseFactory, streamFactory: $streamFactory);
+
+        try {
+            $result = $processor->generateAndSend($this->createVariantRequest('/processed/images/photo.w100h50m0q80.jpg'));
+
+            self::assertSame($responses[200], $result);
+        } finally {
+            $this->tearDownRealEnvironment($tempDir, $prop);
+        }
+    }
+
+    #[Test]
+    public function variantOfFileInNonPublicStorageIsRefusedEvenWhenCached(): void
+    {
+        ['tempDir' => $tempDir, 'prop' => $prop] = $this->setUpRealEnvironment();
+        mkdir($tempDir . '/public/protected', 0o777, true);
+        mkdir($tempDir . '/public/processed/protected', 0o777, true);
+        file_put_contents($tempDir . '/public/protected/photo.jpg', $this->minimalPng());
+        file_put_contents($tempDir . '/public/processed/protected/photo.w100h50m0q80.jpg', 'variant');
+
+        ['factory' => $responseFactory, 'responses' => $responses] = $this->createStatusResponseFactory([404]);
+
+        $lockFactory = $this->createMock(LockFactory::class);
+        $lockFactory->expects(self::never())->method('createLocker');
+
+        $processor = $this->createProcessor(
+            lockFactory: $lockFactory,
+            responseFactory: $responseFactory,
+            storageRepository: $this->createNonPublicStorageRepository('protected/'),
+        );
+
+        try {
+            $result = $processor->generateAndSend($this->createVariantRequest(
+                '/processed/protected/photo.w100h50m0q80.jpg',
+                $this->signedQuery('/processed/protected/photo.w100h50m0q80.jpg'),
+            ));
+
+            self::assertSame($responses[404], $result);
+        } finally {
+            $this->tearDownRealEnvironment($tempDir, $prop);
+        }
+    }
+
+    #[Test]
+    public function fileReachedThroughSymlinkIntoNonPublicStorageIsRefused(): void
+    {
+        ['tempDir' => $tempDir, 'prop' => $prop] = $this->setUpRealEnvironment();
+        mkdir($tempDir . '/public/protected', 0o777, true);
+        file_put_contents($tempDir . '/public/protected/photo.jpg', $this->minimalPng());
+        symlink($tempDir . '/public/protected', $tempDir . '/public/images/linked');
+
+        ['factory' => $responseFactory, 'responses' => $responses] = $this->createStatusResponseFactory([404]);
+
+        $processor = $this->createProcessor(
+            responseFactory: $responseFactory,
+            storageRepository: $this->createNonPublicStorageRepository('protected/'),
+        );
+
+        try {
+            $result = $processor->generateAndSend($this->createVariantRequest(
+                '/processed/images/linked/photo.w100h50m0q80.jpg',
+                $this->signedQuery('/processed/images/linked/photo.w100h50m0q80.jpg'),
+            ));
+
+            self::assertSame($responses[404], $result);
+        } finally {
+            $this->tearDownRealEnvironment($tempDir, $prop);
+        }
+    }
+
+    #[Test]
+    public function trustedSymlinkInsideNonPublicStorageIsNotAnAllowedRoot(): void
+    {
+        $tempDir = sys_get_temp_dir() . '/nr-pio-nonpublic-link-' . uniqid('', true);
+        mkdir($tempDir . '/public/protected', 0o777, true);
+        mkdir($tempDir . '/local/processed', 0o777, true);
+        symlink($tempDir . '/local/processed', $tempDir . '/public/protected/_processed_');
+
+        try {
+            $this->initializeEnvironment($tempDir, $tempDir . '/public');
+
+            $extensionConfiguration = $this->createMock(ExtensionConfiguration::class);
+            $extensionConfiguration->method('get')->willReturnCallback(
+                static fn (string $extension, string $path = ''): mixed => $path === 'additionalTrustedStorageSymlinks' ? '_processed_' : null,
+            );
+
+            $processor = $this->createProcessor(storageRepository: $this->createNonPublicStorageRepository('protected/'));
+            $this->setProperty($processor, 'extensionConfiguration', $extensionConfiguration);
+            $this->resetAllowedRootsCache();
+
+            self::assertFalse($this->callMethod($processor, 'isPathWithinAllowedRoots', $tempDir . '/local/processed/image.jpg'));
+            self::assertTrue($this->callMethod($processor, 'isInNonPublicStorage', $tempDir . '/local/processed/image.jpg'));
+        } finally {
+            $this->removeOwnedTempTree($tempDir);
+            $this->resetAllowedRootsCache();
+            $this->initializeDefaultEnvironment();
+        }
+    }
+
+    #[Test]
+    public function requestForASymlinkedStorageIsRefusedWith503WhenStoragesCannotBeRead(): void
+    {
+        ['tempDir' => $tempDir] = $this->setUpRealEnvironment();
+        $external               = $tempDir . '/external/fileadmin';
+        mkdir($external, 0o777, true);
+        symlink($external, $tempDir . '/public/fileadmin');
+        mkdir($tempDir . '/public/processed/fileadmin', 0o777, true);
+        file_put_contents($external . '/photo.jpg', $this->minimalPng());
+
+        $storageRepository = $this->createMock(StorageRepository::class);
+        $storageRepository->method('findAll')->willThrowException(new RuntimeException('TCA not yet initialised'));
+
+        ['factory' => $responseFactory, 'responses' => $responses] = $this->createStatusResponseFactory([400, 503]);
+
+        $processor = $this->createProcessor(responseFactory: $responseFactory, storageRepository: $storageRepository);
+
+        $previousLog = ini_set('error_log', '/dev/null');
+
+        try {
+            $result = $processor->generateAndSend($this->createVariantRequest(
+                '/processed/fileadmin/photo.w100h50m0q80.jpg',
+                $this->signedQuery('/processed/fileadmin/photo.w100h50m0q80.jpg'),
+            ));
+
+            self::assertSame($responses[503], $result);
+        } finally {
+            ini_set('error_log', $previousLog === false ? '' : $previousLog);
+            $this->removeOwnedTempTree($tempDir);
+            $this->resetAllowedRootsCache();
+            $this->initializeDefaultEnvironment();
+        }
+    }
+
+    #[Test]
+    public function requestIsRefusedWhenStoragesCannotBeRead(): void
+    {
+        ['tempDir' => $tempDir, 'prop' => $prop] = $this->setUpRealEnvironment();
+        file_put_contents($tempDir . '/public/images/photo.jpg', $this->minimalPng());
+        file_put_contents($tempDir . '/public/processed/images/photo.w100h50m0q80.jpg', 'variant');
+
+        $storageRepository = $this->createMock(StorageRepository::class);
+        $storageRepository->method('findAll')->willThrowException(new RuntimeException('TCA not yet initialised'));
+
+        ['factory' => $responseFactory, 'responses' => $responses] = $this->createStatusResponseFactory([503]);
+
+        $processor = $this->createProcessor(responseFactory: $responseFactory, storageRepository: $storageRepository);
+
+        $previousLog = ini_set('error_log', '/dev/null');
+
+        try {
+            $result = $processor->generateAndSend($this->createVariantRequest(
+                '/processed/images/photo.w100h50m0q80.jpg',
+                $this->signedQuery('/processed/images/photo.w100h50m0q80.jpg'),
+            ));
+
+            self::assertSame($responses[503], $result);
+        } finally {
+            ini_set('error_log', $previousLog === false ? '' : $previousLog);
+            $this->tearDownRealEnvironment($tempDir, $prop);
+        }
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function unsupportedExtensionProvider(): iterable
+    {
+        yield 'svg' => ['/processed/fileadmin/drawing.w100h50m0q80.svg'];
+        yield 'pdf' => ['/processed/fileadmin/document.w100h50m0q80.pdf'];
+        yield 'eps' => ['/processed/fileadmin/vector.w100h50m0q80.eps'];
+        yield 'html' => ['/processed/fileadmin/page.w100h50m0q80.html'];
+        yield 'php' => ['/processed/fileadmin/script.w100h50m0q80.php'];
+    }
+
+    #[Test]
+    #[DataProvider('unsupportedExtensionProvider')]
+    public function variantUrlWithUnsupportedExtensionIsNotParsed(string $url): void
+    {
+        self::assertNull($this->callMethod($this->processor, 'gatherInformationBasedOnUrl', $url));
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function nonImageContentProvider(): iterable
+    {
+        yield 'PostScript' => ["%!PS-Adobe-3.0\n%%BoundingBox: 0 0 10 10\nshowpage\n"];
+        yield 'SVG' => ['<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"/>'];
+        yield 'text' => ['plain text'];
+        yield 'empty' => [''];
+    }
+
+    #[Test]
+    #[DataProvider('nonImageContentProvider')]
+    public function sourceWhoseContentIsNotASupportedImageIsNotProcessed(string $content): void
+    {
+        ['tempDir' => $tempDir, 'prop' => $prop] = $this->setUpRealEnvironment();
+        file_put_contents($tempDir . '/public/images/photo.png', $content);
+
+        ['factory' => $responseFactory, 'responses' => $responses] = $this->createStatusResponseFactory([400]);
+
+        $processor = $this->createProcessor(responseFactory: $responseFactory);
+
+        try {
+            $result = $this->callMethod($processor, 'processAndRespond', $this->createVariantRequest('/processed/images/photo.w10h10m0q80.png'), [
+                'pathVariant'    => $tempDir . '/public/processed/images/photo.w10h10m0q80.png',
+                'pathOriginal'   => $tempDir . '/public/images/photo.png',
+                'extension'      => 'png',
+                'targetWidth'    => 10,
+                'targetHeight'   => 10,
+                'targetQuality'  => 80,
+                'processingMode' => 0,
+            ]);
+
+            self::assertSame($responses[400], $result);
+            self::assertFileDoesNotExist($tempDir . '/public/processed/images/photo.w10h10m0q80.png');
+        } finally {
+            $this->tearDownRealEnvironment($tempDir, $prop);
+        }
     }
 }

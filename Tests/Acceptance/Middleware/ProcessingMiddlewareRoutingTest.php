@@ -32,6 +32,7 @@ use TYPO3\CMS\Core\Http\ResponseFactory;
 use TYPO3\CMS\Core\Http\StreamFactory;
 use TYPO3\CMS\Core\Locking\LockFactory;
 use TYPO3\CMS\Core\Locking\LockingStrategyInterface;
+use TYPO3\CMS\Core\Resource\StorageRepository;
 
 use function base64_decode;
 use function file_put_contents;
@@ -462,9 +463,15 @@ class ProcessingMiddlewareRoutingTest extends TestCase
         $reflection = new ReflectionClass(Processor::class);
         $instance   = $reflection->newInstanceWithoutConstructor();
 
+        // No FAL storages: the processor must be able to tell that no
+        // non-public storage is involved, otherwise it refuses the request.
+        $storageRepository = $this->createMock(StorageRepository::class);
+        $storageRepository->method('findAll')->willReturn([]);
+
         $this->setProperty($instance, 'lockFactory', $lockFactory);
         $this->setProperty($instance, 'responseFactory', $this->responseFactory);
         $this->setProperty($instance, 'streamFactory', $this->streamFactory);
+        $this->setProperty($instance, 'storageRepository', $storageRepository);
 
         return $instance;
     }

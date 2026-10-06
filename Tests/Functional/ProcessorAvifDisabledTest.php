@@ -12,19 +12,22 @@ declare(strict_types=1);
 namespace Netresearch\NrImageOptimize\Tests\Functional;
 
 use Netresearch\NrImageOptimize\Processor;
+use Netresearch\NrImageOptimize\Service\VariantUrlSigner;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\Attributes\UsesClass;
 use TYPO3\CMS\Core\Core\Environment;
-use TYPO3\CMS\Core\Http\ServerRequest;
-use TYPO3\CMS\Core\Http\Uri;
 use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
 
 /**
  * Functional test for generateAvif=0 with the real encoder.
  */
 #[CoversClass(Processor::class)]
+#[UsesClass(VariantUrlSigner::class)]
 final class ProcessorAvifDisabledTest extends FunctionalTestCase
 {
+    use SignedVariantRequestTrait;
+
     use AvifEncoderProbeTrait;
 
     protected array $testExtensionsToLoad = [
@@ -51,7 +54,7 @@ final class ProcessorAvifDisabledTest extends FunctionalTestCase
         $this->skipUnlessAvifEncoderWorks();
 
         $response = $this->get(Processor::class)->generateAndSend(
-            new ServerRequest(new Uri('https://example.com/processed/fileadmin/test-image.w42h31m0q80.png')),
+            $this->signedVariantRequest('/processed/fileadmin/test-image.w42h31m0q80.png'),
         );
 
         self::assertSame(200, $response->getStatusCode());
