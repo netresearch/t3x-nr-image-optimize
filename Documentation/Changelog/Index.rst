@@ -6,6 +6,27 @@
 Changelog
 =========
 
+..  _changelog-1-6-1:
+
+1.6.1
+=====
+
+-   Security: the ``/processed/`` endpoint creates a variant that is not
+    on disk yet only for a URL with a valid ``sig`` parameter; the
+    ``sourceSet`` ViewHelper signs every URL it renders. Variants already
+    on disk are served without a signature. Flush the page cache after
+    the update so cached pages carry signed URLs. See
+    :ref:`configuration-url-signature`.
+-   Security: the processor refuses source files inside the base path
+    of a non-public Local FAL storage, also when a variant of them is
+    already on disk. The web server delivers files below
+    :file:`public/processed/` without asking TYPO3, so remove such
+    variants that earlier versions wrote there. When the FAL storages
+    cannot be read, the processor answers HTTP 503.
+-   Security: variant URLs accept only image extensions, and the
+    processor decodes only JPEG, PNG, GIF, WebP, AVIF, BMP and TIFF
+    content (otherwise HTTP 400).
+
 ..  _changelog-1-6-0:
 
 1.6.0
