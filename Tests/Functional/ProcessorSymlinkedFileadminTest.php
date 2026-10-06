@@ -25,6 +25,7 @@ use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\Attributes\UsesClass;
 use ReflectionClass;
 use TYPO3\CMS\Core\Core\Environment;
+use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Http\ServerRequest;
 use TYPO3\CMS\Core\Http\Uri;
 use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
@@ -134,6 +135,11 @@ final class ProcessorSymlinkedFileadminTest extends FunctionalTestCase
         unset($GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['nr_image_optimize']['additionalTrustedStorageSymlinks']);
         unset($GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['nr_image_optimize']['additionalTrustedRoots']);
         $this->resetAllowedRootsCache();
+
+        $privateSymlink = Environment::getPublicPath() . '/private';
+        if (is_link($privateSymlink)) {
+            unlink($privateSymlink); // nosemgrep: php.lang.security.unlink-use.unlink-use -- test fixture teardown of self-created tmp symlink
+        }
 
         $customSymlink = Environment::getPublicPath() . '/customfiles';
         if (is_link($customSymlink)) {
@@ -461,6 +467,67 @@ final class ProcessorSymlinkedFileadminTest extends FunctionalTestCase
     }
 
     /**
+     * A non-public storage whose directory is symlinked to the external
+     * mount, like fileadmin here: its resolved target must not become an
+     * allowed root, so no variant of its files is created (the counterpart
+     * of uncachedVariantUnderSymlinkedFileadminReturns200 for a public one).
+     */
+    #[Test]
+    public function variantOfFileInSymlinkedNonPublicStorageIsRefused(): void
+    {
+        $publicPath = Environment::getPublicPath();
+
+        $privateMount = $this->externalMount . '/private';
+        self::assertTrue(mkdir($privateMount, 0o777, true));
+
+        $fixture = $publicPath . '/typo3temp/nr-pio-fixture/test-image.png';
+        self::assertFileExists($fixture, 'Fixture staging failed');
+        self::assertTrue(copy($fixture, $privateMount . '/test-image.png'));
+
+        symlink($privateMount, $publicPath . '/private');
+
+        $this->insertLocalStorage(1, 'fileadmin/', true);
+        $this->insertLocalStorage(2, 'private/', false);
+        $this->resetAllowedRootsCache();
+
+        $response = $this->get(Processor::class)->generateAndSend(
+            $this->signedVariantRequest('/processed/private/test-image.w50h38m0q80.png'),
+        );
+
+        // The symlink target lies outside the public path and, as the
+        // storage is not public, outside every allowed root: 400 from the
+        // path validation, before any storage or signature check.
+        self::assertSame(400, $response->getStatusCode());
+        self::assertFileDoesNotExist($this->externalMount . '/processed/private/test-image.w50h38m0q80.png');
+    }
+
+    /**
+     * Insert a Local-driver storage whose base path is relative to the public path.
+     */
+    private function insertLocalStorage(int $uid, string $basePath, bool $isPublic): void
+    {
+        $this->get(ConnectionPool::class)
+            ->getConnectionForTable('sys_file_storage')
+            ->insert('sys_file_storage', [
+                'uid'           => $uid,
+                'pid'           => 0,
+                'name'          => 'Storage ' . $uid,
+                'driver'        => 'Local',
+                'configuration' => '<?xml version="1.0" encoding="utf-8" standalone="yes" ?>'
+                    . '<T3FlexForms><data><sheet index="sDEF"><language index="lDEF">'
+                    . '<field index="basePath"><value index="vDEF">' . $basePath . '</value></field>'
+                    . '<field index="pathType"><value index="vDEF">relative</value></field>'
+                    . '<field index="caseSensitive"><value index="vDEF">1</value></field>'
+                    . '</language></sheet></data></T3FlexForms>',
+                'is_browsable' => 1,
+                'is_public'    => $isPublic ? 1 : 0,
+                'is_writable'  => 1,
+                'is_online'    => 1,
+                'is_default'   => $uid === 1 ? 1 : 0,
+            ]);
+    }
+
+    /**
      * Atomically replace `$linkTarget` (likely an empty directory created by
      * the testing framework) with a symlink pointing at `$linkDestination`.
      */
@@ -528,5 +595,9 @@ final class ProcessorSymlinkedFileadminTest extends FunctionalTestCase
 
         $property = $reflection->getProperty('resolvedAllowedRootsByPublicPath');
         $property->setValue(null, []);
+
+        if ($reflection->hasProperty('resolvedNonPublicRootsByPublicPath')) {
+            $reflection->getProperty('resolvedNonPublicRootsByPublicPath')->setValue(null, []);
+        }
     }
 }
