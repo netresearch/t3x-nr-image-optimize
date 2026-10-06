@@ -62,6 +62,7 @@ Directory structure
 
             *   ImageOptimizer.php
             *   SystemRequirementsService.php
+            *   VariantUrlSigner.php
 
         *   Processor.php
         *   ViewHelpers/
@@ -119,7 +120,34 @@ SourceSetViewHelper
     Fluid ViewHelper that generates ``<img>`` tags with
     ``srcset`` attributes for responsive image delivery.
     Supports both density-based (2x) and width-based
-    responsive srcset modes.
+    responsive srcset modes. Every ``/processed/`` URL it
+    renders carries the signature the processor requires.
+
+..  _developer-variant-url-signer:
+
+VariantUrlSigner
+================
+
+..  php:namespace:: Netresearch\NrImageOptimize\Service
+
+..  php:class:: VariantUrlSigner
+
+    Signs and verifies variant URLs (see
+    :ref:`configuration-url-signature`). Inject it to build
+    ``/processed/`` URLs outside the ViewHelper.
+
+    ``sign(string $variantPath): string``
+        HMAC of the URL-decoded variant path, for example
+        ``/processed/fileadmin/hero.w1200h800m0q85.jpg``. Returns an
+        empty string when no ``encryptionKey`` is configured.
+
+    ``isValid(string $variantPath, string $signature): bool``
+        Whether the signature was issued for that path with the
+        current ``encryptionKey``.
+
+    ``QUERY_PARAMETER``
+        Name of the query parameter that carries the signature
+        (``sig``).
 
 ..  _developer-image-optimizer:
 
