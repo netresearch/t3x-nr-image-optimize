@@ -36,7 +36,7 @@ Five pages render the same 24 photos as 800×600 crops:
 | `/bench/ext-eager`  | `<nrio:sourceSet width="800" height="600">` |
 | `/bench/core-lazy`  | as above, `loading="lazy"`           |
 | `/bench/ext-lazy`   | as above, `lazyload="1"`             |
-| `/bench/ext-eager-jpeg` | hand-written `/processed/` URLs with `skipWebP=1&skipAvif=1` — one JPEG per image, like core |
+| `/bench/ext-eager-jpeg` | hand-written `/processed/` URLs with `skipWebP=1&skipAvif=1`, signed by `Fixtures/seed.php` — one JPEG per image, like core |
 
 Seven scenarios, each visited with both pipelines in a fresh browser context:
 
