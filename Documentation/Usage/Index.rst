@@ -97,6 +97,11 @@ Custom width variants
 Output comparison
 =================
 
+..  note::
+    The examples on this page leave out the ``?sig=<signature>`` query
+    parameter that every rendered ``/processed/`` URL carries (see
+    :ref:`configuration-url-signature`).
+
 **Legacy mode** (``responsiveSrcset=false`` or not set):
 
 ..  code-block:: html

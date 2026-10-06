@@ -331,7 +331,7 @@ Consequences for existing installations:
     Build them in PHP with
     ``SourceSetViewHelper::getResourcePath()`` or sign the path with
     the ``Netresearch\NrImageOptimize\Service\VariantUrlSigner``
-    service (``sign(string $urlDecodedPath)``).
+    service (``sign(string $variantPath)``, with the URL-decoded path).
 *   Changing the ``encryptionKey`` invalidates all signatures; flush
     the page cache afterwards.
 *   Without an ``encryptionKey`` no signature is issued or accepted.
