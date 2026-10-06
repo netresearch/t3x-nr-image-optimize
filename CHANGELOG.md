@@ -1,3 +1,31 @@
+# 1.6.1
+
+## SECURITY
+
+- **New variants only for signed URLs.** The `/processed/` endpoint
+  creates a variant that is not on disk yet only when the URL carries a
+  `sig` parameter, an HMAC of the variant path keyed with the TYPO3
+  encryption key. The `sourceSet` ViewHelper signs every URL it renders;
+  variants already on disk are served without a signature. Pages cached
+  before the update carry unsigned URLs until the page cache is flushed.
+  See [#215](https://github.com/netresearch/t3x-nr-image-optimize/pull/215).
+- **Files of non-public storages are refused.** The processor refuses
+  source files inside the base path of a non-public Local FAL storage,
+  also when a variant of them is already on disk. The web server delivers
+  files below `public/processed/` without asking TYPO3, so remove variants
+  of such files that earlier versions wrote there. When the FAL storages
+  cannot be read, the processor answers HTTP 503.
+  See [#215](https://github.com/netresearch/t3x-nr-image-optimize/pull/215).
+- **Only image files are decoded.** Variant URLs accept only the
+  extensions jpg, jpeg, png, gif, webp, avif, bmp, tif and tiff, and the
+  processor decodes a source only when its content is JPEG, PNG, GIF,
+  WebP, AVIF, BMP or TIFF (otherwise HTTP 400).
+  See [#215](https://github.com/netresearch/t3x-nr-image-optimize/pull/215).
+
+## Contributors
+
+- Sebastian Mendel
+
 # 1.6.0
 
 ## FEATURE
