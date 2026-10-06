@@ -333,9 +333,11 @@ Variant URL format
 ==================
 
 Processed variants are served from
-``/processed/<path>.<mode-config>.<ext>``. The mode config is a
-concatenation of any of ``w<n>``, ``h<n>``, ``q<n>``, ``m<n>``
-(width, height, quality 1--100, mode ``0`` = cover / ``1`` = fit).
+``/processed/<path>.<mode-config>.<ext>?sig=<signature>``. The mode
+config is a concatenation of any of ``w<n>``, ``h<n>``, ``q<n>``,
+``m<n>`` (width, height, quality 1--100, mode ``0`` = cover / ``1`` =
+fit). ``<ext>`` is one of ``jpg``, ``jpeg``, ``png``, ``gif``,
+``webp``, ``avif``, ``bmp``, ``tif``, ``tiff``.
 The processor decides at response time whether to serve the
 original, the ``.webp`` sidecar, or the ``.avif`` sidecar: it serves
 the first of AVIF, WebP, original that exists on disk and does not
@@ -343,7 +345,17 @@ inspect the ``Accept`` header. The ``skipWebP`` / ``skipAvif`` query
 flags suppress generation of the respective sidecar. Path traversal sequences are rejected; ``w`` / ``h`` are
 clamped to 1--8192 and ``q`` to 1--100.
 
-Example: ``/processed/fileadmin/hero.w1200h800m0q85.jpg``.
+A variant that does not exist yet is created only for a URL with a
+valid ``sig`` parameter, an HMAC of the URL-decoded path keyed with
+the installation's ``encryptionKey``. The ``sourceSet`` ViewHelper
+signs every URL it renders; build URLs in PHP with
+``SourceSetViewHelper::getResourcePath()`` or sign a path with the
+``VariantUrlSigner`` service. Variants already on disk are served
+without a signature. Sources in non-public FAL storages are not
+processed, and only files whose content is a supported image type
+are decoded.
+
+Example: ``/processed/fileadmin/hero.w1200h800m0q85.jpg?sig=…``.
 
 Extension points
 ================

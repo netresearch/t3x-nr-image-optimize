@@ -142,7 +142,20 @@ where the web server delivers them directly — without any access
 check.
 
 Files in non-public FAL storages (``is_public = 0``) can therefore
-not be processed. Extensions such as
+not be processed.
+
+..  versionchanged:: 2.6.1
+    The processor refuses source files that lie inside the base path
+    of a non-public Local storage -- also when that directory sits
+    below the public web root and when a variant of the file is
+    already on disk -- with HTTP 404, or with HTTP 400 when the file
+    resolves outside every allowed root (non-public storages are not
+    allowed roots). Remove variants of such files
+    that earlier versions wrote below :file:`public/processed/` (see
+    :ref:`maintenance-clear`): the web server delivers files there
+    without asking TYPO3.
+
+Extensions such as
 `fal_securedownload <https://extensions.typo3.org/extension/fal_securedownload>`__
 resolve such files to tokenized eID URLs
 (``/index.php?eID=dumpFile&...``) whose delivery runs through TYPO3

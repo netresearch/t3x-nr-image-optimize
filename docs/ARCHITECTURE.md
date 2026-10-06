@@ -12,11 +12,12 @@ The extension serves processed image variants (WebP/AVIF fallbacks, responsive `
 
 | Component | Path | Role |
 |-----------|------|------|
-| Processor | `Classes/Processor.php` | Main dispatcher: parses `/processed/...` URL, allowed-roots check, lock, encode, stream, event dispatch |
+| Processor | `Classes/Processor.php` | Main dispatcher: parses `/processed/...` URL, allowed-roots and non-public-storage check, signature check before creating a variant, lock, encode, stream, event dispatch |
 | ProcessorInterface | `Classes/ProcessorInterface.php` | DI contract; `Services.yaml` aliases it to `Processor` |
 | ProcessingMiddleware | `Classes/Middleware/ProcessingMiddleware.php` | PSR-15 entry point; matches `/processed/*`, delegates to `ProcessorInterface` |
 | ImageManagerFactory | `Classes/Service/ImageManagerFactory.php` | Builds Intervention `ImageManager` (Imagick if available, else GD); wired as factory in `Services.yaml` |
-| ImageManagerAdapter | `Classes/Service/ImageManagerAdapter.php` | Wraps `ImageManager`; `SplFileInfo`-based decode (non-ASCII-path safe); implements `ImageReaderInterface` |
+| ImageManagerAdapter | `Classes/Service/ImageManagerAdapter.php` | Wraps `ImageManager`; checks the image type from the header bytes, then `SplFileInfo`-based decode (non-ASCII-path safe); implements `ImageReaderInterface` |
+| VariantUrlSigner | `Classes/Service/VariantUrlSigner.php` | Signs and verifies variant URL paths (HMAC with the TYPO3 encryption key); used by `SourceSetViewHelper` and `Processor` |
 | ImageReaderInterface | `Classes/Service/ImageReaderInterface.php` | DI contract; `Services.yaml` aliases it to `ImageManagerAdapter` |
 | ImageOptimizer | `Classes/Service/ImageOptimizer.php` | Invokes external binaries (optipng/gifsicle/jpegoptim) via `proc_open` argument arrays |
 | SystemRequirementsService | `Classes/Service/SystemRequirementsService.php` | Backend health check: binaries, PHP extensions, library versions |
@@ -39,7 +40,7 @@ Enforced by phpat (`Tests/Architecture/ArchitectureTest.php`, runs inside PHPSta
 
 ## Data flow
 
-- **Serving**: HTTP `/processed/*` request → `ProcessingMiddleware` → `ProcessorInterface` (→ `Processor`) → allowed-roots + traversal check → cached variant hit, or encode via `ImageReaderInterface` (→ `ImageManagerAdapter` → Intervention `ImageManager` from `ImageManagerFactory`) under a lock → stream response with `Cache-Control: immutable`/`ETag`/`Last-Modified` → dispatch `ImageProcessedEvent`/`VariantServedEvent` (guarded).
+- **Serving**: HTTP `/processed/*` request → `ProcessingMiddleware` → `ProcessorInterface` (→ `Processor`) → allowed-roots + traversal check → non-public-storage check → cached variant hit, or (signed URL only) encode via `ImageReaderInterface` (→ `ImageManagerAdapter` → Intervention `ImageManager` from `ImageManagerFactory`) under a lock → stream response with `Cache-Control: immutable`/`ETag`/`Last-Modified` → dispatch `ImageProcessedEvent`/`VariantServedEvent` (guarded).
 - **Upload**: FAL `AfterFileAddedEvent`/`AfterFileReplacedEvent` → `OptimizeOnUploadListener` → `ImageOptimizer` (external binaries; missing binaries degrade gracefully).
 - **CLI**: `AnalyzeImagesCommand`/`OptimizeImagesCommand` iterate FAL storages via `AbstractImageCommand` helpers.
 - **Backend**: `MaintenanceController` renders module views from `Resources/Private/Templates/Maintenance/` and reads `SystemRequirementsService`.

@@ -251,14 +251,16 @@ Variant URL format
 ==================
 
 Processed variants are served from a dedicated URL path. The
-ViewHelper generates these URLs automatically, but any markup
-that writes a URL of this form will be intercepted by the
-:ref:`ProcessingMiddleware <developer-middleware>`:
+ViewHelper generates these URLs automatically. Any URL of this form
+is intercepted by the
+:ref:`ProcessingMiddleware <developer-middleware>`, but a variant
+that is not on disk yet is only created for a signed URL (see
+:ref:`configuration-url-signature`):
 
 ..  code-block:: text
     :caption: URL template
 
-    /processed/<original-path>.<mode-config>.<ext>[?<query>]
+    /processed/<original-path>.<mode-config>.<ext>?sig=<signature>[&<query>]
 
 ``<original-path>``
     Public path of the source image, including the
@@ -281,7 +283,9 @@ that writes a URL of this form will be intercepted by the
         Processing mode (``0`` = cover, ``1`` = scale/fit).
 
 ``<ext>``
-    Source image extension. The processor decides at
+    Source image extension: ``jpg``, ``jpeg``, ``png``, ``gif``,
+    ``webp``, ``avif``, ``bmp``, ``tif`` or ``tiff`` (any case).
+    Other extensions are answered with HTTP 400. The processor decides at
     response time whether to serve the original, the
     ``.webp`` sidecar, or the ``.avif`` sidecar, based on
     which of these files exist on disk (see
@@ -290,7 +294,47 @@ that writes a URL of this form will be intercepted by the
 ..  code-block:: text
     :caption: Example URL
 
-    /processed/fileadmin/photos/hero.w1200h800m0q85.jpg
+    /processed/fileadmin/photos/hero.w1200h800m0q85.jpg?sig=3f2c...
+
+..  _configuration-url-signature:
+
+Signed variant URLs
+===================
+
+..  versionchanged:: 2.6.1
+    A variant that is not on disk yet is created only for a URL with a
+    valid ``sig`` parameter. Before, any URL of the documented form
+    created a variant.
+
+Creating a variant costs CPU time, memory and disk space, so the
+processor creates one only when the URL carries a signature issued by
+the installation itself:
+
+*   ``sig`` is an HMAC (SHA-1, via TYPO3's ``HashService``) of the
+    URL-decoded variant path -- source path, mode config and
+    extension -- keyed with
+    ``$GLOBALS['TYPO3_CONF_VARS']['SYS']['encryptionKey']`` plus a
+    secret specific to this extension.
+*   The ``sourceSet`` ViewHelper signs every URL it renders.
+*   A URL without a valid signature is answered with HTTP 403 unless
+    the variant is already on disk; existing variants are served
+    without a signature.
+*   The ``skipWebP`` / ``skipAvif`` flags are not part of the
+    signature.
+
+Consequences for existing installations:
+
+*   Pages rendered before the update carry unsigned URLs. Flush the
+    page cache after updating, so variants that do not exist yet can
+    be created.
+*   URLs written by hand in templates or content need a signature.
+    Build them in PHP with
+    ``SourceSetViewHelper::getResourcePath()`` or sign the path with
+    the ``Netresearch\NrImageOptimize\Service\VariantUrlSigner``
+    service (``sign(string $urlDecodedPath)``).
+*   Changing the ``encryptionKey`` invalidates all signatures; flush
+    the page cache afterwards.
+*   Without an ``encryptionKey`` no signature is issued or accepted.
 
 ..  _configuration-variant-negotiation:
 
@@ -467,6 +511,16 @@ Processor limits
 ================
 
 The processor enforces the following bounds when parsing a URL:
+
+Signature
+    A variant that is not on disk yet is created only for a signed URL
+    (see :ref:`configuration-url-signature`).
+
+Image types
+    Only the extensions listed in :ref:`configuration-url-format` are
+    accepted, and only source files whose content is a JPEG, PNG, GIF,
+    WebP, AVIF, BMP or TIFF image are decoded. Anything else is
+    answered with HTTP 400.
 
 ``MAX_DIMENSION``
     Width and height are clamped to 1--8192 pixels to prevent

@@ -136,8 +136,18 @@ Processor
 
     Key behaviors:
 
-    -   Rejects path-traversal (``..``) sequences at URL
-        parse time, returning HTTP 400.
+    -   Rejects path-traversal (``..``) sequences and extensions
+        other than the supported image types at URL parse time,
+        returning HTTP 400.
+    -   Refuses source files of non-public FAL storages, also for
+        variants already on disk: HTTP 404 when the file resolves
+        inside an allowed root, HTTP 400 when it resolves outside
+        every allowed root (non-public storages are not allowed
+        roots). Answers HTTP 503 when the FAL storages cannot be
+        read.
+    -   Creates a variant that is not on disk yet only for a URL
+        with a valid ``sig`` parameter (see
+        :ref:`configuration-url-signature`), otherwise HTTP 403.
     -   Clamps ``w`` / ``h`` to 1--8192 and ``q`` to 1--100.
     -   Uses TYPO3's ``LockFactory`` to serialize concurrent
         requests for the same variant; a 503 is returned if
@@ -311,14 +321,43 @@ ImageManager abstraction
     loading API. v3 uses ``ImageManager::read()``, v4 uses
     ``ImageManager::decode()``; this interface hides that
     difference so consumers and static analysis see a single
-    stable contract.
+    stable contract. ``read()`` throws
+    ``UnsupportedImageTypeException`` for a file whose content is
+    not a JPEG, PNG, GIF, WebP, AVIF, BMP or TIFF image.
 
 ..  php:class:: ImageManagerAdapter
 
-    Default implementation. Dispatches to whichever method is
-    present on the installed ``ImageManager``, letting the
+    Default implementation. Checks the image type from the file's
+    header bytes (``getimagesize()``), then dispatches to whichever
+    method is present on the installed ``ImageManager``, letting the
     extension support Intervention Image ``^3 || ^4``
     simultaneously without version-conditional code paths.
+
+..  _developer-variant-url-signer:
+
+VariantUrlSigner
+================
+
+..  php:namespace:: Netresearch\NrImageOptimize\Service
+
+..  php:class:: VariantUrlSigner
+
+    Signs and verifies variant URLs (see
+    :ref:`configuration-url-signature`). Inject it to build
+    ``/processed/`` URLs outside the ViewHelper.
+
+    ``sign(string $variantPath): string``
+        HMAC of the URL-decoded variant path, for example
+        ``/processed/fileadmin/hero.w1200h800m0q85.jpg``. Returns an
+        empty string when no ``encryptionKey`` is configured.
+
+    ``isValid(string $variantPath, string $signature): bool``
+        Whether the signature was issued for that path with the
+        current ``encryptionKey``.
+
+    ``QUERY_PARAMETER``
+        Name of the query parameter that carries the signature
+        (``sig``).
 
 ..  _developer-system-requirements:
 
