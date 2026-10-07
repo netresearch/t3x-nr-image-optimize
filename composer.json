@@ -1,6 +1,6 @@
 {
     "name": "netresearch/nr-image-optimize",
-    "description": "On-demand image optimization for TYPO3 with processed delivery, WebP and AVIF variants, and responsive srcset ViewHelpers.",
+    "description": "Image Optimization - On-demand image optimization with processed delivery, WebP and AVIF variants, and responsive srcset ViewHelpers.",
     "type": "typo3-cms-extension",
     "license": "GPL-3.0-or-later",
     "keywords": [

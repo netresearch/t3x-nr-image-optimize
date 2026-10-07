@@ -11,8 +11,8 @@
  */
 
 $EM_CONF['nr_image_optimize'] = [
-    'title' => 'Netresearch: Image Optimization',
-    'description' => 'On-demand image optimization for TYPO3 with processed delivery, WebP and AVIF variants, and responsive srcset ViewHelpers.',
+    'title' => 'Image Optimization',
+    'description' => 'On-demand image optimization with processed delivery, WebP and AVIF variants, and responsive srcset ViewHelpers.',
     'category'       => 'fe',
     'author'         => 'Team der Netresearch DTT GmbH',
     'author_email'   => '',
