@@ -21,6 +21,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+## [2.6.1] - 2026-10-07
+
+### Changed
+
+- **`typo3/cms-extbase` and `typo3/cms-fluid` require `^13.4 || ^14.3`**,
+  the same TYPO3 versions as `typo3/cms-core` ([#207]).
+- **GitHub release archives and Composer downloads contain only what the
+  installed extension uses**: Classes/, Configuration/, Documentation/,
+  Resources/, the ext_* files, composer.json, LICENSE and README.rst
+  ([#210]).
+
+### Security
+
+- **New variants only for signed URLs.** The `/processed/` endpoint
+  creates a variant that is not on disk yet only when the URL carries a
+  `sig` parameter, an HMAC of the variant path keyed with the TYPO3
+  encryption key. The `sourceSet` ViewHelper signs every URL it renders;
+  variants already on disk are served without a signature. Pages cached
+  before the update carry unsigned URLs until the page cache is flushed
+  ([#214]).
+- **Files of non-public storages are refused.** The processor refuses
+  source files inside the base path of a non-public Local FAL storage,
+  also when a variant of them is already on disk. The web server delivers
+  files below `public/processed/` without asking TYPO3, so remove variants
+  of such files that earlier versions wrote there. When the FAL storages
+  cannot be read, the processor answers HTTP 503 ([#214]).
+- **Only image files are decoded.** Variant URLs accept only the
+  extensions jpg, jpeg, png, gif, webp, avif, bmp, tif and tiff, and a
+  source is decoded only when its content is JPEG, PNG, GIF, WebP, AVIF,
+  BMP or TIFF (otherwise HTTP 400) ([#214]).
+
+[#207]: https://github.com/netresearch/t3x-nr-image-optimize/pull/207
+[#210]: https://github.com/netresearch/t3x-nr-image-optimize/pull/210
+[#214]: https://github.com/netresearch/t3x-nr-image-optimize/pull/214
+
 ## [2.6.0] - 2026-09-25
 
 ### Added
@@ -539,7 +574,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Corrected crop variant examples.
 - Improved lazy loading behavior.
 
-[Unreleased]: https://github.com/netresearch/t3x-nr-image-optimize/compare/v2.4.1...HEAD
+[Unreleased]: https://github.com/netresearch/t3x-nr-image-optimize/compare/v2.6.1...HEAD
+[2.6.1]: https://github.com/netresearch/t3x-nr-image-optimize/compare/v2.6.0...v2.6.1
+[2.6.0]: https://github.com/netresearch/t3x-nr-image-optimize/compare/v2.5.0...v2.6.0
+[2.5.0]: https://github.com/netresearch/t3x-nr-image-optimize/compare/v2.4.2...v2.5.0
+[2.4.2]: https://github.com/netresearch/t3x-nr-image-optimize/compare/v2.4.1...v2.4.2
 [2.4.1]: https://github.com/netresearch/t3x-nr-image-optimize/compare/v2.4.0...v2.4.1
 [2.4.0]: https://github.com/netresearch/t3x-nr-image-optimize/compare/v2.3.1...v2.4.0
 [2.3.1]: https://github.com/netresearch/t3x-nr-image-optimize/compare/v2.3.0...v2.3.1
