@@ -2,6 +2,6 @@
 .. SPDX-FileCopyrightText: Netresearch DTT GmbH
 
 .. |extension_key| replace:: nr_image_optimize
-.. |extension_name| replace:: Image Optimization for TYPO3
+.. |extension_name| replace:: Image Optimization
 .. |vendor| replace:: Netresearch DTT GmbH
 .. |release| replace:: 2.6.1

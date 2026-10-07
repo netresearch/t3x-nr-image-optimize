@@ -5,9 +5,9 @@
 
 ..  _start:
 
-================================
-Image Optimization for TYPO3
-================================
+==================
+Image Optimization
+==================
 
 :Extension key:
     nr_image_optimize
