@@ -115,7 +115,6 @@ composer.json    → Composer metadata (authoritative version + PHP/TYPO3 constr
 ### Never Do
 - Commit secrets, credentials, or sensitive data.
 - Commit `composer.lock` — TYPO3 extensions are libraries; CI resolves per-matrix-cell. The file is in `.gitignore`.
-- Add AI-attribution trailers (`Co-Authored-By: Claude`, "Generated with Claude Code", etc.) to commits.
 - Commit baseline PHPStan errors (`Build/phpstan-baseline.neon` is `ignoreErrors: []`). Fix findings or add a path-scoped `identifier`-based `ignoreErrors` entry with a comment explaining why.
 - Run `gh release create` for releases — the `release.yml` workflow handles this and a manual release makes the tag permanently immutable on GitHub.
 - Use `secrets: inherit` in reusable workflows — pass each secret explicitly (supply-chain guard).
