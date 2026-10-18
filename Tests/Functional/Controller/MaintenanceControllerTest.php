@@ -14,10 +14,6 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Tests\Functional\Controller;
 
-use function file_put_contents;
-use function is_dir;
-use function mkdir;
-
 use Netresearch\NrImageOptimize\Controller\MaintenanceController;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
@@ -31,6 +27,10 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Extbase\Mvc\ExtbaseRequestParameters;
 use TYPO3\CMS\Extbase\Mvc\Request;
 use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
+
+use function file_put_contents;
+use function is_dir;
+use function mkdir;
 
 /**
  * Functional tests for MaintenanceController backend module actions.

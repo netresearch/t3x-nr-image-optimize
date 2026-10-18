@@ -19,13 +19,12 @@ use Netresearch\NrImageOptimize\Command\AbstractImageCommand;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
-
-use function str_repeat;
-
 use Symfony\Component\Console\Helper\ProgressBar;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Output\BufferedOutput;
 use Symfony\Component\Console\Style\SymfonyStyle;
+
+use function str_repeat;
 
 /**
  * Tests for the helper methods on AbstractImageCommand.

@@ -14,11 +14,11 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Service;
 
+use TYPO3\CMS\Core\Crypto\HashService;
+
 use function hash_equals;
 use function is_array;
 use function is_string;
-
-use TYPO3\CMS\Core\Crypto\HashService;
 
 /**
  * Signs and verifies the variant path of a "/processed/" URL.

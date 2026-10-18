@@ -14,21 +14,11 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Tests\Functional\Benchmark;
 
-use function copy;
-use function count;
-use function hrtime;
-use function is_dir;
-use function is_executable;
-use function mkdir;
-
 use Netresearch\NrImageOptimize\Service\VariantUrlSigner;
 use Netresearch\NrImageOptimize\ViewHelpers\SourceSetViewHelper;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\Attributes\UsesClass;
-
-use function sprintf;
-
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Resource\File;
 use TYPO3\CMS\Core\Resource\ResourceFactory;
@@ -37,6 +27,14 @@ use TYPO3\CMS\Extbase\Service\ImageService;
 use TYPO3\CMS\Fluid\Core\Rendering\RenderingContextFactory;
 use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
 use TYPO3Fluid\Fluid\View\TemplateView;
+
+use function copy;
+use function count;
+use function hrtime;
+use function is_dir;
+use function is_executable;
+use function mkdir;
+use function sprintf;
 
 /**
  * Guards the architectural claim behind the "Performance model" chapter of

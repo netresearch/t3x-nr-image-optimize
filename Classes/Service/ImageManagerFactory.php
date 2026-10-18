@@ -14,13 +14,13 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Service;
 
-use function extension_loaded;
-
 use Intervention\Image\Drivers\Gd\Driver as GdDriver;
 use Intervention\Image\Drivers\Imagick\Driver as ImagickDriver;
 use Intervention\Image\Exceptions\DriverException;
 use Intervention\Image\ImageManager;
 use RuntimeException;
+
+use function extension_loaded;
 
 /**
  * Factory for creating an Intervention ImageManager with the best available driver.

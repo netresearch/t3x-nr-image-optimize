@@ -14,10 +14,10 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Tests\Functional;
 
-use function class_exists;
-
 use Imagick;
 use Throwable;
+
+use function class_exists;
 
 /**
  * Skip helpers for functional tests that depend on a working sidecar encoder.

@@ -15,24 +15,13 @@ declare(strict_types=1);
 namespace Netresearch\NrImageOptimize\Tests\Unit\Command;
 
 use Doctrine\DBAL\Result;
-
-use function file_put_contents;
-use function is_file;
-
 use Netresearch\NrImageOptimize\Command\AnalyzeImagesCommand;
 use Netresearch\NrImageOptimize\Service\ImageOptimizer;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
-
-use function putenv;
-use function str_repeat;
-
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
-
-use function sys_get_temp_dir;
-
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Query\Expression\ExpressionBuilder;
@@ -42,6 +31,11 @@ use TYPO3\CMS\Core\Resource\ResourceFactory;
 use TYPO3\CMS\Core\Resource\ResourceStorage;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
+use function file_put_contents;
+use function is_file;
+use function putenv;
+use function str_repeat;
+use function sys_get_temp_dir;
 use function uniqid;
 use function unlink;
 

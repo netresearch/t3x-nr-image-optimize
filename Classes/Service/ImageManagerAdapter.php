@@ -15,18 +15,14 @@ declare(strict_types=1);
 namespace Netresearch\NrImageOptimize\Service;
 
 use Closure;
+use Intervention\Image\ImageManager;
+use Intervention\Image\Interfaces\ImageInterface;
+use SplFileInfo;
 
 use function getimagesize;
 use function in_array;
-
-use Intervention\Image\ImageManager;
-use Intervention\Image\Interfaces\ImageInterface;
-
 use function restore_error_handler;
 use function set_error_handler;
-
-use SplFileInfo;
-
 use function sprintf;
 
 /**

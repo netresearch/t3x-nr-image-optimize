@@ -14,11 +14,6 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Tests\Acceptance\Middleware;
 
-use function base64_decode;
-use function file_put_contents;
-use function is_dir;
-use function mkdir;
-
 use Netresearch\NrImageOptimize\Middleware\ProcessingMiddleware;
 use Netresearch\NrImageOptimize\Processor;
 use Netresearch\NrImageOptimize\ProcessorInterface;
@@ -36,13 +31,7 @@ use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use ReflectionClass;
 use ReflectionMethod;
-
-use function rmdir;
-
 use SplFileInfo;
-
-use function sys_get_temp_dir;
-
 use TYPO3\CMS\Core\Core\ApplicationContext;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Http\ResponseFactory;
@@ -51,6 +40,12 @@ use TYPO3\CMS\Core\Locking\LockFactory;
 use TYPO3\CMS\Core\Locking\LockingStrategyInterface;
 use TYPO3\CMS\Core\Resource\StorageRepository;
 
+use function base64_decode;
+use function file_put_contents;
+use function is_dir;
+use function mkdir;
+use function rmdir;
+use function sys_get_temp_dir;
 use function unlink;
 
 /**

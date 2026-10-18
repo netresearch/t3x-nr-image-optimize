@@ -14,50 +14,18 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Controller;
 
-use function array_slice;
-use function basename;
-use function count;
-use function date;
-
 use FilesystemIterator;
-
-use function floor;
-use function fnmatch;
-use function is_dir;
-use function json_encode;
-use function log;
-use function ltrim;
-use function max;
-use function min;
-
 use Netresearch\NrImageOptimize\Service\SystemRequirementsService;
-
-use function preg_replace;
-
 use Psr\Http\Message\ResponseInterface;
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerAwareTrait;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
-
-use function realpath;
-
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
-
-use function round;
-
 use RuntimeException;
 use SplFileInfo;
-
-use function str_ends_with;
-use function str_replace;
-use function strtolower;
-
 use Throwable;
-
-use function trim;
-
 use TYPO3\CMS\Backend\Template\ModuleTemplateFactory;
 use TYPO3\CMS\Core\Authentication\AbstractUserAuthentication;
 use TYPO3\CMS\Core\Core\Environment;
@@ -67,6 +35,25 @@ use TYPO3\CMS\Core\Type\ContextualFeedbackSeverity;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Extbase\Mvc\Controller\ActionController;
 
+use function array_slice;
+use function basename;
+use function count;
+use function date;
+use function floor;
+use function fnmatch;
+use function is_dir;
+use function json_encode;
+use function log;
+use function ltrim;
+use function max;
+use function min;
+use function preg_replace;
+use function realpath;
+use function round;
+use function str_ends_with;
+use function str_replace;
+use function strtolower;
+use function trim;
 use function uasort;
 use function usort;
 

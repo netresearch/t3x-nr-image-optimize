@@ -14,29 +14,24 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Tests\Unit\EventListener;
 
-use function chmod;
-use function file_put_contents;
-use function is_file;
-
 use Netresearch\NrImageOptimize\EventListener\OptimizeOnUploadListener;
 use Netresearch\NrImageOptimize\Service\ImageOptimizer;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
-
-use function putenv;
-
 use ReflectionProperty;
 use RuntimeException;
-
-use function sys_get_temp_dir;
-
 use TYPO3\CMS\Core\Resource\Event\AfterFileAddedEvent;
 use TYPO3\CMS\Core\Resource\Event\AfterFileReplacedEvent;
 use TYPO3\CMS\Core\Resource\FileInterface;
 use TYPO3\CMS\Core\Resource\Folder;
 use TYPO3\CMS\Core\Resource\ResourceStorage;
 
+use function chmod;
+use function file_put_contents;
+use function is_file;
+use function putenv;
+use function sys_get_temp_dir;
 use function uniqid;
 use function unlink;
 

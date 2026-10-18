@@ -14,13 +14,13 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Tests\Unit\Service;
 
-use function extension_loaded;
-
 use Netresearch\NrImageOptimize\Service\ImageManagerAdapter;
 use Netresearch\NrImageOptimize\Service\ImageManagerFactory;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
+
+use function extension_loaded;
 
 final class ImageManagerFactoryTest extends TestCase
 {

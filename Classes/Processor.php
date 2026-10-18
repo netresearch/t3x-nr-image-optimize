@@ -14,6 +14,30 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize;
 
+use Intervention\Image\Interfaces\ImageInterface;
+use Netresearch\NrImageOptimize\Event\ImageProcessedEvent;
+use Netresearch\NrImageOptimize\Event\VariantServedEvent;
+use Netresearch\NrImageOptimize\Service\ImageReaderInterface;
+use Netresearch\NrImageOptimize\Service\UnsupportedImageTypeException;
+use Netresearch\NrImageOptimize\Service\VariantUrlSigner;
+use Psr\EventDispatcher\EventDispatcherInterface;
+use Psr\Http\Message\ResponseFactoryInterface;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
+use Psr\Http\Message\StreamFactoryInterface;
+use Psr\Log\LoggerAwareInterface;
+use Psr\Log\LoggerAwareTrait;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
+use RuntimeException;
+use Throwable;
+use TYPO3\CMS\Core\Configuration\ExtensionConfiguration;
+use TYPO3\CMS\Core\Core\Environment;
+use TYPO3\CMS\Core\Locking\Exception\LockCreateException;
+use TYPO3\CMS\Core\Locking\LockFactory;
+use TYPO3\CMS\Core\Locking\LockingStrategyInterface;
+use TYPO3\CMS\Core\Resource\StorageRepository;
+
 use function array_key_exists;
 use function array_keys;
 use function copy;
@@ -28,9 +52,6 @@ use function filter_var;
 use function fopen;
 use function fread;
 use function gmdate;
-
-use Intervention\Image\Interfaces\ImageInterface;
-
 use function is_dir;
 use function is_link;
 use function is_numeric;
@@ -39,46 +60,16 @@ use function max;
 use function md5;
 use function min;
 use function mkdir;
-
-use Netresearch\NrImageOptimize\Event\ImageProcessedEvent;
-use Netresearch\NrImageOptimize\Event\VariantServedEvent;
-use Netresearch\NrImageOptimize\Service\ImageReaderInterface;
-use Netresearch\NrImageOptimize\Service\UnsupportedImageTypeException;
-use Netresearch\NrImageOptimize\Service\VariantUrlSigner;
-
 use function parse_str;
 use function preg_match;
 use function preg_match_all;
-
-use Psr\EventDispatcher\EventDispatcherInterface;
-use Psr\Http\Message\ResponseFactoryInterface;
-use Psr\Http\Message\ResponseInterface;
-use Psr\Http\Message\ServerRequestInterface;
-use Psr\Http\Message\StreamFactoryInterface;
-use Psr\Log\LoggerAwareInterface;
-use Psr\Log\LoggerAwareTrait;
-use Psr\Log\LoggerInterface;
-use Psr\Log\NullLogger;
-
 use function realpath;
 use function round;
-
-use RuntimeException;
-
 use function sprintf;
 use function str_contains;
 use function str_starts_with;
 use function strtolower;
 use function substr;
-
-use Throwable;
-use TYPO3\CMS\Core\Configuration\ExtensionConfiguration;
-use TYPO3\CMS\Core\Core\Environment;
-use TYPO3\CMS\Core\Locking\Exception\LockCreateException;
-use TYPO3\CMS\Core\Locking\LockFactory;
-use TYPO3\CMS\Core\Locking\LockingStrategyInterface;
-use TYPO3\CMS\Core\Resource\StorageRepository;
-
 use function urldecode;
 use function usleep;
 

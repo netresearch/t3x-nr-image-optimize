@@ -14,8 +14,6 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Tests\Unit\Service;
 
-use function class_implements;
-
 use Intervention\Image\Drivers\Gd\Driver;
 use Intervention\Image\ImageManager;
 use Netresearch\NrImageOptimize\Service\ImageManagerAdapter;
@@ -26,6 +24,8 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
+
+use function class_implements;
 
 /**
  * Tests for ImageManagerAdapter.
