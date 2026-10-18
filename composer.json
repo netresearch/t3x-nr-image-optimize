@@ -47,7 +47,7 @@
         "intervention/image": "^3.11 || ^4.0"
     },
     "require-dev": {
-        "netresearch/typo3-ci-workflows": "^1.1"
+        "netresearch/typo3-ci-workflows": "^2.0.2"
     },
     "suggest": {
         "christophlehmann/imageoptimizer": "Optimize uploaded/processed images with binaries of your choice"
