@@ -16,11 +16,15 @@ namespace Netresearch\NrImageOptimize\Command;
 
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Exception;
+use Generator;
+use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Helper\ProgressBar;
+use Symfony\Component\Console\Style\SymfonyStyle;
+use Symfony\Component\Console\Terminal;
+use TYPO3\CMS\Core\Database\ConnectionPool;
+use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 use function floor;
-
-use Generator;
-
 use function is_numeric;
 use function is_scalar;
 use function is_string;
@@ -29,13 +33,6 @@ use function number_format;
 use function preg_replace;
 use function strlen;
 use function substr;
-
-use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Helper\ProgressBar;
-use Symfony\Component\Console\Style\SymfonyStyle;
-use Symfony\Component\Console\Terminal;
-use TYPO3\CMS\Core\Database\ConnectionPool;
-use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 abstract class AbstractImageCommand extends Command
 {

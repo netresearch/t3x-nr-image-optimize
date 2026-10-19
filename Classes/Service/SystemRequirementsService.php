@@ -14,22 +14,22 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Service;
 
+use Composer\InstalledVersions;
+use Imagick;
+use Throwable;
+use TYPO3\CMS\Core\Core\Environment;
+use TYPO3\CMS\Core\Information\Typo3Version;
+
 use function array_intersect;
 use function array_map;
 use function array_values;
 use function class_exists;
-
-use Composer\InstalledVersions;
-
 use function escapeshellarg;
 use function explode;
 use function extension_loaded;
 use function file_get_contents;
 use function function_exists;
 use function gd_info;
-
-use Imagick;
-
 use function implode;
 use function in_array;
 use function ini_get;
@@ -38,14 +38,7 @@ use function is_file;
 use function json_decode;
 use function phpversion;
 use function shell_exec;
-
-use Throwable;
-
 use function trim;
-
-use TYPO3\CMS\Core\Core\Environment;
-use TYPO3\CMS\Core\Information\Typo3Version;
-
 use function version_compare;
 
 /**

@@ -1,21 +1,24 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # SPDX-FileCopyrightText: Netresearch DTT GmbH
 
+# The shared config sets level 10, treatPhpDocTypesAsCertain, the
+# strictness flags, the .Build/ and ext_emconf.php excludes and the
+# test-infrastructure ignoreErrors; phpstan/extension-installer registers
+# phpstan-typo3, phpat and the other PHPStan extensions.
 includes:
+    - %currentWorkingDirectory%/.Build/vendor/netresearch/typo3-ci-workflows/config/phpstan/phpstan.neon
     - phpstan-baseline.neon
 
 parameters:
-    # Level 10 (maximum strictness) — matches typo3-ci-workflows shared config
-    level: 10
-
     # PHP Version to check against (PHP 8.2 as minimum target)
     phpVersion: 80200
 
-    treatPhpDocTypesAsCertain: false
-    inferPrivatePropertyTypeFromConstructor: true
-    checkMissingCallableSignature: true
-    checkUninitializedProperties: true
-    reportUnmatchedIgnoredErrors: true
+    # The shared config switches ergebnis/phpstan-rules to allRules: false
+    # and opts in to six rules. This extension has run the whole rule set
+    # (the ergebnis default) and suppresses the rules it rejects below, so
+    # it keeps allRules: true — the stricter setting.
+    ergebnis:
+        allRules: true
 
     paths:
         - %currentWorkingDirectory%/Classes/
@@ -24,8 +27,6 @@ parameters:
         - %currentWorkingDirectory%/Tests/
 
     excludePaths:
-        - %currentWorkingDirectory%/.Build/*
-        - %currentWorkingDirectory%/ext_emconf.php
         # Procedural scripts that run inside the throw-away e2e TYPO3 instance
         # (seed + control endpoint), not extension code — see Tests/E2E/README.md.
         - %currentWorkingDirectory%/Tests/E2E/Fixtures/*.php
@@ -129,35 +130,14 @@ parameters:
           path: %currentWorkingDirectory%/Classes/Service/ImageManagerAdapter.php
           reportUnmatched: false
 
-        # --- Test infrastructure (from shared config) ---
-        - identifier: offsetAccess.nonOffsetAccessible
-          path: %currentWorkingDirectory%/Tests/Unit/*
-          reportUnmatched: false
-        # $GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS'] is untyped (mixed) --
-        # ProcessorSymlinkedFileadminTest overrides the
+        # --- Test infrastructure ---
+        # The Tests/Unit/* entry and the other Tests/Functional/* entries come
+        # from the shared config. $GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS'] is
+        # untyped (mixed) -- ProcessorSymlinkedFileadminTest overrides the
         # "additionalTrustedStorageSymlinks" extension configuration
         # in-memory to exercise it without persisting to LocalConfiguration.
         - identifier: offsetAccess.nonOffsetAccessible
           path: %currentWorkingDirectory%/Tests/Functional/*
-          reportUnmatched: false
-        - identifier: argument.type
-          path: %currentWorkingDirectory%/Tests/Unit/*
-          message: '#Parameter \#2 \$array of static method PHPUnit\\Framework\\Assert::#'
-          reportUnmatched: false
-        - identifier: cast.int
-          path: %currentWorkingDirectory%/Tests/Functional/*
-          reportUnmatched: false
-        - identifier: argument.type
-          path: %currentWorkingDirectory%/Tests/Functional/*
-          message: '#mixed#'
-          reportUnmatched: false
-        - identifier: assign.propertyType
-          path: %currentWorkingDirectory%/Tests/Functional/*
-          message: '#mixed#'
-          reportUnmatched: false
-        - identifier: method.nonObject
-          path: %currentWorkingDirectory%/Tests/Functional/*
-          message: '#mixed#'
           reportUnmatched: false
 
 services:

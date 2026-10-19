@@ -14,12 +14,6 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Tests\Functional;
 
-use function copy;
-use function dirname;
-use function file_put_contents;
-use function is_dir;
-use function mkdir;
-
 use Netresearch\NrImageOptimize\Event\ImageProcessedEvent;
 use Netresearch\NrImageOptimize\Event\VariantServedEvent;
 use Netresearch\NrImageOptimize\Processor;
@@ -32,13 +26,7 @@ use PHPUnit\Framework\Attributes\UsesClass;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use ReflectionClass;
-
-use function rmdir;
-
 use SplFileInfo;
-
-use function sprintf;
-
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Crypto\HashService;
 use TYPO3\CMS\Core\Database\ConnectionPool;
@@ -46,6 +34,13 @@ use TYPO3\CMS\Core\Http\ServerRequest;
 use TYPO3\CMS\Core\Http\Uri;
 use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
 
+use function copy;
+use function dirname;
+use function file_put_contents;
+use function is_dir;
+use function mkdir;
+use function rmdir;
+use function sprintf;
 use function unlink;
 
 /**

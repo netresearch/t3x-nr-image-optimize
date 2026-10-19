@@ -23,12 +23,11 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\TestCase;
-
-use function sys_get_temp_dir;
-
 use TYPO3\CMS\Core\Core\ApplicationContext;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Crypto\HashService;
+
+use function sys_get_temp_dir;
 
 /**
  * Acceptance tests that verify the rendered HTML output of the SourceSetViewHelper.

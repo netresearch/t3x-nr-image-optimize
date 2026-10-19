@@ -14,15 +14,13 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\EventListener;
 
-use function in_array;
-
 use Netresearch\NrImageOptimize\Service\ImageOptimizer;
-
-use function strtolower;
-
 use TYPO3\CMS\Core\Resource\Event\AfterFileAddedEvent;
 use TYPO3\CMS\Core\Resource\Event\AfterFileReplacedEvent;
 use TYPO3\CMS\Core\Resource\FileInterface;
+
+use function in_array;
+use function strtolower;
 
 final class OptimizeOnUploadListener
 {

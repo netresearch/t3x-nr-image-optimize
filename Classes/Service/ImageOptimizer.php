@@ -14,6 +14,9 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Service;
 
+use Symfony\Component\Process\Process;
+use TYPO3\CMS\Core\Resource\FileInterface;
+
 use function array_key_exists;
 use function array_merge;
 use function filesize;
@@ -30,13 +33,7 @@ use function min;
 use function round;
 use function strtolower;
 use function strtoupper;
-
-use Symfony\Component\Process\Process;
-
 use function trim;
-
-use TYPO3\CMS\Core\Resource\FileInterface;
-
 use function unlink;
 
 final class ImageOptimizer

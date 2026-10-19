@@ -14,6 +14,12 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\ViewHelpers;
 
+use Netresearch\NrImageOptimize\Service\VariantUrlSigner;
+use TYPO3\CMS\Core\Core\Environment;
+use TYPO3\CMS\Core\Resource\FileReference;
+use TYPO3\CMS\Core\Utility\PathUtility;
+use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper;
+
 use function array_filter;
 use function array_key_exists;
 use function array_map;
@@ -26,9 +32,6 @@ use function http_build_query;
 use function implode;
 use function is_array;
 use function json_decode;
-
-use Netresearch\NrImageOptimize\Service\VariantUrlSigner;
-
 use function round;
 use function sort;
 use function sprintf;
@@ -37,12 +40,6 @@ use function str_starts_with;
 use function strtolower;
 use function trigger_error;
 use function trim;
-
-use TYPO3\CMS\Core\Core\Environment;
-use TYPO3\CMS\Core\Resource\FileReference;
-use TYPO3\CMS\Core\Utility\PathUtility;
-use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper;
-
 use function urldecode;
 
 /**

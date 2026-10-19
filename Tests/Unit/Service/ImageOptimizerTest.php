@@ -14,27 +14,22 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Tests\Unit\Service;
 
+use Netresearch\NrImageOptimize\Service\ImageOptimizer;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\TestCase;
+use ReflectionMethod;
+use TYPO3\CMS\Core\Resource\FileInterface;
+use TYPO3\CMS\Core\Resource\ResourceStorage;
+
 use function imagecreatetruecolor;
 use function imagegif;
 use function imagejpeg;
 use function imagepng;
 use function is_file;
-
-use Netresearch\NrImageOptimize\Service\ImageOptimizer;
-use PHPUnit\Framework\Attributes\DataProvider;
-use PHPUnit\Framework\Attributes\Test;
-use PHPUnit\Framework\TestCase;
-
 use function putenv;
-
-use ReflectionMethod;
-
 use function str_repeat;
 use function sys_get_temp_dir;
-
-use TYPO3\CMS\Core\Resource\FileInterface;
-use TYPO3\CMS\Core\Resource\ResourceStorage;
-
 use function uniqid;
 use function unlink;
 

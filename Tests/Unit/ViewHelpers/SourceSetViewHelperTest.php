@@ -14,6 +14,20 @@ declare(strict_types=1);
 
 namespace Netresearch\NrImageOptimize\Tests\Unit\ViewHelpers;
 
+use Netresearch\NrImageOptimize\Service\VariantUrlSigner;
+use Netresearch\NrImageOptimize\ViewHelpers\SourceSetViewHelper;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\TestCase;
+use ReflectionMethod;
+use ReflectionProperty;
+use TYPO3\CMS\Core\Core\ApplicationContext;
+use TYPO3\CMS\Core\Core\Environment;
+use TYPO3\CMS\Core\Crypto\HashService;
+use TYPO3\CMS\Core\Resource\FileReference;
+use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper;
+use TYPO3Fluid\Fluid\Core\ViewHelper\ArgumentDefinition;
+
 use function array_filter;
 use function array_map;
 use function array_pad;
@@ -24,35 +38,14 @@ use function file_put_contents;
 use function floor;
 use function is_dir;
 use function mkdir;
-
-use Netresearch\NrImageOptimize\Service\VariantUrlSigner;
-use Netresearch\NrImageOptimize\ViewHelpers\SourceSetViewHelper;
-
 use function parse_str;
 use function pathinfo;
-
-use PHPUnit\Framework\Attributes\DataProvider;
-use PHPUnit\Framework\Attributes\Test;
-use PHPUnit\Framework\TestCase;
-
 use function preg_match;
-
-use ReflectionMethod;
-use ReflectionProperty;
-
 use function rmdir;
 use function str_contains;
 use function strpos;
 use function substr_count;
 use function sys_get_temp_dir;
-
-use TYPO3\CMS\Core\Core\ApplicationContext;
-use TYPO3\CMS\Core\Core\Environment;
-use TYPO3\CMS\Core\Crypto\HashService;
-use TYPO3\CMS\Core\Resource\FileReference;
-use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper;
-use TYPO3Fluid\Fluid\Core\ViewHelper\ArgumentDefinition;
-
 use function uniqid;
 use function unlink;
 
