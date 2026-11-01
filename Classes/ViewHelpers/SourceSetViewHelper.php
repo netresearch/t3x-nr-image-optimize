@@ -317,20 +317,20 @@ final class SourceSetViewHelper extends AbstractViewHelper
     }
 
     /**
-     * Filter out empty or null attribute values, preserving empty 'alt' for accessibility.
+     * Filter out empty attribute values, preserving empty 'alt' for accessibility.
      *
-     * @param array<string, int|string|null> $props Attribute map
+     * @param array<string, int|string> $props Attribute map
      *
-     * @return array<string, int|string|null> Filtered attribute map
+     * @return array<string, int|string> Filtered attribute map
      */
     private function filterEmptyAttributes(array $props): array
     {
         return array_filter(
             $props,
-            static fn (int|string|null $value, string|int $key): bool => match (true) {
-                $key === 'alt'                      => $value !== null,
-                $key === 'width', $key === 'height' => !in_array($value, [null, '', 0], true),
-                default                             => $value !== null && $value !== '',
+            static fn (int|string $value, string|int $key): bool => match (true) {
+                $key === 'alt'                      => true,
+                $key === 'width', $key === 'height' => !in_array($value, ['', 0], true),
+                default                             => $value !== '',
             },
             ARRAY_FILTER_USE_BOTH,
         );
