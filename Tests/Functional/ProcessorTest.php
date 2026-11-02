@@ -51,6 +51,16 @@ final class ProcessorTest extends FunctionalTestCase
 
     use EncoderProbeTrait;
 
+    /**
+     * Query string that suppresses both sidecars.
+     */
+    private const SKIP_BOTH_SIDECARS = 'skipWebP=1&skipAvif=1';
+
+    /**
+     * File name suffix of the WebP sidecar next to a variant.
+     */
+    private const WEBP_SUFFIX = '.webp';
+
     protected array $testExtensionsToLoad = [
         'netresearch/nr-image-optimize',
     ];
@@ -205,7 +215,7 @@ final class ProcessorTest extends FunctionalTestCase
     {
         $processor = $this->get(Processor::class);
 
-        $request = $this->signedVariantRequest('/processed/fileadmin/test-image.w50h38m0q80.png', 'skipWebP=1&skipAvif=1');
+        $request = $this->signedVariantRequest('/processed/fileadmin/test-image.w50h38m0q80.png', self::SKIP_BOTH_SIDECARS);
 
         $response = $processor->generateAndSend($request);
 
@@ -243,14 +253,14 @@ final class ProcessorTest extends FunctionalTestCase
     {
         $processor = $this->get(Processor::class);
 
-        $request = $this->signedVariantRequest('/processed/fileadmin/test-image.w30h23m0q80.png', 'skipWebP=1&skipAvif=1');
+        $request = $this->signedVariantRequest('/processed/fileadmin/test-image.w30h23m0q80.png', self::SKIP_BOTH_SIDECARS);
 
         $response = $processor->generateAndSend($request);
         self::assertSame(200, $response->getStatusCode());
 
         $variantPath = Environment::getPublicPath() . '/processed/fileadmin/test-image.w30h23m0q80.png';
         self::assertFileExists($variantPath);
-        self::assertFileDoesNotExist($variantPath . '.webp', 'WebP variant should not be created when skipWebP=1');
+        self::assertFileDoesNotExist($variantPath . self::WEBP_SUFFIX, 'WebP variant should not be created when skipWebP=1');
     }
 
     /**
@@ -269,12 +279,12 @@ final class ProcessorTest extends FunctionalTestCase
 
         $first = $processor->generateAndSend($this->signedVariantRequest($path, 'skipAvif=1'));
         self::assertSame(200, $first->getStatusCode());
-        self::assertFileExists($variantPath . '.webp');
+        self::assertFileExists($variantPath . self::WEBP_SUFFIX);
 
-        $second = $processor->generateAndSend($this->signedVariantRequest($path, 'skipWebP=1&skipAvif=1'));
+        $second = $processor->generateAndSend($this->signedVariantRequest($path, self::SKIP_BOTH_SIDECARS));
         self::assertSame(200, $second->getStatusCode());
         self::assertSame('image/webp', $second->getHeaderLine('Content-Type'));
-        self::assertFileExists($variantPath . '.webp');
+        self::assertFileExists($variantPath . self::WEBP_SUFFIX);
     }
 
     /**
@@ -292,14 +302,14 @@ final class ProcessorTest extends FunctionalTestCase
         $path        = '/processed/fileadmin/test-image.w52h39m0q80.png';
         $variantPath = Environment::getPublicPath() . $path;
 
-        $first = $processor->generateAndSend($this->signedVariantRequest($path, 'skipWebP=1&skipAvif=1'));
+        $first = $processor->generateAndSend($this->signedVariantRequest($path, self::SKIP_BOTH_SIDECARS));
         self::assertSame(200, $first->getStatusCode());
         self::assertFileExists($variantPath);
-        self::assertFileDoesNotExist($variantPath . '.webp');
+        self::assertFileDoesNotExist($variantPath . self::WEBP_SUFFIX);
 
         $second = $processor->generateAndSend($this->signedVariantRequest($path, 'skipAvif=1'));
         self::assertSame(200, $second->getStatusCode());
         self::assertSame('image/png', $second->getHeaderLine('Content-Type'));
-        self::assertFileDoesNotExist($variantPath . '.webp');
+        self::assertFileDoesNotExist($variantPath . self::WEBP_SUFFIX);
     }
 }
