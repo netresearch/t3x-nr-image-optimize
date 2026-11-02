@@ -20,6 +20,7 @@ use Netresearch\NrImageOptimize\Processor;
 use Netresearch\NrImageOptimize\Service\ImageManagerAdapter;
 use Netresearch\NrImageOptimize\Service\ImageManagerFactory;
 use Netresearch\NrImageOptimize\Service\VariantUrlSigner;
+use Netresearch\NrImageOptimize\Tests\Functional\EncoderProbeTrait;
 use Netresearch\NrImageOptimize\ViewHelpers\SourceSetViewHelper;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
@@ -43,6 +44,8 @@ use TYPO3Fluid\Fluid\View\TemplateView;
 #[UsesClass(VariantServedEvent::class)]
 final class SourceSetViewHelperTest extends FunctionalTestCase
 {
+    use EncoderProbeTrait;
+
     protected array $testExtensionsToLoad = [
         'netresearch/nr-image-optimize',
     ];
@@ -203,6 +206,89 @@ final class SourceSetViewHelperTest extends FunctionalTestCase
 
         self::assertSame(200, $response->getStatusCode());
         self::assertFileExists(Environment::getPublicPath() . '/processed/fileadmin/test-image.w60h45m0q75.png');
+    }
+
+    #[Test]
+    public function skipFormatArgumentsSuppressSidecarsForTheRenderedUrl(): void
+    {
+        $output = $this->renderTemplate(
+            '{namespace nrio=Netresearch\NrImageOptimize\ViewHelpers}'
+            . '<nrio:sourceSet path="/fileadmin/test-image.png" width="40" height="30" alt=""'
+            . ' skipWebP="1" skipAvif="1" />',
+        );
+
+        self::assertSame(1, preg_match('/<img[^>]* src="([^"]+)"/', $output, $matches), $output);
+
+        $src = html_entity_decode($matches[1], ENT_QUOTES | ENT_HTML5);
+        self::assertStringContainsString('skipWebP=1', $src);
+        self::assertStringContainsString('skipAvif=1', $src);
+
+        $response = $this->get(Processor::class)->generateAndSend(
+            new ServerRequest(new Uri('https://example.com' . $src)),
+        );
+
+        self::assertSame(200, $response->getStatusCode());
+
+        $variantPath = Environment::getPublicPath() . '/processed/fileadmin/test-image.w40h30m0q75.png';
+        self::assertFileExists($variantPath);
+        self::assertFileDoesNotExist($variantPath . '.webp', 'skipWebP="1" must suppress the WebP sidecar');
+        self::assertFileDoesNotExist($variantPath . '.avif', 'skipAvif="1" must suppress the AVIF sidecar');
+    }
+
+    #[Test]
+    public function skipAvifArgumentAloneKeepsTheWebpSidecar(): void
+    {
+        $this->skipUnlessWebpEncoderWorks();
+
+        $output = $this->renderTemplate(
+            '{namespace nrio=Netresearch\NrImageOptimize\ViewHelpers}'
+            . '<nrio:sourceSet path="/fileadmin/test-image.png" width="44" height="33" alt="" skipAvif="1" />',
+        );
+
+        self::assertSame(1, preg_match('/<img[^>]* src="([^"]+)"/', $output, $matches), $output);
+
+        $src = html_entity_decode($matches[1], ENT_QUOTES | ENT_HTML5);
+        self::assertStringContainsString('skipAvif=1', $src);
+        self::assertStringNotContainsString('skipWebP', $src);
+
+        $response = $this->get(Processor::class)->generateAndSend(
+            new ServerRequest(new Uri('https://example.com' . $src)),
+        );
+
+        self::assertSame(200, $response->getStatusCode());
+
+        $variantPath = Environment::getPublicPath() . '/processed/fileadmin/test-image.w44h33m0q75.png';
+        self::assertFileExists($variantPath);
+        self::assertFileExists($variantPath . '.webp', 'Without skipWebP the WebP sidecar is still written');
+        self::assertFileDoesNotExist($variantPath . '.avif', 'skipAvif="1" must suppress the AVIF sidecar');
+    }
+
+    #[Test]
+    public function skipWebpArgumentAloneKeepsTheAvifSidecar(): void
+    {
+        $this->skipUnlessAvifEncoderWorks();
+
+        $output = $this->renderTemplate(
+            '{namespace nrio=Netresearch\NrImageOptimize\ViewHelpers}'
+            . '<nrio:sourceSet path="/fileadmin/test-image.png" width="48" height="36" alt="" skipWebP="1" />',
+        );
+
+        self::assertSame(1, preg_match('/<img[^>]* src="([^"]+)"/', $output, $matches), $output);
+
+        $src = html_entity_decode($matches[1], ENT_QUOTES | ENT_HTML5);
+        self::assertStringContainsString('skipWebP=1', $src);
+        self::assertStringNotContainsString('skipAvif', $src);
+
+        $response = $this->get(Processor::class)->generateAndSend(
+            new ServerRequest(new Uri('https://example.com' . $src)),
+        );
+
+        self::assertSame(200, $response->getStatusCode());
+
+        $variantPath = Environment::getPublicPath() . '/processed/fileadmin/test-image.w48h36m0q75.png';
+        self::assertFileExists($variantPath);
+        self::assertFileExists($variantPath . '.avif', 'Without skipAvif the AVIF sidecar is still written');
+        self::assertFileDoesNotExist($variantPath . '.webp', 'skipWebP="1" must suppress the WebP sidecar');
     }
 
     /**

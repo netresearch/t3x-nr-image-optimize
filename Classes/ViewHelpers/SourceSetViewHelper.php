@@ -147,6 +147,8 @@ final class SourceSetViewHelper extends AbstractViewHelper
         $this->registerArgument('fetchpriority', 'string', "Resource fetch priority for the image: 'high', 'low', or 'auto'.", false, '');
         $this->registerArgument('image', FileReference::class, 'Optional FAL FileReference used to derive a crop-aware height (overrides `height`).', false);
         $this->registerArgument('cropVariant', 'string', 'FAL crop variant to read from `image` when deriving height.', false, 'default');
+        $this->registerArgument('skipWebP', 'bool', 'Do not generate a WebP sidecar for any variant this ViewHelper renders.', false, false);
+        $this->registerArgument('skipAvif', 'bool', 'Do not generate an AVIF sidecar for any variant this ViewHelper renders.', false, false);
     }
 
     /**
@@ -190,12 +192,12 @@ final class SourceSetViewHelper extends AbstractViewHelper
 
         foreach ($widthVariants as $variantWidth) {
             $variantHeight   = $this->calculateVariantHeight($variantWidth, $aspectRatio);
-            $url             = $this->getResourcePath($path, $variantWidth, $variantHeight);
+            $url             = $this->getVariantUrl($path, $variantWidth, $variantHeight);
             $srcsetEntries[] = $url . ' ' . $variantWidth . 'w';
         }
 
         $srcSet  = implode(', ', $srcsetEntries);
-        $srcPath = $this->getResourcePath($path, $width, $height);
+        $srcPath = $this->getVariantUrl($path, $width, $height);
 
         $sizes      = $this->arguments['sizes'] ?? self::DEFAULT_SIZES;
         $sizesValue = is_string($sizes) ? $sizes : self::DEFAULT_SIZES;
@@ -227,8 +229,8 @@ final class SourceSetViewHelper extends AbstractViewHelper
         $path   = $this->getArgPath();
         $jsLazy = $this->useJsLazyLoad();
 
-        $srcSet  = $this->getResourcePath($path, $width * self::RETINA_MULTIPLIER, $height * self::RETINA_MULTIPLIER) . ' 2x';
-        $srcPath = $this->getResourcePath($path, $width, $height);
+        $srcSet  = $this->getVariantUrl($path, $width * self::RETINA_MULTIPLIER, $height * self::RETINA_MULTIPLIER) . ' 2x';
+        $srcPath = $this->getVariantUrl($path, $width, $height);
 
         $props = $this->buildImageAttributes($srcPath, $srcSet, $width, $height, $jsLazy);
 
@@ -413,6 +415,29 @@ final class SourceSetViewHelper extends AbstractViewHelper
     }
 
     /**
+     * Build the processed image URL for one candidate of this ViewHelper call.
+     *
+     * Applies the call's skipWebP/skipAvif arguments, so every candidate
+     * (src, srcset, width variants, <source> sets) carries the same flags.
+     *
+     * @param string $path   Public path to the original image
+     * @param int    $width  Target width (0 keeps original)
+     * @param int    $height Target height (0 keeps original)
+     *
+     * @return string URL under /processed/...
+     */
+    private function getVariantUrl(string $path, int $width, int $height): string
+    {
+        return $this->getResourcePath(
+            $path,
+            $width,
+            $height,
+            skipAvif: ($this->arguments['skipAvif'] ?? false) === true,
+            skipWebP: ($this->arguments['skipWebP'] ?? false) === true,
+        );
+    }
+
+    /**
      * Build a processed image URL for the given path and parameters.
      *
      * Uses a static cache for getimagesize() results to avoid repeated disk I/O
@@ -523,8 +548,8 @@ final class SourceSetViewHelper extends AbstractViewHelper
             $dimensionHeight = $dimensions['height'] ?? 0;
             $srcSet          = sprintf(
                 '%s, %s 2x',
-                $this->getResourcePath($path, $dimensionWidth, $dimensionHeight),
-                $this->getResourcePath($path, $dimensionWidth * self::RETINA_MULTIPLIER, $dimensionHeight * self::RETINA_MULTIPLIER),
+                $this->getVariantUrl($path, $dimensionWidth, $dimensionHeight),
+                $this->getVariantUrl($path, $dimensionWidth * self::RETINA_MULTIPLIER, $dimensionHeight * self::RETINA_MULTIPLIER),
             );
 
             $sourceProps = [
