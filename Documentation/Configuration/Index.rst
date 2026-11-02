@@ -156,6 +156,28 @@ Parameters
     values: ``high``, ``low``, ``auto``. Omitted when
     empty.
 
+..  confval:: skipWebP
+    :name: confval-skip-webp
+    :type: boolean
+    :Default: false
+
+    Add ``skipWebP=1`` to every URL the ViewHelper renders
+    (``src``, ``srcset``, width variants and ``<source>``
+    sets), so the processor writes no ``.webp`` sidecar
+    for these variants. See
+    :ref:`configuration-variant-negotiation`.
+
+..  confval:: skipAvif
+    :name: confval-skip-avif
+    :type: boolean
+    :Default: false
+
+    Add ``skipAvif=1`` to every URL the ViewHelper renders,
+    so the processor writes no ``.avif`` sidecar for these
+    variants. With both flags set, each variant is written
+    in its source format only. See
+    :ref:`configuration-variant-negotiation`.
+
 ..  confval:: attributes
     :name: confval-attributes
     :type: array
@@ -168,7 +190,11 @@ Parameters
     Quality and output format are not exposed as ViewHelper
     arguments. Quality defaults to 75 and is baked into the
     generated ``/processed/...q<n>...`` URL; the variant's
-    file extension is inherited from the source image. Use
+    file extension is inherited from the source image. Only
+    the generation of the WebP/AVIF sidecars can be switched
+    off per call, with
+    :confval:`skipWebP <confval-skip-webp>` and
+    :confval:`skipAvif <confval-skip-avif>`. Use
     :ref:`the URL format <configuration-url-format>` and
     :ref:`variant negotiation <configuration-variant-negotiation>`
     to influence the served format.
@@ -359,6 +385,10 @@ for individual URLs:
 
 ``skipAvif=1``
     Do not produce an AVIF variant for this URL.
+
+The ``sourceSet`` ViewHelper adds these flags to every URL it
+renders when its :confval:`skipWebP <confval-skip-webp>` or
+:confval:`skipAvif <confval-skip-avif>` argument is set.
 
 The flags only control generation. The query string is not part
 of the variant file name, so a URL with a skip flag shares its
