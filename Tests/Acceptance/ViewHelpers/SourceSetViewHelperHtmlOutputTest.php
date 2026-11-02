@@ -27,7 +27,14 @@ use TYPO3\CMS\Core\Core\ApplicationContext;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Crypto\HashService;
 
+use function array_unique;
+use function explode;
+use function implode;
+use function parse_str;
+use function parse_url;
+use function str_starts_with;
 use function sys_get_temp_dir;
+use function trim;
 
 /**
  * Acceptance tests that verify the rendered HTML output of the SourceSetViewHelper.
@@ -705,5 +712,165 @@ final class SourceSetViewHelperHtmlOutputTest extends TestCase
         self::assertStringContainsString('data-src=', $html);
         self::assertStringContainsString('data-srcset=', $html);
         self::assertStringContainsString('class="lazyload img-fluid"', $html);
+    }
+
+    // ──────────────────────────────────────────────────
+    // skipWebP / skipAvif arguments
+    // ──────────────────────────────────────────────────
+
+    /**
+     * Every rendering path that emits /processed/ URLs, with the number of
+     * candidate URLs it must produce: legacy density srcset, responsive width
+     * variants, <source> sets, and the JS lazy-load data attributes.
+     *
+     * @return iterable<string, array{array<string, mixed>, int}>
+     */
+    public static function skipFormatRenderModeProvider(): iterable
+    {
+        yield 'legacy density srcset' => [
+            ['width' => 400, 'height' => 300],
+            2,
+        ];
+
+        yield 'responsive width variants' => [
+            ['width' => 800, 'height' => 600, 'responsiveSrcset' => true, 'widthVariants' => '320,640,960'],
+            4,
+        ];
+
+        yield 'source sets with legacy img' => [
+            [
+                // 700x500 keeps the <img> candidates distinct from the
+                // <source> 2x candidates, so all six URLs are counted.
+                'width'  => 700,
+                'height' => 500,
+                'set'    => [
+                    480 => ['width' => 300, 'height' => 200],
+                    768 => ['width' => 500, 'height' => 333],
+                ],
+            ],
+            6,
+        ];
+
+        yield 'js lazy load with source sets and width variants' => [
+            [
+                'width'            => 800,
+                'height'           => 600,
+                'class'            => 'lazyload',
+                'responsiveSrcset' => true,
+                'widthVariants'    => '320,640',
+                'set'              => [480 => ['width' => 300, 'height' => 200]],
+            ],
+            5,
+        ];
+    }
+
+    /**
+     * @return iterable<string, array{bool, bool}>
+     */
+    public static function skipFormatFlagProvider(): iterable
+    {
+        yield 'skipAvif only' => [false, true];
+        yield 'skipWebP only' => [true, false];
+        yield 'both' => [true, true];
+    }
+
+    /**
+     * @return iterable<string, array{array<string, mixed>, int, bool, bool}>
+     */
+    public static function skipFormatProvider(): iterable
+    {
+        foreach (self::skipFormatRenderModeProvider() as $modeName => [$arguments, $expectedUrls]) {
+            foreach (self::skipFormatFlagProvider() as $flagName => [$skipWebP, $skipAvif]) {
+                yield $modeName . ', ' . $flagName => [$arguments, $expectedUrls, $skipWebP, $skipAvif];
+            }
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $arguments
+     */
+    #[Test]
+    #[DataProvider('skipFormatProvider')]
+    public function skipFormatArgumentsAreCarriedByEveryCandidateUrl(
+        array $arguments,
+        int $expectedUrls,
+        bool $skipWebP,
+        bool $skipAvif,
+    ): void {
+        $this->viewHelper->setArguments([
+            'path'     => '/fileadmin/hero.jpg',
+            'skipWebP' => $skipWebP,
+            'skipAvif' => $skipAvif,
+        ] + $arguments);
+
+        $urls = $this->collectCandidateUrls($this->viewHelper->render());
+
+        self::assertCount($expectedUrls, array_unique($urls), 'Unexpected number of distinct candidate URLs: ' . implode(' | ', $urls));
+
+        foreach ($urls as $url) {
+            $query = $this->parseQuery($url);
+
+            self::assertSame($skipWebP ? '1' : null, $query['skipWebP'] ?? null, 'skipWebP flag on ' . $url);
+            self::assertSame($skipAvif ? '1' : null, $query['skipAvif'] ?? null, 'skipAvif flag on ' . $url);
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $arguments
+     */
+    #[Test]
+    #[DataProvider('skipFormatRenderModeProvider')]
+    public function noSkipFlagIsEmittedByDefault(array $arguments, int $expectedUrls): void
+    {
+        $this->viewHelper->setArguments(['path' => '/fileadmin/hero.jpg'] + $arguments);
+
+        $urls = $this->collectCandidateUrls($this->viewHelper->render());
+
+        self::assertCount($expectedUrls, array_unique($urls));
+
+        foreach ($urls as $url) {
+            $query = $this->parseQuery($url);
+
+            self::assertArrayNotHasKey('skipWebP', $query, $url);
+            self::assertArrayNotHasKey('skipAvif', $query, $url);
+        }
+    }
+
+    /**
+     * Collect every /processed/ candidate URL from src, srcset, data-src and
+     * data-srcset of all <img> and <source> elements in the rendered markup.
+     *
+     * @return list<string>
+     */
+    private function collectCandidateUrls(string $html): array
+    {
+        $doc  = $this->parseHtml($html);
+        $urls = [];
+
+        foreach (['img', 'source'] as $tagName) {
+            foreach ($doc->getElementsByTagName($tagName) as $element) {
+                foreach (['src', 'srcset', 'data-src', 'data-srcset'] as $attribute) {
+                    foreach (explode(',', $element->getAttribute($attribute)) as $candidate) {
+                        $url = explode(' ', trim($candidate))[0];
+
+                        if (str_starts_with($url, '/processed/')) {
+                            $urls[] = $url;
+                        }
+                    }
+                }
+            }
+        }
+
+        return $urls;
+    }
+
+    /**
+     * @return array<array-key, mixed>
+     */
+    private function parseQuery(string $url): array
+    {
+        parse_str((string) parse_url($url, PHP_URL_QUERY), $query);
+
+        return $query;
     }
 }

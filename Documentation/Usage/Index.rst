@@ -218,6 +218,47 @@ Paint (LCP) scores:
                   fetchpriority="high"
     />
 
+..  _usage-skip-formats:
+
+Skip WebP or AVIF generation
+============================
+
+..  versionadded:: 2.7.0
+    The ``skipWebP`` and ``skipAvif`` ViewHelper arguments.
+
+By default the first request for a variant writes the source
+format plus a ``.webp`` and an ``.avif`` sidecar. AVIF encoding
+is the most expensive of the three. Set ``skipAvif`` and/or
+``skipWebP`` to leave a format out for one ViewHelper call; the
+flag is added to every URL the call renders:
+
+..  code-block:: html
+    :caption: JPEG and WebP only, no AVIF encoding
+
+    <nr:sourceSet path="{f:uri.image(image: image)}"
+                  width="1200"
+                  height="800"
+                  skipAvif="1"
+    />
+
+With both flags set, each variant is written in its source format
+only.
+
+..  note::
+    The flags only control generation, and they are not part of the
+    variant's file name, so templates that render the same image at
+    the same size share one set of files. Whichever request creates
+    the variant first decides which sidecars exist:
+
+    -   A sidecar already written by a request without the flag is
+        still served.
+    -   A variant first created with the flag gets no such sidecar
+        later, not even for a template without the flag, until the
+        processed images are cleared (see :ref:`maintenance-clear`).
+
+    To turn a format off for the whole installation, use the
+    :ref:`extension settings <configuration-sidecar-formats>` instead.
+
 ..  _usage-cli:
 
 Command-line tools

@@ -211,7 +211,9 @@ Features
     file from then on (see :ref:`introduction-performance`).
 -   **Next-gen format support.** Automatic WebP and AVIF sidecar
     generation, served in the order AVIF, WebP, original format,
-    with per-URL ``skipWebP`` / ``skipAvif`` opt-outs.
+    with per-URL ``skipWebP`` / ``skipAvif`` opt-outs that the
+    ViewHelper sets through its arguments of the same name (see
+    :ref:`usage-skip-formats`).
 -   **Responsive images.**
     :php:class:`~Netresearch\\NrImageOptimize\\ViewHelpers\\SourceSetViewHelper`
     emits ``<img>`` tags with density-based or width-based

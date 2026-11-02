@@ -1211,7 +1211,7 @@ final class SourceSetViewHelperTest extends TestCase
         $expectedArgs = [
             'path', 'set', 'width', 'height', 'alt', 'class',
             'mode', 'title', 'lazyload', 'attributes', 'responsiveSrcset',
-            'widthVariants', 'sizes', 'fetchpriority',
+            'widthVariants', 'sizes', 'fetchpriority', 'skipWebP', 'skipAvif',
         ];
 
         foreach ($expectedArgs as $argName) {
@@ -1249,6 +1249,12 @@ final class SourceSetViewHelperTest extends TestCase
         self::assertFalse($definitions['lazyload']->getDefaultValue());
         self::assertFalse($definitions['responsiveSrcset']->getDefaultValue());
         self::assertSame('', $definitions['fetchpriority']->getDefaultValue());
+        self::assertFalse($definitions['skipWebP']->getDefaultValue());
+        self::assertFalse($definitions['skipAvif']->getDefaultValue());
+        self::assertSame('bool', $definitions['skipWebP']->getType());
+        self::assertSame('bool', $definitions['skipAvif']->getType());
+        self::assertFalse($definitions['skipWebP']->isRequired());
+        self::assertFalse($definitions['skipAvif']->isRequired());
         self::assertSame('', $definitions['alt']->getDefaultValue());
         self::assertSame('', $definitions['class']->getDefaultValue());
         self::assertSame('cover', $definitions['mode']->getDefaultValue());

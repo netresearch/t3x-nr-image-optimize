@@ -49,6 +49,18 @@ final class ProcessorTest extends FunctionalTestCase
 {
     use SignedVariantRequestTrait;
 
+    use EncoderProbeTrait;
+
+    /**
+     * Query string that suppresses both sidecars.
+     */
+    private const SKIP_BOTH_SIDECARS = 'skipWebP=1&skipAvif=1';
+
+    /**
+     * File name suffix of the WebP sidecar next to a variant.
+     */
+    private const WEBP_SUFFIX = '.webp';
+
     protected array $testExtensionsToLoad = [
         'netresearch/nr-image-optimize',
     ];
@@ -203,7 +215,7 @@ final class ProcessorTest extends FunctionalTestCase
     {
         $processor = $this->get(Processor::class);
 
-        $request = $this->signedVariantRequest('/processed/fileadmin/test-image.w50h38m0q80.png', 'skipWebP=1&skipAvif=1');
+        $request = $this->signedVariantRequest('/processed/fileadmin/test-image.w50h38m0q80.png', self::SKIP_BOTH_SIDECARS);
 
         $response = $processor->generateAndSend($request);
 
@@ -241,13 +253,63 @@ final class ProcessorTest extends FunctionalTestCase
     {
         $processor = $this->get(Processor::class);
 
-        $request = $this->signedVariantRequest('/processed/fileadmin/test-image.w30h23m0q80.png', 'skipWebP=1&skipAvif=1');
+        $request = $this->signedVariantRequest('/processed/fileadmin/test-image.w30h23m0q80.png', self::SKIP_BOTH_SIDECARS);
 
         $response = $processor->generateAndSend($request);
         self::assertSame(200, $response->getStatusCode());
 
         $variantPath = Environment::getPublicPath() . '/processed/fileadmin/test-image.w30h23m0q80.png';
         self::assertFileExists($variantPath);
-        self::assertFileDoesNotExist($variantPath . '.webp', 'WebP variant should not be created when skipWebP=1');
+        self::assertFileDoesNotExist($variantPath . self::WEBP_SUFFIX, 'WebP variant should not be created when skipWebP=1');
+    }
+
+    /**
+     * The skip flags only control generation and are not part of the variant
+     * file name: a sidecar written by an earlier request without the flag is
+     * still served to a later request that carries it.
+     */
+    #[Test]
+    public function skipFlagDoesNotHideASidecarWrittenEarlierWithoutIt(): void
+    {
+        $this->skipUnlessWebpEncoderWorks();
+
+        $processor   = $this->get(Processor::class);
+        $path        = '/processed/fileadmin/test-image.w36h27m0q80.png';
+        $variantPath = Environment::getPublicPath() . $path;
+
+        $first = $processor->generateAndSend($this->signedVariantRequest($path, 'skipAvif=1'));
+        self::assertSame(200, $first->getStatusCode());
+        self::assertFileExists($variantPath . self::WEBP_SUFFIX);
+
+        $second = $processor->generateAndSend($this->signedVariantRequest($path, self::SKIP_BOTH_SIDECARS));
+        self::assertSame(200, $second->getStatusCode());
+        self::assertSame('image/webp', $second->getHeaderLine('Content-Type'));
+        self::assertFileExists($variantPath . self::WEBP_SUFFIX);
+    }
+
+    /**
+     * The reverse case: once a variant exists on disk the processor serves it
+     * without processing again, so a variant first created with a skip flag
+     * gets no such sidecar later, not even for a request without the flag,
+     * until the processed images are cleared.
+     */
+    #[Test]
+    public function variantCreatedWithASkipFlagGetsNoSidecarFromALaterRequestWithoutIt(): void
+    {
+        $this->skipUnlessWebpEncoderWorks();
+
+        $processor   = $this->get(Processor::class);
+        $path        = '/processed/fileadmin/test-image.w52h39m0q80.png';
+        $variantPath = Environment::getPublicPath() . $path;
+
+        $first = $processor->generateAndSend($this->signedVariantRequest($path, self::SKIP_BOTH_SIDECARS));
+        self::assertSame(200, $first->getStatusCode());
+        self::assertFileExists($variantPath);
+        self::assertFileDoesNotExist($variantPath . self::WEBP_SUFFIX);
+
+        $second = $processor->generateAndSend($this->signedVariantRequest($path, 'skipAvif=1'));
+        self::assertSame(200, $second->getStatusCode());
+        self::assertSame('image/png', $second->getHeaderLine('Content-Type'));
+        self::assertFileDoesNotExist($variantPath . self::WEBP_SUFFIX);
     }
 }

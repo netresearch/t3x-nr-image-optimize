@@ -20,8 +20,10 @@ use Netresearch\NrImageOptimize\Processor;
 use Netresearch\NrImageOptimize\Service\ImageManagerAdapter;
 use Netresearch\NrImageOptimize\Service\ImageManagerFactory;
 use Netresearch\NrImageOptimize\Service\VariantUrlSigner;
+use Netresearch\NrImageOptimize\Tests\Functional\EncoderProbeTrait;
 use Netresearch\NrImageOptimize\ViewHelpers\SourceSetViewHelper;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\Attributes\UsesClass;
 use TYPO3\CMS\Core\Core\Environment;
@@ -43,6 +45,8 @@ use TYPO3Fluid\Fluid\View\TemplateView;
 #[UsesClass(VariantServedEvent::class)]
 final class SourceSetViewHelperTest extends FunctionalTestCase
 {
+    use EncoderProbeTrait;
+
     protected array $testExtensionsToLoad = [
         'netresearch/nr-image-optimize',
     ];
@@ -203,6 +207,64 @@ final class SourceSetViewHelperTest extends FunctionalTestCase
 
         self::assertSame(200, $response->getStatusCode());
         self::assertFileExists(Environment::getPublicPath() . '/processed/fileadmin/test-image.w60h45m0q75.png');
+    }
+
+    /**
+     * Each data set renders its own size: the variant file name does not
+     * include the skip flags and processed files persist between the tests
+     * of this class, so a shared size would be served from the first data
+     * set's cached variant.
+     *
+     * @return iterable<string, array{string, int, int, bool, bool}>
+     */
+    public static function skipFormatArgumentProvider(): iterable
+    {
+        yield 'both' => ['skipWebP="1" skipAvif="1"', 40, 30, true, true];
+        yield 'skipAvif only' => ['skipAvif="1"', 44, 33, false, true];
+        yield 'skipWebP only' => ['skipWebP="1"', 48, 36, true, false];
+    }
+
+    #[Test]
+    #[DataProvider('skipFormatArgumentProvider')]
+    public function skipFormatArgumentsControlTheSidecarsOfTheRenderedUrl(
+        string $skipAttributes,
+        int $width,
+        int $height,
+        bool $skipWebP,
+        bool $skipAvif,
+    ): void {
+        // A sidecar that is expected to be written needs a working encoder;
+        // asserting the absence of a skipped one needs none.
+        if (!$skipWebP) {
+            $this->skipUnlessWebpEncoderWorks();
+        }
+
+        if (!$skipAvif) {
+            $this->skipUnlessAvifEncoderWorks();
+        }
+
+        $output = $this->renderTemplate(
+            '{namespace nrio=Netresearch\NrImageOptimize\ViewHelpers}'
+            . '<nrio:sourceSet path="/fileadmin/test-image.png" width="' . $width . '" height="' . $height . '" alt="" ' . $skipAttributes . ' />',
+        );
+
+        self::assertSame(1, preg_match('/<img[^>]* src="([^"]+)"/', $output, $matches), $output);
+
+        $src = html_entity_decode($matches[1], ENT_QUOTES | ENT_HTML5);
+        parse_str((string) parse_url($src, PHP_URL_QUERY), $query);
+        self::assertSame($skipWebP ? '1' : null, $query['skipWebP'] ?? null, $src);
+        self::assertSame($skipAvif ? '1' : null, $query['skipAvif'] ?? null, $src);
+
+        $response = $this->get(Processor::class)->generateAndSend(
+            new ServerRequest(new Uri('https://example.com' . $src)),
+        );
+
+        self::assertSame(200, $response->getStatusCode());
+
+        $variantPath = Environment::getPublicPath() . '/processed/fileadmin/test-image.w' . $width . 'h' . $height . 'm0q75.png';
+        self::assertFileExists($variantPath);
+        self::assertSame(!$skipWebP, file_exists($variantPath . '.webp'), 'WebP sidecar written iff skipWebP is not set');
+        self::assertSame(!$skipAvif, file_exists($variantPath . '.avif'), 'AVIF sidecar written iff skipAvif is not set');
     }
 
     /**

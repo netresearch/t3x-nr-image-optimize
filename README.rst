@@ -318,6 +318,11 @@ Supported parameters
     Native HTML ``fetchpriority`` attribute (``high``,
     ``low``, or ``auto``).
 
+``skipWebP`` / ``skipAvif``
+    Add ``skipWebP=1`` / ``skipAvif=1`` to every rendered URL, so the
+    processor writes no WebP / AVIF sidecar for these variants.
+    Default: ``false``.
+
 ``attributes``
     Extra HTML attributes merged into the rendered tag.
 
@@ -325,7 +330,9 @@ Supported parameters
 
     Quality and output format are not exposed as ViewHelper
     arguments; they are baked into the ``/processed/`` URL
-    (``q<n>`` segment, source extension). Use
+    (``q<n>`` segment, source extension). Only the WebP/AVIF
+    sidecar generation can be switched off per call
+    (``skipWebP`` / ``skipAvif``). Use
     ``f:uri.image(image: image, additionalConfiguration: ...)``
     to influence the generated path if needed.
 
