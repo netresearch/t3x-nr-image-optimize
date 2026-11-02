@@ -246,10 +246,17 @@ only.
 
 ..  note::
     The flags only control generation, and they are not part of the
-    variant's file name. A sidecar that already exists for the same
-    variant -- written by a request without the flag, or by another
-    template rendering the same image at the same size -- is still
-    served. To turn a format off for the whole installation, use the
+    variant's file name, so templates that render the same image at
+    the same size share one set of files. Whichever request creates
+    the variant first decides which sidecars exist:
+
+    -   A sidecar already written by a request without the flag is
+        still served.
+    -   A variant first created with the flag gets no such sidecar
+        later, not even for a template without the flag, until the
+        processed images are cleared (see :ref:`maintenance-clear`).
+
+    To turn a format off for the whole installation, use the
     :ref:`extension settings <configuration-sidecar-formats>` instead.
 
 ..  _usage-cli:

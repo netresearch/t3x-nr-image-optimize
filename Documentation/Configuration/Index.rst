@@ -161,9 +161,9 @@ Parameters
     :type: boolean
     :Default: false
 
-    Add ``skipWebP=1`` to every URL the ViewHelper renders
-    (``src``, ``srcset``, width variants and ``<source>``
-    sets), so the processor writes no ``.webp`` sidecar
+    Add ``skipWebP=1`` to every ``/processed/`` URL the
+    ViewHelper renders (``src``, ``srcset``, width variants
+    and ``<source>`` sets), so the processor writes no ``.webp`` sidecar
     for these variants. See
     :ref:`configuration-variant-negotiation`.
 
@@ -172,7 +172,8 @@ Parameters
     :type: boolean
     :Default: false
 
-    Add ``skipAvif=1`` to every URL the ViewHelper renders,
+    Add ``skipAvif=1`` to every ``/processed/`` URL the
+    ViewHelper renders,
     so the processor writes no ``.avif`` sidecar for these
     variants. With both flags set, each variant is written
     in its source format only. See
@@ -393,7 +394,9 @@ renders when its :confval:`skipWebP <confval-skip-webp>` or
 The flags only control generation. The query string is not part
 of the variant file name, so a URL with a skip flag shares its
 files with the same URL without it: a sidecar already written
-for that variant is served either way.
+for that variant is served either way, and a variant first created
+with a skip flag gets no such sidecar later until the processed
+images are cleared (see :ref:`maintenance-clear`).
 
 These flags are useful when specific consumers (for example
 e-mail clients or legacy RSS renderers) cannot handle modern
