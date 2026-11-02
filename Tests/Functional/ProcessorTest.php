@@ -49,6 +49,8 @@ final class ProcessorTest extends FunctionalTestCase
 {
     use SignedVariantRequestTrait;
 
+    use EncoderProbeTrait;
+
     protected array $testExtensionsToLoad = [
         'netresearch/nr-image-optimize',
     ];
@@ -249,5 +251,55 @@ final class ProcessorTest extends FunctionalTestCase
         $variantPath = Environment::getPublicPath() . '/processed/fileadmin/test-image.w30h23m0q80.png';
         self::assertFileExists($variantPath);
         self::assertFileDoesNotExist($variantPath . '.webp', 'WebP variant should not be created when skipWebP=1');
+    }
+
+    /**
+     * The skip flags only control generation and are not part of the variant
+     * file name: a sidecar written by an earlier request without the flag is
+     * still served to a later request that carries it.
+     */
+    #[Test]
+    public function skipFlagDoesNotHideASidecarWrittenEarlierWithoutIt(): void
+    {
+        $this->skipUnlessWebpEncoderWorks();
+
+        $processor   = $this->get(Processor::class);
+        $path        = '/processed/fileadmin/test-image.w36h27m0q80.png';
+        $variantPath = Environment::getPublicPath() . $path;
+
+        $first = $processor->generateAndSend($this->signedVariantRequest($path, 'skipAvif=1'));
+        self::assertSame(200, $first->getStatusCode());
+        self::assertFileExists($variantPath . '.webp');
+
+        $second = $processor->generateAndSend($this->signedVariantRequest($path, 'skipWebP=1&skipAvif=1'));
+        self::assertSame(200, $second->getStatusCode());
+        self::assertSame('image/webp', $second->getHeaderLine('Content-Type'));
+        self::assertFileExists($variantPath . '.webp');
+    }
+
+    /**
+     * The reverse case: once a variant exists on disk the processor serves it
+     * without processing again, so a variant first created with a skip flag
+     * gets no such sidecar later, not even for a request without the flag,
+     * until the processed images are cleared.
+     */
+    #[Test]
+    public function variantCreatedWithASkipFlagGetsNoSidecarFromALaterRequestWithoutIt(): void
+    {
+        $this->skipUnlessWebpEncoderWorks();
+
+        $processor   = $this->get(Processor::class);
+        $path        = '/processed/fileadmin/test-image.w52h39m0q80.png';
+        $variantPath = Environment::getPublicPath() . $path;
+
+        $first = $processor->generateAndSend($this->signedVariantRequest($path, 'skipWebP=1&skipAvif=1'));
+        self::assertSame(200, $first->getStatusCode());
+        self::assertFileExists($variantPath);
+        self::assertFileDoesNotExist($variantPath . '.webp');
+
+        $second = $processor->generateAndSend($this->signedVariantRequest($path, 'skipAvif=1'));
+        self::assertSame(200, $second->getStatusCode());
+        self::assertSame('image/png', $second->getHeaderLine('Content-Type'));
+        self::assertFileDoesNotExist($variantPath . '.webp');
     }
 }
