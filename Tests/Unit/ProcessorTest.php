@@ -55,8 +55,10 @@ use function file_put_contents;
 use function glob;
 use function ini_set;
 use function is_dir;
+use function is_string;
 use function md5;
 use function mkdir;
+use function parse_str;
 use function realpath;
 use function rmdir;
 use function sprintf;
@@ -108,17 +110,26 @@ class ProcessorTest extends TestCase
 
     /**
      * Query string carrying the signature SourceSetViewHelper would render
-     * for the given variant path.
+     * for the given variant path and the skip flags in $query.
      */
     private function signedQuery(string $variantPath, string $query = ''): string
     {
+        $flags = [];
+        parse_str($query, $flags);
+
+        $signature = $this->createSigner()->sign(
+            $variantPath,
+            is_string($flags['skipWebP'] ?? null) && (bool) $flags['skipWebP'],
+            is_string($flags['skipAvif'] ?? null) && (bool) $flags['skipAvif'],
+        );
+
         return ($query === '' ? '' : $query . '&')
-            . VariantUrlSigner::QUERY_PARAMETER . '=' . $this->createSigner()->sign($variantPath);
+            . VariantUrlSigner::QUERY_PARAMETER . '=' . $signature;
     }
 
     private function minimalPng(): string
     {
-        return (string) base64_decode(self::MINIMAL_PNG_BASE64, true);
+        return base64_decode(self::MINIMAL_PNG_BASE64, true);
     }
 
     protected function setUp(): void
@@ -2384,6 +2395,7 @@ class ProcessorTest extends TestCase
         );
 
         foreach ($iterator as $item) {
+            /** @var SplFileInfo $item */
             if ($item->isDir()) {
                 rmdir($item->getPathname());
             } else {

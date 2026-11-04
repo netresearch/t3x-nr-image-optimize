@@ -43,6 +43,7 @@ use function unlink;
 #[CoversClass(VariantUrlSigner::class)]
 final class ProcessorAccessTest extends FunctionalTestCase
 {
+    use AvifEncoderProbeTrait;
     use SignedVariantRequestTrait;
 
     protected array $testExtensionsToLoad = [
@@ -131,6 +132,45 @@ final class ProcessorAccessTest extends FunctionalTestCase
 
         self::assertSame(403, $response->getStatusCode());
         self::assertFileDoesNotExist(Environment::getPublicPath() . '/processed/fileadmin/test-image.w8192h8192m0q100.png');
+    }
+
+    #[Test]
+    public function skipFlagAppendedToASignedUrlIsRefused(): void
+    {
+        $request = $this->signedVariantRequest('/processed/fileadmin/test-image.w43h33m0q80.png');
+
+        $response = $this->get(Processor::class)->generateAndSend(
+            $request->withUri($request->getUri()->withQuery('skipAvif=1&' . $request->getUri()->getQuery())),
+        );
+
+        self::assertSame(403, $response->getStatusCode());
+        self::assertFileDoesNotExist(Environment::getPublicPath() . '/processed/fileadmin/test-image.w43h33m0q80.png');
+    }
+
+    #[Test]
+    public function signedSkipFlagCreatesTheVariantWithoutThatSidecar(): void
+    {
+        $response = $this->get(Processor::class)->generateAndSend(
+            $this->signedVariantRequest('/processed/fileadmin/test-image.w44h34m0q80.png', 'skipWebP=1'),
+        );
+
+        self::assertSame(200, $response->getStatusCode());
+        self::assertFileExists(Environment::getPublicPath() . '/processed/fileadmin/test-image.w44h34m0q80.png');
+        self::assertFileDoesNotExist(Environment::getPublicPath() . '/processed/fileadmin/test-image.w44h34m0q80.png.webp');
+    }
+
+    #[Test]
+    public function signedSkipWebpFlagKeepsTheAvifSidecar(): void
+    {
+        $this->skipUnlessAvifEncoderWorks();
+
+        $response = $this->get(Processor::class)->generateAndSend(
+            $this->signedVariantRequest('/processed/fileadmin/test-image.w45h35m0q80.png', 'skipWebP=1'),
+        );
+
+        self::assertSame(200, $response->getStatusCode());
+        self::assertFileExists(Environment::getPublicPath() . '/processed/fileadmin/test-image.w45h35m0q80.png.avif');
+        self::assertFileDoesNotExist(Environment::getPublicPath() . '/processed/fileadmin/test-image.w45h35m0q80.png.webp');
     }
 
     #[Test]

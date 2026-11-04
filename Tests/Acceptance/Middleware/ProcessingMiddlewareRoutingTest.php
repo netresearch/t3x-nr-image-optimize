@@ -26,6 +26,7 @@ use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use ReflectionClass;
 use ReflectionMethod;
+use SplFileInfo;
 use TYPO3\CMS\Core\Core\ApplicationContext;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Http\ResponseFactory;
@@ -518,6 +519,7 @@ class ProcessingMiddlewareRoutingTest extends TestCase
         );
 
         foreach ($items as $item) {
+            /** @var SplFileInfo $item */
             if ($item->isDir()) {
                 @rmdir($item->getRealPath());
             } else {
