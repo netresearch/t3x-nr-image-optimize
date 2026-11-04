@@ -129,7 +129,7 @@ class ProcessorTest extends TestCase
 
     private function minimalPng(): string
     {
-        return (string) base64_decode(self::MINIMAL_PNG_BASE64, true);
+        return base64_decode(self::MINIMAL_PNG_BASE64, true);
     }
 
     protected function setUp(): void
