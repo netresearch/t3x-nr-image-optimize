@@ -1008,7 +1008,11 @@ class Processor
     }
 
     /**
-     * Whether the variant request carries a valid signature for its path.
+     * Whether the variant request carries a valid signature for its path and
+     * its skipWebP/skipAvif flags.
+     *
+     * The flags are read exactly as processAndRespond() reads them, so a
+     * flag appended to a signed URL makes the signature invalid.
      *
      * Any failure (missing parameter, non-string value, signer not available)
      * counts as "not signed".
@@ -1016,7 +1020,7 @@ class Processor
      * @param RequestInterface $request    The incoming request
      * @param string           $variantUrl URL-decoded request path
      *
-     * @return bool True if the signature matches the path
+     * @return bool True if the signature matches the path and flags
      */
     private function hasValidSignature(RequestInterface $request, string $variantUrl): bool
     {
@@ -1030,7 +1034,14 @@ class Processor
         }
 
         try {
-            return $this->variantUrlSigner->isValid($variantUrl, $signature);
+            $flags = $this->parseQueryParams($request);
+
+            return $this->variantUrlSigner->isValid(
+                $variantUrl,
+                $signature,
+                $flags['skipWebP'],
+                $flags['skipAvif'],
+            );
         } catch (Throwable) {
             return false;
         }

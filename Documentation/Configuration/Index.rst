@@ -183,6 +183,11 @@ Signed variant URLs
     only the extensions ``jpg``, ``jpeg``, ``png``, ``gif``, ``webp``,
     ``avif``, ``bmp``, ``tif`` and ``tiff``.
 
+..  versionchanged:: 1.6.2
+    The signature also covers the ``skipWebP`` / ``skipAvif`` flags.
+    URLs without flags keep their signature; URLs with a flag that
+    were signed before need a new one (see below).
+
 Creating a variant costs CPU time, memory and disk space, so the
 processor creates one only when the URL carries a signature issued by
 the installation itself:
@@ -196,18 +201,29 @@ the installation itself:
 *   A URL without a valid signature is answered with HTTP 403 unless
     the variant is already on disk; existing variants are served
     without a signature.
-*   The ``skipWebP`` / ``skipAvif`` flags are not part of the
-    signature.
+*   A URL with the ``skipWebP`` / ``skipAvif`` flags is signed over
+    the path and those flags. A flag added to or removed from a
+    signed URL invalidates the signature (HTTP 403 unless the
+    variant is on disk). Otherwise anyone could request a variant
+    first with a flag and so strip its sidecar for every visitor.
+    A URL without flags is signed over the path alone, as before.
 
 Consequences for existing installations:
 
 *   Pages rendered before the update carry unsigned URLs. Flush the
     page cache after updating, so variants that do not exist yet can
     be created.
+*   Since 1.6.2 the skip flags are signed. A URL with ``skipWebP``
+    or ``skipAvif`` signed by an earlier version -- built with
+    ``getResourcePath()`` or signed by hand -- is answered with
+    HTTP 403 until it is signed again. Flush the page cache after
+    updating if such URLs exist, and pass the flags to ``sign()``
+    where you sign URLs yourself.
 *   URLs written by hand need a signature. Build them in PHP with
     ``SourceSetViewHelper::getResourcePath()`` or sign the path with
     the ``Netresearch\NrImageOptimize\Service\VariantUrlSigner``
-    service (``sign(string $variantPath)``, with the URL-decoded path).
+    service (``sign(string $variantPath, bool $skipWebP, bool $skipAvif)``,
+    with the URL-decoded path and the flags the URL carries).
 *   Changing the ``encryptionKey`` invalidates all signatures; flush
     the page cache afterwards.
 *   Without an ``encryptionKey`` no signature is issued or accepted.
