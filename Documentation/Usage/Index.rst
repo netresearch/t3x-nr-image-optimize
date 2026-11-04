@@ -256,6 +256,10 @@ only.
         later, not even for a template without the flag, until the
         processed images are cleared (see :ref:`maintenance-clear`).
 
+    The flags are part of the URL signature, so only a template
+    can set them; a flag added to a rendered URL is refused (see
+    :ref:`configuration-url-signature`).
+
     To turn a format off for the whole installation, use the
     :ref:`extension settings <configuration-sidecar-formats>` instead.
 

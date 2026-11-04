@@ -32,8 +32,11 @@ use function is_string;
  * The signature is an HMAC (TYPO3 HashService, SHA-1) over the URL-decoded
  * variant path -- source path, mode string (w/h/q/m) and extension -- keyed
  * with the installation's encryption key plus a secret specific to this
- * purpose. The skipWebP/skipAvif query flags are not signed: they can only
- * reduce the work done for a request.
+ * purpose. A URL that sets the skipWebP/skipAvif query flags is signed over
+ * the path plus those flags, so a flag appended to a signed URL invalidates
+ * it: whichever request creates a variant decides which sidecars it gets, so
+ * an unsigned flag would let anyone strip a variant's AVIF or WebP sidecar
+ * for every later visitor. A URL without flags is signed over the path alone.
  *
  * Changing $GLOBALS['TYPO3_CONF_VARS']['SYS']['encryptionKey'] invalidates
  * every signature; pages have to be re-rendered (cache flush) afterwards.
@@ -63,16 +66,21 @@ final readonly class VariantUrlSigner
      * alone, so no signature is issued (and isValid() accepts none).
      *
      * @param string $variantPath URL-decoded path, e.g. "/processed/fileadmin/a.w800h0m0q75.jpg"
+     * @param bool   $skipWebP    Whether the URL carries the skipWebP flag
+     * @param bool   $skipAvif    Whether the URL carries the skipAvif flag
      *
      * @return string Hex-encoded HMAC, or '' when no encryption key is configured
      */
-    public function sign(string $variantPath): string
+    public function sign(string $variantPath, bool $skipWebP = false, bool $skipAvif = false): string
     {
         if (!$this->hasEncryptionKey()) {
             return '';
         }
 
-        return $this->hashService->hmac($variantPath, self::ADDITIONAL_SECRET);
+        return $this->hashService->hmac(
+            $this->signedMessage($variantPath, $skipWebP, $skipAvif),
+            self::ADDITIONAL_SECRET,
+        );
     }
 
     /**
@@ -80,22 +88,45 @@ final readonly class VariantUrlSigner
      *
      * @param string $variantPath URL-decoded path as received by the processor
      * @param string $signature   Value of the QUERY_PARAMETER query parameter
+     * @param bool   $skipWebP    Whether the request carries the skipWebP flag
+     * @param bool   $skipAvif    Whether the request carries the skipAvif flag
      *
-     * @return bool True only for a non-empty signature issued by sign() with the current encryption key
+     * @return bool True only for a non-empty signature issued by sign() for the same path and flags with the current encryption key
      */
-    public function isValid(string $variantPath, string $signature): bool
-    {
+    public function isValid(
+        string $variantPath,
+        string $signature,
+        bool $skipWebP = false,
+        bool $skipAvif = false,
+    ): bool {
         if ($signature === '') {
             return false;
         }
 
-        $expected = $this->sign($variantPath);
+        $expected = $this->sign($variantPath, $skipWebP, $skipAvif);
 
         if ($expected === '') {
             return false;
         }
 
         return hash_equals($expected, $signature);
+    }
+
+    /**
+     * The string the HMAC is computed over.
+     *
+     * Without flags this is the path alone, so URLs rendered before the
+     * flags were signed keep their signature. With a flag, the flag state
+     * follows a NUL byte; the processor only accepts paths ending in an
+     * image extension, so no path can produce the same string.
+     */
+    private function signedMessage(string $variantPath, bool $skipWebP, bool $skipAvif): string
+    {
+        if (!$skipWebP && !$skipAvif) {
+            return $variantPath;
+        }
+
+        return $variantPath . "\0skipWebP=" . (int) $skipWebP . '&skipAvif=' . (int) $skipAvif;
     }
 
     /**
