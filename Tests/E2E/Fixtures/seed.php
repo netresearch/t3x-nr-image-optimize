@@ -90,10 +90,10 @@ $pdo = new PDO(
 
 $now = time();
 
-// ExtEagerJpeg.html writes its /processed/ URLs by hand (the ViewHelper does
-// not expose the skip flags), so it cannot get the signature the ViewHelper
-// adds. Sign them here with the instance's key, in image order, and hand the
-// list to the template through the page record.
+// ExtEagerJpeg.html writes its /processed/ URLs by hand, so it cannot get the
+// signature the ViewHelper adds. Sign them here with the instance's key, in
+// image order, and hand the list to the template through the page record.
+// The URLs carry skipWebP=1&skipAvif=1, and the signature covers the flags.
 require_once INSTANCE_ROOT . '/vendor/autoload.php';
 
 // First and only inclusion in this process, so require_once returns the array.
@@ -111,7 +111,11 @@ $signer     = new VariantUrlSigner(new HashService());
 $signatures = [];
 
 for ($i = 1; $i <= PHOTO_COUNT; ++$i) {
-    $signatures[] = $signer->sign(sprintf('/processed/fileadmin/benchmark/photo-%02d.w800h600m0q75.jpg', $i));
+    $signatures[] = $signer->sign(
+        sprintf('/processed/fileadmin/benchmark/photo-%02d.w800h600m0q75.jpg', $i),
+        skipWebP: true,
+        skipAvif: true,
+    );
 }
 
 // uid => [slug, template name, abstract]. The template name lands in the
