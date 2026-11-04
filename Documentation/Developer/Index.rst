@@ -346,14 +346,16 @@ VariantUrlSigner
     :ref:`configuration-url-signature`). Inject it to build
     ``/processed/`` URLs outside the ViewHelper.
 
-    ``sign(string $variantPath): string``
+    ``sign(string $variantPath, bool $skipWebP = false, bool $skipAvif = false): string``
         HMAC of the URL-decoded variant path, for example
-        ``/processed/fileadmin/hero.w1200h800m0q85.jpg``. Returns an
-        empty string when no ``encryptionKey`` is configured.
+        ``/processed/fileadmin/hero.w1200h800m0q85.jpg``, and of the
+        skip flags the URL carries. Pass the same flags you add to
+        the query string. Returns an empty string when no
+        ``encryptionKey`` is configured.
 
-    ``isValid(string $variantPath, string $signature): bool``
-        Whether the signature was issued for that path with the
-        current ``encryptionKey``.
+    ``isValid(string $variantPath, string $signature, bool $skipWebP = false, bool $skipAvif = false): bool``
+        Whether the signature was issued for that path and those
+        flags with the current ``encryptionKey``.
 
     ``QUERY_PARAMETER``
         Name of the query parameter that carries the signature

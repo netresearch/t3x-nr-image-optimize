@@ -400,17 +400,23 @@ final class SourceSetViewHelperTest extends TestCase
     }
 
     #[Test]
-    public function getResourcePathKeepsSkipFlagsNextToTheSignature(): void
+    public function getResourcePathSignsTheSkipFlags(): void
     {
         $this->withEncryptionKey(function (): void {
             $this->viewHelper->setArguments(['mode' => 'fit']);
 
-            [$path, $parameters] = $this->splitUrl($this->viewHelper->getResourcePath('/path/to/image.jpg', 640, 480, 85, true, true));
+            [$path, $parameters] = $this->splitUrl($this->viewHelper->getResourcePath('/path/to/image.jpg', 640, 480, 85, true, false));
 
-            self::assertSame('1', $parameters['skipWebP'] ?? null);
             self::assertSame('1', $parameters['skipAvif'] ?? null);
+            self::assertArrayNotHasKey('skipWebP', $parameters);
             self::assertIsString($parameters[VariantUrlSigner::QUERY_PARAMETER] ?? null);
-            self::assertTrue((new VariantUrlSigner(new HashService()))->isValid($path, $parameters[VariantUrlSigner::QUERY_PARAMETER]));
+
+            $signer = new VariantUrlSigner(new HashService());
+
+            self::assertTrue($signer->isValid($path, $parameters[VariantUrlSigner::QUERY_PARAMETER], false, true));
+            // Without the flag, or with another one added, the signature no longer fits.
+            self::assertFalse($signer->isValid($path, $parameters[VariantUrlSigner::QUERY_PARAMETER]));
+            self::assertFalse($signer->isValid($path, $parameters[VariantUrlSigner::QUERY_PARAMETER], true, true));
         });
     }
 

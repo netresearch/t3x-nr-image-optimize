@@ -19,11 +19,14 @@ use TYPO3\CMS\Core\Crypto\HashService;
 use TYPO3\CMS\Core\Http\ServerRequest;
 use TYPO3\CMS\Core\Http\Uri;
 
+use function is_string;
+use function parse_str;
 use function urldecode;
 
 /**
  * Builds variant requests that carry the signature SourceSetViewHelper adds
- * to every URL it renders, keyed with the test instance's encryption key.
+ * to every URL it renders -- over the path and the skip flags in $query --
+ * keyed with the test instance's encryption key.
  */
 trait SignedVariantRequestTrait
 {
@@ -33,7 +36,16 @@ trait SignedVariantRequestTrait
      */
     private function signedVariantRequest(string $path, string $query = ''): ServerRequest
     {
-        $signature = (new VariantUrlSigner(new HashService()))->sign(urldecode($path));
+        // The flags are signed the way SourceSetViewHelper signs them and the
+        // processor reads them back.
+        $flags = [];
+        parse_str($query, $flags);
+
+        $signature = (new VariantUrlSigner(new HashService()))->sign(
+            urldecode($path),
+            is_string($flags['skipWebP'] ?? null) && (bool) $flags['skipWebP'],
+            is_string($flags['skipAvif'] ?? null) && (bool) $flags['skipAvif'],
+        );
 
         $query = ($query === '' ? '' : $query . '&')
             . VariantUrlSigner::QUERY_PARAMETER . '=' . $signature;

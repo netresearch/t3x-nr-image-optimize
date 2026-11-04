@@ -16,6 +16,7 @@ namespace Netresearch\NrImageOptimize\Tests\Unit\Service;
 
 use Netresearch\NrImageOptimize\Service\VariantUrlSigner;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use TYPO3\CMS\Core\Crypto\HashService;
@@ -101,5 +102,57 @@ final class VariantUrlSignerTest extends TestCase
 
         self::assertSame('', $signer->sign(self::PATH));
         self::assertFalse($signer->isValid(self::PATH, $keyedWithoutEncryptionKey));
+    }
+
+    #[Test]
+    public function signatureOfAPathWithoutFlagsIsTheSignatureOfThePathAlone(): void
+    {
+        $signer = new VariantUrlSigner(new HashService());
+
+        // URLs rendered before the flags were signed stay valid.
+        self::assertSame(
+            (new HashService())->hmac(self::PATH, 'nr_image_optimize:processed-variant-url'),
+            $signer->sign(self::PATH, false, false),
+        );
+    }
+
+    #[Test]
+    public function signatureWithFlagsIsAcceptedForTheSameFlags(): void
+    {
+        $signer = new VariantUrlSigner(new HashService());
+
+        self::assertTrue($signer->isValid(self::PATH, $signer->sign(self::PATH, true, false), true, false));
+        self::assertTrue($signer->isValid(self::PATH, $signer->sign(self::PATH, false, true), false, true));
+        self::assertTrue($signer->isValid(self::PATH, $signer->sign(self::PATH, true, true), true, true));
+    }
+
+    /**
+     * @return iterable<string, array{bool, bool, bool, bool}>
+     */
+    public static function flagChanges(): iterable
+    {
+        yield 'skipAvif appended to a URL without flags' => [false, false, false, true];
+        yield 'skipWebP appended to a URL without flags' => [false, false, true, false];
+        yield 'skipWebP appended to a skipAvif URL' => [false, true, true, true];
+        yield 'skipAvif removed from a skipAvif URL' => [false, true, false, false];
+        yield 'flags swapped' => [true, false, false, true];
+    }
+
+    #[Test]
+    #[DataProvider('flagChanges')]
+    public function signatureIsRefusedWhenTheFlagsDiffer(
+        bool $signedSkipWebP,
+        bool $signedSkipAvif,
+        bool $requestedSkipWebP,
+        bool $requestedSkipAvif,
+    ): void {
+        $signer = new VariantUrlSigner(new HashService());
+
+        self::assertFalse($signer->isValid(
+            self::PATH,
+            $signer->sign(self::PATH, $signedSkipWebP, $signedSkipAvif),
+            $requestedSkipWebP,
+            $requestedSkipAvif,
+        ));
     }
 }

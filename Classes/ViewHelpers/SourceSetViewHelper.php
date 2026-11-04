@@ -513,7 +513,8 @@ final class SourceSetViewHelper extends AbstractViewHelper
         // Signed over the URL-decoded path: the processor verifies against
         // urldecode() of the request path, and $path may arrive already
         // percent-encoded (f:uri.image() encodes non-ASCII characters).
-        $signature = $this->variantUrlSigner->sign(urldecode($url));
+        // The skip flags are signed too, so nobody can append one.
+        $signature = $this->variantUrlSigner->sign(urldecode($url), $skipWebP, $skipAvif);
 
         if ($signature !== '') {
             $queryArgs[VariantUrlSigner::QUERY_PARAMETER] = $signature;

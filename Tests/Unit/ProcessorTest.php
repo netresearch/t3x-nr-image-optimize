@@ -129,12 +129,21 @@ final class ProcessorTest extends TestCase
 
     /**
      * Query string carrying the signature SourceSetViewHelper would render
-     * for the given variant path.
+     * for the given variant path and the skip flags in $query.
      */
     private function signedQuery(string $variantPath, string $query = ''): string
     {
+        $flags = [];
+        parse_str($query, $flags);
+
+        $signature = $this->createSigner()->sign(
+            $variantPath,
+            is_string($flags['skipWebP'] ?? null) && (bool) $flags['skipWebP'],
+            is_string($flags['skipAvif'] ?? null) && (bool) $flags['skipAvif'],
+        );
+
         return ($query === '' ? '' : $query . '&')
-            . VariantUrlSigner::QUERY_PARAMETER . '=' . $this->createSigner()->sign($variantPath);
+            . VariantUrlSigner::QUERY_PARAMETER . '=' . $signature;
     }
 
     private function resetAllowedRootsCache(): void
