@@ -101,7 +101,7 @@ Features
 Requirements
 ============
 
--   PHP 8.2, 8.3, 8.4, or 8.5.
+-   PHP 8.2, 8.3, 8.4, 8.5, or 8.6.
 -   TYPO3 13.4 LTS or 14.3 LTS.
 -   Intervention Image library (installed via Composer
     automatically).
