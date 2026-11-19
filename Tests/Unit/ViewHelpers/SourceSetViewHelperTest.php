@@ -2078,12 +2078,9 @@ final class SourceSetViewHelperTest extends TestCase
 
         $result = $this->callMethod('getWidthVariants');
 
-        // Valid values are kept; non-numeric produces 0 (filtered), leaving [300, 500]
+        // Valid values are kept; non-numeric produces 0 (filtered), leaving [300, 500].
+        // The exact list also proves that no zero or negative width survives.
         self::assertSame([300, 500], $result);
-
-        foreach ($result as $width) {
-            self::assertGreaterThan(0, $width, 'All returned widths must be positive');
-        }
     }
 
     // =========================================================================
