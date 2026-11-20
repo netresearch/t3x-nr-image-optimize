@@ -125,7 +125,7 @@ Checks that run on every pull request in this repository:
 - `.github/workflows/ci.yml`: PHP lint, code style, PHPStan (level 10,
   `Build/phpstan.neon`, including the architecture rules in
   `Tests/Architecture/`), Rector, unit, functional (SQLite) and acceptance
-  tests on PHP 8.2 to 8.5 with TYPO3 13.4 and 14.3, and the documentation
+  tests on PHP 8.2 to 8.6 with TYPO3 13.4 and 14.3, and the documentation
   rendering of `Documentation/`.
 - `.github/workflows/harness-verify.yml`: `Build/Scripts/verify-harness.sh`.
 
