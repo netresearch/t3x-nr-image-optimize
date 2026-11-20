@@ -9,7 +9,7 @@
     :target: https://github.com/netresearch/t3x-nr-image-optimize/actions/workflows/ci.yml
 ..  |codecov| image:: https://codecov.io/gh/netresearch/t3x-nr-image-optimize/branch/main/graph/badge.svg
     :target: https://app.codecov.io/gh/netresearch/t3x-nr-image-optimize
-..  |php| image:: https://img.shields.io/badge/PHP-8.2%20|%208.3%20|%208.4%20|%208.5-blue.svg
+..  |php| image:: https://img.shields.io/badge/PHP-8.2%20|%208.3%20|%208.4%20|%208.5%20|%208.6-blue.svg
     :target: https://www.php.net/
 ..  |typo3| image:: https://img.shields.io/badge/TYPO3-13.4%20|%2014-orange.svg
     :target: https://typo3.org/
