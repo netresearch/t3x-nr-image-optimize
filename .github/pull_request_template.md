@@ -33,5 +33,5 @@ Put `Closes #XXXX` in your comment to auto-close the issue that your PR fixes (i
 
 - [ ] CI checks pass (`composer ci:test`)
 - [ ] Tests added or updated for the change
-- [ ] CHANGELOG.md updated (if applicable)
+- [ ] Changelog fragment added in `changelog.d/` (if applicable; see `changelog.d/README.md`)
 - [ ] Documentation updated (if applicable)

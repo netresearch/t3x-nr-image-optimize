@@ -18,6 +18,7 @@
 /infection.json5  export-ignore
 /infection-full.json5 export-ignore
 /renovate.json    export-ignore
+/changelog.d/     export-ignore
 # Agent instructions, at every level of the tree.
 AGENTS.md         export-ignore
 CLAUDE.md         export-ignore
